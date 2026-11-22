@@ -3,6 +3,8 @@ import { G, save, load, wipe } from './state.js';
 import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
 import { A, loadAll, propGeo } from './assets.js';
+import { makeIcons } from './icons.js';
+import { SoulChannel } from './vfx.js';
 import { Floor, setNavTime } from './world.js';
 import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt } from './ui.js';
@@ -41,6 +43,7 @@ initUI({ camera, groundAt, canvas, reset: () => resetDungeon() });
 // ---------- floors ----------
 let packId = 1;
 function makeFloor(depth) {
+  if (G.player && G.player.chanFx) endChannel(G.player);
   for (const u of G.units) if (u.side !== 'player') u.remove(); for (const c of G.corpses) scene.remove(c.mesh.root); for (const s of G.shots) scene.remove(s.root);
   for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = []; for (const c of G.clouds) scene.remove(c.disc); G.clouds = []; G.bolts = []; for (const L of G.loot) scene.remove(L.root); G.loot = [];
   G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
@@ -73,6 +76,8 @@ function resetDungeon() {
   S.stairs(); makeFloor(0); message('副本已重置');
 }
 
+function endChannel(P) { for (const c of P.chanList || []) c.claim = null; P.chanList = []; if (P.chanFx) { P.chanFx.dispose(); P.chanFx = null; } P.state = 'idle'; }
+
 // ---------- the summoner ----------
 function castSpear(P, tx, tz) { if (P.spearCD > 0 || P.mp < SKILLS.spear.mana) return false; P.mp -= SKILLS.spear.mana; P.spearCD = SKILLS.spear.cd / PACE.act; P.faceT = Math.atan2(tx - P.x, tz - P.z); P.atkT = 0.2;
   shoot(P, 'spear', tx, tz, { dmg: P.dmg, life: 0.75 }); playerAnim(P, 'shoot'); return true; }
@@ -81,26 +86,32 @@ function nearestEnemy(P, maxD) { let b = null, bd = maxD; if (G.focus && !G.focu
 const tmp = { x: 0, z: 0 };
 function updatePlayer(dt) {
   const P = G.player, F = G.floor; P.flash = Math.max(0, P.flash - dt * 5);
-  if (P.dead) { P.wantX = P.wantZ = 0; P.respawnT -= dt; P.mesh.mixer.update(dt); P.mesh.u.uFade.value = Math.min(1, Math.max(0, (P.respawnT - 0.3) / 0.8));
+  if (P.dead) { if (P.chanFx) { for (const c of P.chanList) c.claim = null; P.chanList = []; P.chanFx.dispose(); P.chanFx = null; } P.wantX = P.wantZ = 0; P.respawnT -= dt; P.mesh.mixer.update(dt); P.mesh.u.uFade.value = Math.min(1, Math.max(0, (P.respawnT - 0.3) / 0.8));
     if (P.respawnT <= 0) { P.dead = false; P.chillT = 0; P.poison = null; P.state = 'idle'; P.hp = P.maxHp; P.mp = P.maxMp; P.x = F.start.cx; P.z = F.start.cy; P.mesh.u.uFade.value = 1; playerAnim(P, 'revive');
       for (const en of G.crypt) if (en.unit && !en.unit.dead) { en.unit.x = P.x + 1; en.unit.z = P.z; } message('你在入口处重新站了起来'); } return; }
   const fighting = G.enemies.some(e => e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 12);
   P.mp = Math.min(P.maxMp, P.mp + (fighting ? 4 : 8) * dt); P.hp = Math.min(P.maxHp, P.hp + P.maxHp * (fighting ? 0.004 : 0.03) * dt);
   P.spearCD = (P.spearCD || 0) - dt * slowK(P); P.mendCD = (P.mendCD || 0) - dt; P.atkT = (P.atkT || 0) - dt;
   const moving = IN.joy || (IN.hold && IN.moveTo);
-  // channelling 唤魂 on a corpse
-  if (P.state === 'channel') { P.wantX = P.wantZ = 0; P.st += dt;
-    if (!G.corpses.includes(P.chanC) || moving) { if (P.chanC) P.chanC.claim = null; P.state = 'idle'; P.chanC = null; }
-    else if (P.st >= SKILLS.raise.channel / PACE.act) { const c = P.chanC; c.claim = null; P.state = 'idle'; P.chanC = null; finishRaise(c); }
+  // channelling 唤魂 on every corpse in the circle at once
+  if (P.state === 'channel') { P.wantX = P.wantZ = 0; P.st += dt; const T = SKILLS.raise.channel / PACE.act;
+    for (const c of P.chanList.slice()) if (!G.corpses.includes(c)) { P.chanList.splice(P.chanList.indexOf(c), 1); P.chanFx.drop(c); }
+    if (!P.chanList.length || moving) endChannel(P);
+    else { P.chanFx.update(dt, P, Math.min(1, P.st / T), parts);
+      if (P.st >= T) { const list = P.chanList.slice(); endChannel(P); list.forEach((c, i) => G.fx.push({ t: 0.05 + i * 0.16, fn: () => finishRaise(c) })); } }
     return; }
-  // 唤魂 request
-  if (IN.raiseKey) { IN.raiseKey = false; const from = !touchUI && IN.cursor ? IN.cursor : P; let c = pickCorpse(from, touchUI ? SKILLS.raise.range : 2.5) || pickCorpse(P, SKILLS.raise.range);
-    if (c) IN.raise = c; else message('附近没有可以唤魂的尸体'); }
-  if (IN.raise) { const c = IN.raise; if (!G.corpses.includes(c) || c.claim) IN.raise = null;
-    else { const d = Math.hypot(c.x - P.x, c.z - P.z);
-      if (d > SKILLS.raise.range) { F.dirTo(P.x, P.z, c.x, c.z, tmp); P.wantX = tmp.x * P.speed; P.wantZ = tmp.z * P.speed; if (moving) IN.raise = null; else return; }
-      else if (P.mp < SKILLS.raise.mana) { message('法力不足'); IN.raise = null; }
-      else { P.mp -= SKILLS.raise.mana; P.state = 'channel'; P.st = 0; P.chanC = c; c.claim = P; IN.raise = null; P.faceT = Math.atan2(c.x - P.x, c.z - P.z); S.raise(); return; } } }
+  // 唤魂 request: walk toward a clicked corpse if it is out of reach, then raise everything around
+  if (IN.raiseKey) { IN.raiseKey = false; IN.raise = 'area'; }
+  if (IN.raise) { const tgt = IN.raise !== 'area' ? IN.raise : null, R = SKILLS.raise.range;
+    if (tgt && (!G.corpses.includes(tgt) || tgt.claim)) IN.raise = null;
+    else if (tgt && Math.hypot(tgt.x - P.x, tgt.z - P.z) > R) { F.dirTo(P.x, P.z, tgt.x, tgt.z, tmp); P.wantX = tmp.x * P.speed; P.wantZ = tmp.z * P.speed; if (moving) IN.raise = null; else return; }
+    else { IN.raise = null; let list = G.corpses.filter(c => !c.claim && Math.hypot(c.x - P.x, c.z - P.z) <= R).sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z));
+      if (!list.length) message('附近没有可以唤魂的尸体');
+      else if (P.mp < SKILLS.raise.mana) message('法力不足');
+      else { const n = Math.min(list.length, 1 + Math.floor((P.mp - SKILLS.raise.mana) / SKILLS.raise.extra)); if (n < list.length) message(`法力只够唤 ${n} 具`); list = list.slice(0, n);
+        P.mp -= SKILLS.raise.mana + SKILLS.raise.extra * (n - 1); P.state = 'channel'; P.st = 0; P.chanList = list; for (const c of list) c.claim = P;
+        const cx = list.reduce((a, c) => a + c.x, 0) / n, cz = list.reduce((a, c) => a + c.z, 0) / n; P.faceT = Math.atan2(cx - P.x, cz - P.z);
+        P.chanFx = new SoulChannel(scene, P, list, R); S.raise(); return; } } }
   // 愈合
   if (IN.mend) { IN.mend = false; if (P.mendCD > 0) message('愈合冷却中'); else if (P.mp < SKILLS.mend.mana) message('法力不足'); else { P.mp -= SKILLS.mend.mana; P.mendCD = SKILLS.mend.cd; S.heal(); playerAnim(P, 'mend');
     const rg = ring(0.3, 0.6, 0x7dff9a, 0.9); rg.position.set(P.x, 0.05, P.z); scene.add(rg); G.fx.push({ t: 0.5, tick: k => { rg.scale.setScalar(1 + k * 14); rg.material.opacity = 0.9 * (1 - k); }, fn: () => scene.remove(rg) });
@@ -128,12 +139,12 @@ function updatePlayer(dt) {
 let started = false;
 const hasSave = load();
 $('#startMsg').textContent = hasSave ? `继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层` : '第一次进入墓穴';
-$('#help').innerHTML = touchUI ? '左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服尸体　·　「墓典」编辑出战' :
-  '左键：移动 / 点怪攻击　·　右键：朝鼠标方向放骨矛（Shift+左键同效）<br>Q：唤魂（收服鼠标附近的尸体）　·　W：愈合　·　Tab：墓典　·　走到楼梯点击或按 Enter 下楼';
+$('#help').innerHTML = touchUI ? '左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服身边所有尸体　·　「墓典」编辑出战' :
+  '左键：移动 / 点怪攻击　·　右键：朝鼠标方向放骨矛（Shift+左键同效）<br>Q：唤魂（收服身边一圈内的所有尸体）　·　W：愈合　·　Tab：墓典　·　I：背包　·　走到楼梯点击或按 Enter 下楼';
 $('#bStart').addEventListener('click', () => { if (!A.ready) return; unlock(); $('#start').classList.add('hide'); started = true; });
 $('#bNew').addEventListener('click', () => { if (!confirm('清除存档重新开始？')) return; wipe(); location.reload(); });
 const bS = $('#bStart'), label = bS.textContent; bS.disabled = true;
-loadAll(k => { bS.textContent = `载入中 ${Math.round(k * 100)}%`; }).then(() => { bS.disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
+loadAll(k => { bS.textContent = `载入中 ${Math.round(k * 100)}%`; }).then(() => { makeIcons(); bS.disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
   .catch(e => { console.error(e); bS.textContent = '资源载入失败，请刷新'; });
 
 // the shader takes a handful of torch lights: upload the ones nearest the summoner

@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { G, save } from './state.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, QUAL, WEAPONS, BAG_MAX, itemName, itemLines, itemIcon, itemScore, itemFits, furnaceOdds, furnaceRoll, rollItem } from './data.js';
 import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed } from './units.js';
-import { openGear, closeGear, gearOpen, toggleGear } from './gearui.js';
+import { openGear, closeGear, gearOpen, toggleBag } from './gearui.js';
+import { portrait } from './icons.js';
 import { S } from './audio.js';
 import { unlock, setSfx, sfxOn } from './audio.js';
 
@@ -60,7 +61,7 @@ function bindInput(cv) {
   const up = e => { if (e.pointerId === joyId) { joyId = null; IN.joy = null; hideJoy(); return; } if (e.pointerType === 'touch') return; IN.hold = false; IN.castHold = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   addEventListener('keydown', e => { if (e.repeat && e.key !== 'Shift') return; const k = e.key.toLowerCase(); unlock();
-    if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleGear(); }
+    if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleBag(); }
     else if (k === 'enter') IN.stairs = true; else if (k === 'escape') { closeCrypt(); closeGear(); } });
   addEventListener('keyup', e => { if (e.key === 'Shift') IN.shift = false; });
 }
@@ -76,7 +77,10 @@ function bindButtons() {
   hold($('#sRaise'), () => { IN.raiseKey = true; });
   hold($('#sMend'), () => { IN.mend = true; });
   hold($('#bCrypt'), () => toggleCrypt());
-  hold($('#bGear'), () => toggleGear());
+  hold($('#bGear'), () => toggleBag());
+  // party cards (top left): tap a summon to open its equipment, an empty slot to open the 墓典
+  $('#party').addEventListener('click', e => { const c = e.target.closest('.pc'); if (!c) return; e.stopPropagation(); unlock();
+    if (c.dataset.id) { const en = G.crypt.find(x => x.id === +c.dataset.id); if (en) openGear(en); } else openCrypt(); });
   hold($('#bStairs'), () => { IN.stairs = true; });
   hold($('#bSfx'), () => { setSfx(!sfxOn()); $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇'; });
   $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇';
@@ -119,7 +123,7 @@ export function renderCrypt(force) {
   if (feedN) { const tip = document.createElement('div'); tip.className = 'cTip'; tip.textContent = `点召唤物查看技能。休息中的普通召唤物（${feedN} 只）可以转化成魂能，喂给你想培养的召唤物。`; list.appendChild(tip); }
   for (const en of G.crypt.slice().sort((a, b) => (b.active - a.active) || (b.champ - a.champ) || (b.level - a.level))) {
     const T = TYPES[en.type], d = document.createElement('div'); d.className = 'card' + (en.active ? ' on' : '') + (en.champ ? ' champ' : '');
-    d.innerHTML = `<div class="ic">${T.icon}</div><div class="info"><div class="nm">${enName(en)}${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div>
+    d.innerHTML = `<div class="ic">${portrait(en.type)}</div><div class="info"><div class="nm">${enName(en)}${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div>
       <div class="xp"><i style="width:${Math.min(100, en.xp / (xpNeed(en.level) * 0.8) * 100)}%"></i></div><div class="ds">${T.ally}</div></div><button class="btn tg">${en.active ? '休息' : '出战'}</button>`;
     d.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('.tg')) toggleActive(en); else { sel = en; armed = null; renderCrypt(true); $('#cryptList').scrollTop = 0; } });
     list.appendChild(d);
@@ -130,7 +134,7 @@ function renderDetail(list, en) {
   const T = TYPES[en.type], st = statsOf(en), tree = TREE[en.type] || [], d = document.createElement('div'); d.className = 'det';
   const need = xpNeed(en.level) * 0.8, feed = G.crypt.filter(f => canFeed(f, en)).sort((a, b) => (b.type === en.type) - (a.type === en.type) || b.level - a.level);
   const statLine = [`生命 <b>${Math.round(st.maxHp)}</b>`, `伤害 <b>${st.dmg.toFixed(1)}</b>`, `护甲 <b>${Math.round(st.armor)}</b>`, `攻击间隔 <b>${st.cd.toFixed(2)}s</b>`, en.type === 'archer' ? `射程 <b>${st.range.toFixed(1)}</b>` : ''].filter(Boolean).join('　');
-  d.innerHTML = `<div class="dHead"><button class="btn back">‹ 返回</button><div class="ic">${T.icon}</div><div class="info"><div class="nm">${enName(en)}</div>
+  d.innerHTML = `<div class="dHead"><button class="btn back">‹ 返回</button><div class="ic">${portrait(en.type)}</div><div class="info"><div class="nm">${enName(en)}</div>
       <div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div><div class="xp"><i style="width:${Math.min(100, en.xp / need * 100)}%"></i></div><div class="xpT">经验 ${Math.floor(en.xp)} / ${Math.round(need)}</div></div>
       <button class="btn tg">${en.active ? '休息' : '出战'}</button></div>
     <div class="stats">${statLine}${en.champ && en.mods[0] ? `<div class="affix">${MODS[en.mods[0]].name}：${MODS[en.mods[0]].desc}</div>` : ''}</div>
@@ -143,7 +147,7 @@ function renderDetail(list, en) {
         <button class="btn plus" data-id="${sk.id}" ${mx || !(en.sp > 0) ? 'disabled' : ''}>${mx ? '满' : '＋'}</button></div>`; }).join('')}</div>
     <div class="secT">吸收魂能 <small>把休息中的普通召唤物转化成魂能：获得经验和魂能点（同类经验 +50%）</small></div>
     <div class="feed">${feed.length ? feed.map(f => { const k = 'eat' + f.id;
-      return `<div class="fr"><span class="ic">${TYPES[f.type].icon}</span><div class="fn">${TYPES[f.type].name} <small>Lv ${f.level}</small></div><div class="gain">+${soulXP(f, en)} 经验 · +${soulPoints(f)} 点</div>
+      return `<div class="fr"><span class="ic">${portrait(f.type)}</span><div class="fn">${TYPES[f.type].name} <small>Lv ${f.level}</small></div><div class="gain">+${soulXP(f, en)} 经验 · +${soulPoints(f)} 点</div>
         <button class="btn eat${isArmed(k) ? ' arm' : ''}" data-id="${f.id}">${isArmed(k) ? '确认转化' : '转化'}</button></div>`; }).join('') +
       (feed.length > 1 ? `<button class="btn eatAll${isArmed('all') ? ' arm' : ''}">${isArmed('all') ? '确认全部转化' : `全部转化（${feed.length} 只）`}</button>` : '')
       : `<div class="fEmpty">墓典里没有可转化的召唤物。精英和出战中的不能转化；满员时收服的怪会存进墓典。</div>`}</div>`;
@@ -159,7 +163,7 @@ function renderDetail(list, en) {
 }
 
 // ---------- HUD (DOM, refreshed a few times per second) + overlay (every frame) ----------
-let hudT = 0;
+let hudT = 0, partySig = '';
 export function updateHUD(dt, fps) {
   hudT -= dt; const P = G.player; if (!P) return;
   const bar = (id, v) => { $(id).style.width = Math.max(0, Math.min(100, v * 100)) + '%'; };
@@ -167,11 +171,14 @@ export function updateHUD(dt, fps) {
   if (hudT > 0) return; hudT = 0.2;
   $('#lvl').textContent = `Lv ${G.level} 召唤师`; $('#hpT').textContent = `${Math.ceil(P.hp)} / ${Math.round(P.maxHp)}`; $('#mpT').textContent = `${Math.floor(P.mp)} / ${Math.round(P.maxMp)}`;
   $('#floorTag').textContent = G.depth === 0 ? '墓园营地' : `墓穴 · 第 ${G.depth} 层`; $('#cryptN').textContent = G.crypt.length; $('#gearN').textContent = G.bag.length; if (fps != null) $('#fps').textContent = fps;
-  const party = $('#party'), act = G.crypt.filter(e => e.active); party.innerHTML = '';
-  for (const en of act) { const u = en.unit, T = TYPES[en.type], d = document.createElement('div'); d.className = 'pc' + (en.reviveT > 0 ? ' dead' : '');
-    d.innerHTML = `<span class="ic">${T.icon}</span><div class="pi"><div class="pn">${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${T.name} <small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i style="width:${u && !u.dead ? u.hp / u.maxHp * 100 : 0}%"></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
-    party.appendChild(d); }
-  for (let i = act.length; i < partySize(G.level); i++) { const d = document.createElement('div'); d.className = 'pc empty'; d.innerHTML = '<span class="ic">＋</span><div class="pi"><div class="pn">空位</div></div>'; party.appendChild(d); }
+  // party cards: rebuilt only when something on them changes (so taps are not lost), hp bars updated in place
+  const party = $('#party'), act = G.crypt.filter(e => e.active), psig = JSON.stringify([partySize(G.level), act.map(en => [en.id, en.level, en.sp, Math.ceil(en.reviveT), en.mods])]);
+  if (psig !== partySig) { partySig = psig; party.innerHTML = '';
+    for (const en of act) { const T = TYPES[en.type], d = document.createElement('div'); d.className = 'pc' + (en.reviveT > 0 ? ' dead' : '');
+      d.dataset.id = en.id; d.title = '点开装备'; d.innerHTML = `<span class="ic">${portrait(en.type)}</span><div class="pi"><div class="pn">${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${T.name} <small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
+      party.appendChild(d); }
+    for (let i = act.length; i < partySize(G.level); i++) { const d = document.createElement('div'); d.className = 'pc empty'; d.title = '打开墓典'; d.innerHTML = '<span class="ic">＋</span><div class="pi"><div class="pn">空位</div></div>'; party.appendChild(d); } }
+  for (const d of party.querySelectorAll('.pc[data-id]')) { const en = act.find(e => e.id === +d.dataset.id), u = en && en.unit, i = d.querySelector('.ph i'); if (i) i.style.width = (u && !u.dead ? u.hp / u.maxHp * 100 : 0) + '%'; }
   const near = G.corpses.filter(c => !c.claim && Math.hypot(c.x - P.x, c.z - P.z) < SKILLS.raise.range).length; const rb = $('#sRaise');
   rb.classList.toggle('ready', near > 0); $('#raiseN').textContent = near || ''; $('#raiseN').style.display = near ? 'flex' : 'none';
   const mc = Math.max(0, P.mendCD || 0); $('#sMend').style.setProperty('--cd', (mc / SKILLS.mend.cd * 100) + '%');
@@ -196,10 +203,6 @@ export function drawOverlay() {
   for (const cp of G.corpses) { if (cp.claim) continue; const d = Math.hypot(cp.x - P.x, cp.z - P.z); if (d > SKILLS.raise.range + 2) continue; const [x, y, vis] = toScreen(cp.x, 0.5, cp.z); if (!vis) continue;
     const inR = d <= SKILLS.raise.range, txt = `唤魂 ${Math.round(captureChance(cp) * 100)}%`; g.globalAlpha = inR ? 1 : 0.45; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(txt, x, y - 4);
     g.fillStyle = inR ? '#8ff7ea' : '#cfc6d8'; g.fillText(txt, x, y - 4); g.globalAlpha = 1; }
-  // raise channel beam
-  if (P.state === 'channel' && P.chanC) { const [ax, ay] = toScreen(P.x, 1.2, P.z), [bx, by] = toScreen(P.chanC.x, 0.3, P.chanC.z), k = P.st / (SKILLS.raise.channel / 0.8);
-    g.strokeStyle = `rgba(120,255,235,${0.5 + 0.4 * Math.sin(G.t * 30)})`; g.lineWidth = 3 + 3 * k; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
-    g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 6; g.beginPath(); g.arc(bx, by - 26, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.strokeStyle = '#8ff7ea'; g.lineWidth = 3; g.stroke(); }
   // lightning bolts: jagged, flickering polylines between units
   if (G.bolts.length) { g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
     for (const b of G.bolts) { const [ax, ay, va] = toScreen(b.ax, 0.9, b.az), [bx, by, vb] = toScreen(b.bx, 0.9, b.bz); if (!va && !vb) continue;

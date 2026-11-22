@@ -194,7 +194,7 @@ function panic(e, from) { if (e.state === 'panic') return; e.state = 'panic'; e.
 function makeCorpse(u) {
   const m = u.mesh; m.u.uTint.value.multiplyScalar(0.72); m.u.uFlash.value = 0; if (u.ringMesh) m.root.remove(u.ringMesh); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
   const name = ANIM[u.kind].die, sp = 1.15; play(m, name, { once: true, speed: sp, fade: 0.08 });
-  const c = { kind: u.kind, level: u.level, mods: u.mods.slice(), champ: u.champ, x: u.x, z: u.z, t: 30, mesh: m, packId: u.packId, animT: clipLen(name) / sp + 0.1 };
+  const c = { kind: u.kind, level: u.level, mods: u.mods.slice(), champ: u.champ, x: u.x, z: u.z, rx: u.x, rz: u.z, t: 30, mesh: m, packId: u.packId, animT: clipLen(name) / sp + 0.1 };
   G.corpses.push(c);
 }
 export function captureChance(c) { return Math.max(0.05, Math.min(0.95, TYPES[c.kind].capture * (c.champ ? 0.5 : 1) * (1 + 0.05 * (G.level - 1)) - 0.03 * Math.max(0, c.level - G.level))); }
@@ -205,7 +205,7 @@ export function finishRaise(c) {
   if (ok) {
     const en = { id: G.uid++, type: c.kind, level: c.level, xp: 0, mods: c.mods, champ: c.champ, active: false, reviveT: 0, unit: null, sp: 0, skills: {} };
     G.crypt.push(en); const room = activeCount() < partySize(G.level);
-    if (room) { en.active = true; spawnAlly(en, c.x, c.z, 'reassemble'); } else soulToSummoner(c);
+    if (room) { en.active = true; spawnAlly(en, c.rx ?? c.x, c.rz ?? c.z, 'reassemble'); } else soulToSummoner(c);
     S.caught(); C.parts.emit(c.x, 0.5, c.z, 30, { col: 0x6ff7e8, spd: 1.5, up: 3, life: 1.0, size: 0.3, grav: -1 });
     C.say(`收服了 ${(c.champ ? MODS[c.mods[0]].name : '') + TYPES[c.kind].name}！` + (room ? '' : '（灵魂收入墓典）')); save();
   } else { S.fail(); C.parts.emit(c.x, 0.3, c.z, 24, { col: 0x8a8090, spd: 1.2, up: 1.2, life: 0.9, size: 0.3 }); say(c.x, c.z, '唤魂失败', '#b9a8c8', 16); }
@@ -213,7 +213,7 @@ export function finishRaise(c) {
 // party full: the captured monster still stands up, then turns into a soul that flies into the summoner
 function soulToSummoner(c) {
   const m = makeUnitMesh(c.kind, { scale: c.champ ? 1.1 : 1, emis: 0x0a2a2a, rim: 0x2fbfb2, soul: true });
-  m.root.position.set(c.x, 0, c.z); m.root.rotation.y = c.mesh.root.rotation.y; C.scene.add(m.root);
+  m.root.position.set(c.rx ?? c.x, 0, c.rz ?? c.z); m.root.rotation.y = c.mesh.root.rotation.y; C.scene.add(m.root);
   const name = 'Death_C_Skeletons_Resurrect', sp = 1.6; play(m, name, { once: true, restart: true, speed: sp, fade: 0 }); m.mixer.update(0);
   G.ghosts.push({ m, t: 0, rise: clipLen(name) / sp * 0.9, x: c.x, z: c.z, orb: null });
 }
@@ -496,7 +496,7 @@ export function updateUnit(u, dt) {
 }
 function resurrect(by, c) {
   if (!G.corpses.includes(c)) return; removeCorpse(c);
-  const n = new Unit(c.kind, 'enemy', c.x, c.z, { level: c.level, mods: c.mods, champ: c.champ, packId: c.packId, hpFrac: 0.6 }); n.aggro = true; n.target = by.target; G.units.push(n);
+  const n = new Unit(c.kind, 'enemy', c.rx ?? c.x, c.rz ?? c.z, { level: c.level, mods: c.mods, champ: c.champ, packId: c.packId, hpFrac: 0.6 }); n.aggro = true; n.target = by.target; G.units.push(n);
   n.face = c.mesh.root.rotation.y; rise(n, 'Death_C_Skeletons_Resurrect', 1.4);
   S.raise(); C.parts.emit(c.x, 0.5, c.z, 24, { col: 0xc070ff, spd: 1.4, up: 2.5, life: 0.8 }); say(c.x, c.z, '复活了！', '#c88cff', 16);
 }
@@ -528,7 +528,8 @@ export function integrate(units, dt) {
 }
 export function updateCorpses(dt) {
   let j = 0;
-  for (const c of G.corpses) { c.t -= dt; if (c.animT > 0) { c.animT -= dt; c.mesh.mixer.update(dt); }
+  for (const c of G.corpses) { c.t -= dt; if (c.animT > 0) { c.animT -= dt; c.mesh.mixer.update(dt);
+      if (c.animT <= 0) { const h = c.mesh.model.getObjectByName('hips'); if (h) { h.getWorldPosition(WP); if (C.floor.walk(WP.x, WP.z)) { c.x = WP.x; c.z = WP.z; } } } }
     if (c.t < 3) { c.mesh.u.uFade.value = Math.max(0, c.t / 3); for (const gs of c.mesh.glows) gs.material.opacity = 0.85 * Math.max(0, c.t / 3); }
     if (c.t <= 0) { C.scene.remove(c.mesh.root); continue; } G.corpses[j++] = c; }
   G.corpses.length = j;

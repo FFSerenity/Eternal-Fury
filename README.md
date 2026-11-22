@@ -9,7 +9,7 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - **Phone:** drag on the left half to move · hold 🦴 to fire Bone Spear (auto-aim) · 👻 to capture the nearest corpse · 💚 heal · 📜 墓典
 
 ## Summons
-- Kill a monster, then cast **唤魂** on its corpse within 30 s. Capture chance depends on the monster (normal > champion) and your level.
+- Kill monsters, then cast **唤魂**: it channels on every corpse within 6 m at once (corpses stay 30 s; each extra corpse costs a little more mana). Capture chance depends on the monster (normal > champion) and your level.
   Enemy shamans resurrect corpses too, so grab them first.
 - Captured monsters go into the **墓典**. You start with 1 party slot, +1 at levels 3, 6 and 9 (max 4). Edit the party when not in combat.
 - Each summon keeps its monster personality: brute = tank (draws enemy attacks), imp = fast melee with crits, archer = keeps distance,
@@ -24,8 +24,8 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - Only summons wear gear: a weapon of their own type (Warrior axes, Minion blades, Crossbowman crossbows, Mage staves; three bases each,
   from fast-and-light to slow-and-heavy) and a shield as armour (anyone). Quality: 普通 / 精良 / 稀有 (rare items get an extra line).
 - Monsters sometimes drop gear, champions always do; rare drops shine with a light beam. Walk over loot to pick it up (bag of 40).
-- **装备 panel** (🎒 button or **I**): paperdoll with the chosen summon's live 3D model and its weapon / shield frames, a 40-cell bag
-  (one item per cell, icons rendered from the 3D models) and the furnace. Click an item to pick it up, click where it should go;
+- **装备 panel** (tap a summon's card at the top left): paperdoll with its live 3D model, weapon / shield frames and the bag.
+- **背包 panel** (🎒 button or **I**): the 40-cell bag (one item per cell, icons rendered from the 3D models) and the furnace with auto-fill. Click an item to pick it up, click where it should go;
   right-click or double-click = quick equip (or into the furnace). Diablo-style tooltips; items a summon can't use are tinted red.
 - **Furnace (熔炉):** put 2+ pieces into its 12 cells and smelt them into one random item; more and better input raises the odds.
 

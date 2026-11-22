@@ -44,7 +44,7 @@ export const ELEM = {
 export const PACE = { move: 0.75, act: 0.8 };
 export const SKILLS = {
   spear: { name: '骨矛', mana: 2, cd: 0.34 },
-  raise: { name: '唤魂', mana: 8, cd: 0.4, range: 6, channel: 0.7 },
+  raise: { name: '唤魂', mana: 8, extra: 2, cd: 0.4, range: 6, channel: 0.8 },
   mend:  { name: '愈合', mana: 12, cd: 5 },
 };
 // packs by floor: each entry is a list of [type, count]
