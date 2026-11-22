@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CUSTOM_PROPS } from './assets.js';
 
-const PAL = [0x3b3742, 0x1f1c25, 0xb46cff, 0xdcd1b6, 0xb07a3a, 0xe0a85a, 0x6a3aa8, 0xff9a3a, 0x5a4636, 0x8a6a48, 0x9d98ab];
-const [IRON, DARK, GLOW, BONE, BRONZE, BRASS, DEEP, EMBER, LEATHER, LEATHER2, STEEL] = PAL.map((_, i) => i);
+const PAL = [0x3b3742, 0x1f1c25, 0xb46cff, 0xdcd1b6, 0xb07a3a, 0xe0a85a, 0x6a3aa8, 0xff9a3a, 0x5a4636, 0x8a6a48, 0x9d98ab, 0x6ff0ff, 0x7dff9a, 0xd9962e];
+const [IRON, DARK, GLOW, BONE, BRONZE, BRASS, DEEP, EMBER, LEATHER, LEATHER2, STEEL, CYAN, GREEN, OCHRE] = PAL.map((_, i) => i);
 let tex = null;
 function palette() {
   if (tex) return tex; const d = new Uint8Array(PAL.length * 4);
@@ -132,3 +132,62 @@ CUSTOM_PROPS.mech_chest = () => entry(mechChest());
 CUSTOM_PROPS.mech_pad_l = () => entry(mechPad(1)); CUSTOM_PROPS.mech_pad_r = () => entry(mechPad(-1));
 CUSTOM_PROPS.mech_arm_l = () => entry(mechArm(1)); CUSTOM_PROPS.mech_arm_r = () => entry(mechArm(-1));
 CUSTOM_PROPS.mech_leg_l = () => entry(mechLeg(1)); CUSTOM_PROPS.mech_leg_r = () => entry(mechLeg(-1));
+
+// ---------- 机械师骷髅: the 魂钢指挥杖 command rod, a hard hat with goggles and a headset, a drone dock on the back; and its skull drones ----------
+// the rod is built along +Y like the staffs (held in the middle); a glowing core floats in a three-pronged head
+export const ROD = { tip: new THREE.Vector3(0, 1.13, 0) };
+function cmdRod() {
+  const P = [];
+  P.push(cylY(0.035, 0.035, 1.62, DARK, 0, 0.12, 0, 8), part(new THREE.ConeGeometry(0.06, 0.12, 8).rotateX(Math.PI), BRASS, 0, -0.74, 0));  // shaft + foot
+  for (const y of [-0.06, 0.06]) P.push(cylY(0.05, 0.05, 0.07, LEATHER2, 0, y, 0, 8));                                                     // grip wraps
+  P.push(box(0.12, 0.2, 0.1, IRON, 0, 0.3, 0.02), box(0.08, 0.1, 0.02, CYAN, 0, 0.33, 0.075), box(0.025, 0.025, 0.02, EMBER, -0.03, 0.235, 0.075), box(0.025, 0.025, 0.02, GREEN, 0.03, 0.235, 0.075)); // control box: screen + buttons
+  P.push(cylY(0.07, 0.06, 0.08, BRASS, 0, 0.93, 0, 12));                                                                                   // collar
+  for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; P.push(box(0.035, 0.24, 0.035, STEEL, Math.cos(a) * 0.075, 1.07, Math.sin(a) * 0.075, Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35)); } // prongs
+  P.push(ball(0.075, CYAN, 0, 1.13, 0));                                                                                                    // the core
+  const rg = part(new THREE.TorusGeometry(0.12, 0.014, 6, 18), BRASS, 0, 1.13, 0, 0.5, 0, 0.3); P.push(rg);                                // a ring around it
+  return mergeGeometries(P);
+}
+CUSTOM_PROPS.cmdrod = () => ({ ...entry(cmdRod()), tip: ROD.tip.clone() });
+// sk_mage rest pose: same skull as the warrior (x ±0.44, y 1.19–2.17, z ±0.46), chest bone y 0.97, shoulders y 1.05–1.42, belly y 0.55–1.03;
+// the wizard hat is swapped for an ochre hard hat with a brim, goggles strapped around it, a headset on one side and an antenna on the other
+function engHat() {
+  const P = [], y0 = 1.84;
+  const dome = part(new THREE.SphereGeometry(1, 18, 9, 0, Math.PI * 2, 0, Math.PI / 2), OCHRE); dome.scale(0.5, 0.4, 0.52); dome.translate(0, y0, 0); P.push(dome);
+  P.push(box(0.07, 0.05, 0.62, BRASS, 0, y0 + 0.39, -0.02), box(0.76, 0.035, 0.26, OCHRE, 0, y0 + 0.01, 0.46), box(1.02, 0.035, 0.035, BRASS, 0, y0 + 0.01, 0.0)); // ridge, brim, rim line
+  const band = part(new THREE.CylinderGeometry(0.47, 0.47, 0.07, 22, 1, true), LEATHER, 0, y0 + 0.16, 0); band.scale(1, 1, 1.04); P.push(band);
+  for (const x of [-0.15, 0.15]) P.push(cylZ(0.105, 0.105, 0.07, BRASS, x, y0 + 0.17, 0.46, 14), cylZ(0.078, 0.078, 0.08, CYAN, x, y0 + 0.17, 0.465, 12)); // goggles
+  P.push(box(0.06, 0.04, 0.05, DARK, 0, y0 + 0.17, 0.48));
+  P.push(part(new THREE.CylinderGeometry(0.12, 0.12, 0.09, 14), DARK, 0.47, y0 - 0.12, 0, 0, 0, Math.PI / 2), strap([0.5, y0 - 0.16, 0.06], [0.28, y0 - 0.3, 0.44], 0.03, 0.03, STEEL), ball(0.045, DARK, 0.27, y0 - 0.31, 0.45)); // headset + mic
+  P.push(cylY(0.02, 0.012, 0.36, STEEL, -0.42, y0 + 0.28, -0.12, 6), ball(0.04, CYAN, -0.42, y0 + 0.47, -0.12));                          // antenna
+  return mergeGeometries(P);
+}
+// a drone dock on the back (a dish antenna, status lights, two canisters), chest straps, a tool belt with a wrench
+function engPack() {
+  const P = [], z = -0.42;
+  P.push(box(0.5, 0.44, 0.16, IRON, 0, 1.15, z), box(0.54, 0.05, 0.2, BRASS, 0, 1.38, z), box(0.4, 0.04, 0.04, CYAN, 0, 1.24, z - 0.09));   // dock + top rail + light strip
+  for (const x of [-0.29, 0.29]) P.push(cylY(0.07, 0.07, 0.34, STEEL, x, 1.08, z + 0.02, 10), cylY(0.075, 0.075, 0.03, GREEN, x, 1.2, z + 0.02, 10)); // canisters
+  P.push(cylY(0.02, 0.02, 0.2, DARK, 0.12, 1.48, z, 6), part(new THREE.ConeGeometry(0.15, 0.08, 14, 1, true).rotateX(Math.PI), STEEL, 0.12, 1.6, z, -0.5, 0, 0), ball(0.03, CYAN, 0.12, 1.6, z + 0.05)); // dish
+  P.push(strap([0.2, 1.4, -0.3], [0.17, 1.1, 0.33], 0.07, 0.03, LEATHER2), strap([-0.2, 1.4, -0.3], [-0.17, 1.1, 0.33], 0.07, 0.03, LEATHER2)); // shoulder straps
+  P.push(box(0.8, 0.08, 0.78, LEATHER, 0, 0.66, 0.03), box(0.12, 0.1, 0.06, BRASS, 0, 0.66, 0.43));                                       // belt + buckle
+  P.push(box(0.12, 0.14, 0.1, LEATHER2, 0.34, 0.58, 0.2), box(0.03, 0.3, 0.03, STEEL, -0.42, 0.52, 0.12), box(0.1, 0.06, 0.03, STEEL, -0.42, 0.68, 0.12)); // pouch, wrench
+  return mergeGeometries(P);
+}
+function engPad() { // wrist control pad on the left forearm (arm along +X at y 1.11)
+  return mergeGeometries([box(0.22, 0.09, 0.18, STEEL, 0.6, 1.16, 0), box(0.15, 0.02, 0.12, CYAN, 0.6, 1.21, 0), box(0.05, 0.11, 0.2, BRASS, 0.49, 1.15, 0)]);
+}
+CUSTOM_PROPS.eng_hat = () => entry(engHat());
+CUSTOM_PROPS.eng_pack = () => entry(engPack());
+CUSTOM_PROPS.eng_pad = () => entry(engPad());
+// skull drones (world size, ~0.4 wide): a little bone skull with one big lens, rotor arms on both sides; the repair drone is green with a wrench arm
+function drone(rep) {
+  const P = [], L = rep ? GREEN : CYAN;
+  P.push(ball(0.11, BONE, 0, 0, 0, 1, 0.92, 1.05), box(0.13, 0.06, 0.08, BONE, 0, -0.08, 0.05));                                          // skull + jaw
+  P.push(cylZ(0.065, 0.065, 0.05, DARK, 0, 0.01, 0.1, 12), cylZ(0.05, 0.05, 0.05, L, 0, 0.01, 0.115, 12), box(0.1, 0.02, 0.03, L, 0, 0.1, 0.06)); // the lens, a light strip on the crown
+  for (const s of [1, -1]) P.push(box(0.14, 0.025, 0.04, STEEL, s * 0.16, 0.03, -0.01), cylY(0.025, 0.025, 0.05, DARK, s * 0.23, 0.06, -0.01, 8),
+    part(new THREE.TorusGeometry(0.075, 0.01, 4, 14).rotateX(Math.PI / 2), STEEL, s * 0.23, 0.09, -0.01), box(0.14, 0.008, 0.022, BONE, s * 0.23, 0.088, -0.01, 0, 0.5, 0), box(0.14, 0.008, 0.022, BONE, s * 0.23, 0.088, -0.01, 0, 2.07, 0)); // rotors
+  P.push(cylY(0.008, 0.008, 0.1, STEEL, 0.04, 0.14, -0.04, 4), ball(0.018, L, 0.04, 0.19, -0.04));                                        // antenna
+  if (rep) P.push(box(0.025, 0.12, 0.025, STEEL, 0, -0.15, 0.02), box(0.08, 0.03, 0.03, STEEL, 0, -0.21, 0.02), box(0.06, 0.02, 0.02, GREEN, 0, 0.02, -0.11), box(0.02, 0.06, 0.02, GREEN, 0, 0.02, -0.11)); // wrench arm, cross on the back
+  return mergeGeometries(P);
+}
+CUSTOM_PROPS.drone = () => entry(drone(false));
+CUSTOM_PROPS.drone_rep = () => entry(drone(true));

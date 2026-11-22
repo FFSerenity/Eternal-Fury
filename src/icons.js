@@ -35,7 +35,7 @@ export function makeIcons() {
   // summon portraits: head and shoulders, turned a little toward the light
   const techs = Object.keys(TECH).map(u => [TECH[u].key, TECH[u].type, u]);
   for (const k of [...Object.keys(TYPES), ...techs.map(t => t[0])]) { const tk = techs.find(t => t[0] === k), m = makeUnitMesh(tk ? tk[1] : k, tk ? { gear: { w: makeTech(tk[2], 0) } } : {});
-    play(m, m.gun || m.muz ? '2H_Ranged_Aiming' : k === 'shaman' ? 'Idle' : 'Idle_Combat', {}); m.mixer.update(0.3); m.root.rotation.y = 0.45; m.root.updateMatrixWorld(true);
+    play(m, m.gun || m.muz ? '2H_Ranged_Aiming' : k === 'shaman' || k === 'engineer' ? 'Idle' : 'Idle_Combat', {}); m.mixer.update(0.3); m.root.rotation.y = 0.45; m.root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(m.root), h = box.max.y - box.min.y, top = box.max.y, fy = top - h * 0.29;
     iconCam.position.set(0, fy + h * 0.06, h * 1.38); iconCam.lookAt(0, fy, 0); POR[k] = shot(m.root, 128); }
 }

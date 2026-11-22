@@ -118,7 +118,8 @@ export const WEAPONS = {
     { name: tr('噬魂机枪', 'Soul Reaper Gatling'), cat: tr('机枪', 'Gatling'), model: 'gatling', dm: 1, cd: 1, epic: true }] }, // [3]: the easter egg (never rolled)
   archer: { cat: tr('弩', 'Crossbow'), bases: [{ name: tr('骨弩', 'Bone Crossbow'), model: 'sk_crossbow', dm: 1, cd: 1 }, { name: tr('轻弩', 'Light Crossbow'), model: 'crossbow_1handed', dm: 0.82, cd: 0.82 }, { name: tr('重弩', 'Heavy Crossbow'), model: 'crossbow_2handed', dm: 1.3, cd: 1.15 },
     { name: tr('裂魂臼炮', 'Soulsplitter Mortar'), cat: tr('臼炮', 'Mortar'), model: 'mortar', dm: 1, cd: 1, epic: true }] }, // [3]: tech line (forge only)
-  shaman: { cat: tr('杖', 'Staff'), bases: [{ name: tr('骨杖', 'Bone Staff'), model: 'sk_staff', dm: 1, cd: 1 }, { name: tr('魔杖', 'Wand'), model: 'wand', dm: 0.82, cd: 0.82 }, { name: tr('法师长杖', 'Mage Staff'), model: 'mage_staff', dm: 1.3, cd: 1.15 }] },
+  shaman: { cat: tr('杖', 'Staff'), bases: [{ name: tr('骨杖', 'Bone Staff'), model: 'sk_staff', dm: 1, cd: 1 }, { name: tr('魔杖', 'Wand'), model: 'wand', dm: 0.82, cd: 0.82 }, { name: tr('法师长杖', 'Mage Staff'), model: 'mage_staff', dm: 1.3, cd: 1.15 },
+    { name: tr('魂钢指挥杖', 'Soulsteel Command Rod'), cat: tr('指挥杖', 'Command Rod'), model: 'cmdrod', dm: 1, cd: 1, epic: true }] }, // [3]: tech line (forge only)
 };
 export const ARMORS = [{ name: tr('骨盾', 'Bone Shield'), model: 'sk_shield_large', hm: 1.3, am: 0.7 }, { name: tr('圆盾', 'Round Shield'), model: 'shield_round', hm: 1, am: 1 }, { name: tr('方盾', 'Tower Shield'), model: 'shield_square', hm: 0.7, am: 1.4 }];
 // rare items get one extra line
@@ -146,6 +147,9 @@ export const TECH = {
   drill: { type: 'brute', key: 'mech', name: tr('机甲骷髅', 'Mech Skeleton'), short: tr('机甲骷髅', 'Mech'), role: tr('重装前排', 'Heavy front line'),
     ally: tr('穿着魂钢机甲的战士：钻头连钻带击退，喷射冲锋撞进人堆，撑起护盾力场吸收伤害并嘲讽敌人，过载时以自身为中心放出电磁冲击波。', 'A warrior in soulsteel armour: the drill grinds in several hits and knocks back, a rocket dash rams it into packs, a shield field soaks damage and draws enemies onto it, and overload sends out an EMP shockwave all around.'),
     lines: [tr('骷髅战士装备后变成机甲骷髅', 'A Skeleton Warrior holding it becomes a Mech Skeleton'), tr('钻击：每次出手连钻 3 下，最后一下击退', 'Drill: each attack grinds 3 times, the last one knocks back')] },
+  rod: { type: 'shaman', key: 'engineer', name: tr('机械师骷髅', 'Engineer Skeleton'), short: tr('机械师骷髅', 'Engineer'), role: tr('无人机指挥', 'Drone commander'),
+    ally: tr('戴安全帽的骷髅法师，指挥一群骷髅无人机：攻击无人机围着它飞、用激光扫射敌人，修理无人机飞去给受伤最重的队友维修；还能呼叫轨道打击，从天上砸下一道光柱。', 'A skeleton mage in a hard hat commanding a swarm of skull drones: attack drones circle it and sweep enemies with lasers, a repair drone flies off to fix whoever is hurt worst, and it can call down an orbital strike — a column of light from the sky.'),
+    lines: [tr('骷髅法师装备后变成机械师骷髅', 'A Skeleton Mage holding it becomes an Engineer Skeleton'), tr('无人机：攻击无人机激光扫射，修理无人机为队友维修', 'Drones: attack drones fire lasers, a repair drone fixes up allies')] },
 };
 export const techOf = en => { const w = en && en.gear && en.gear.w, T = w && w.uniq && TECH[w.uniq]; return T && T.type === en.type ? T : null; };
 export const techName = en => { const T = techOf(en); return T ? T.name : TYPES[en.type].name; };
@@ -175,6 +179,13 @@ TREE.mech = [
   { id: 'rocket', name: tr('喷射冲锋', 'Rocket Dash'), icon: '🚀', max: 3, desc: r => tr(`推进器全开冲向 3–9 米外的敌人，撞开路上的敌人（${pct(0.6 + 0.15 * r)} 伤害），落点冲击眩晕；冷却 ${(7 - 0.7 * r).toFixed(1)} 秒`, `Thrusters at full: rams an enemy 3–9 m away, knocking aside everything in the way (${pct(0.6 + 0.15 * r)} damage), stunning at the end; cooldown ${(7 - 0.7 * r).toFixed(1)}s`) },
   { id: 'aegis', name: tr('护盾力场', 'Shield Field'), icon: '🛡️', max: 3, unlock: true, desc: r => r ? tr(`被围或血量低时撑起护盾 ${4 + r} 秒：吸收 ${pct(0.25 + 0.1 * r)} 最大生命的伤害，并嘲讽 ${6 + r} 米内的敌人；冷却 ${(16 - 1.5 * r).toFixed(1)} 秒`, `When surrounded or hurt, raises a shield for ${4 + r} s: soaks ${pct(0.25 + 0.1 * r)} of max life and draws every enemy within ${6 + r} m onto it; cooldown ${(16 - 1.5 * r).toFixed(1)}s`) : tr('解锁：护盾力场', 'Unlock: shield field') },
   { id: 'overload', name: tr('过载', 'Overload'), icon: '⚡', max: 3, unlock: true, desc: r => r ? tr(`身边敌人多（3 个以上）时蓄能过载，以自身为中心放出 ${(3 + 0.3 * r).toFixed(1)} 米电磁冲击波：${pct(1.1 + 0.3 * r)} 伤害，眩晕 ${(0.8 + 0.3 * r).toFixed(1)} 秒并击退；冷却 ${11 - r} 秒`, `With 3+ enemies close, overloads and sends out a ${(3 + 0.3 * r).toFixed(1)} m EMP shockwave: ${pct(1.1 + 0.3 * r)} damage, ${(0.8 + 0.3 * r).toFixed(1)} s stun and knock-back; cooldown ${11 - r}s`) : tr('解锁：过载电磁冲击波', 'Unlock: overload EMP shockwave') },
+];
+// 机械师骷髅: attack drones (innate; one more per rank), repair drone (from the start), orbital strike, prism lasers
+TREE.engineer = [
+  { id: 'drones', name: tr('攻击无人机', 'Attack Drones'), icon: '🛸', max: 4, desc: r => tr(`${1 + r} 架攻击无人机环绕飞行，各自每 1.5 秒射出一道激光，造成 ${pct(0.32)} 伤害`, `${1 + r} attack drone${r ? 's' : ''} circle it, each firing a laser every 1.5 s for ${pct(0.32)} damage`) },
+  { id: 'repair', name: tr('修理无人机', 'Repair Drone'), icon: '🔧', max: 3, desc: r => tr(`修理无人机飞到受伤最重的队友（包括你）身边持续维修，每 1.2 秒回复 ${pct(0.06 * (1 + 0.25 * r))} 最大生命（另加随等级成长的固定量）`, `The repair drone flies to whoever is hurt worst (you included) and keeps fixing them: ${pct(0.06 * (1 + 0.25 * r))} of max life every 1.2 s (plus a little that grows with level)`) },
+  { id: 'orbital', name: tr('轨道打击', 'Orbital Strike'), icon: '🛰️', max: 3, unlock: true, desc: r => r ? tr(`敌人扎堆（3 个以上）或有精英时标记目标，1 秒后天降光柱：${(2 + 0.2 * r).toFixed(1)} 米内 ${pct(2.4 + 0.5 * r)} 伤害，眩晕 ${(1 + 0.3 * r).toFixed(1)} 秒；冷却 ${15 - 2 * r} 秒`, `When 3+ enemies bunch up or an elite shows up, marks the spot; a second later a column of light hits ${(2 + 0.2 * r).toFixed(1)} m around it for ${pct(2.4 + 0.5 * r)} damage and a ${(1 + 0.3 * r).toFixed(1)} s stun; cooldown ${15 - 2 * r}s`) : tr('解锁：呼叫轨道打击', 'Unlock: call down an orbital strike') },
+  { id: 'prism', name: tr('折射激光', 'Prism Lasers'), icon: '🔷', max: 3, unlock: true, desc: r => r ? tr(`无人机的激光命中后折射到附近 ${r} 个敌人，每次 ${pct(0.6)} 伤害`, `Drone lasers bounce on to ${r} more enem${r > 1 ? 'ies' : 'y'} nearby for ${pct(0.6)} damage each`) : tr('解锁：激光折射到附近的敌人', 'Unlock: lasers bounce to nearby enemies') },
 ];
 export const treeKey = en => { const T = techOf(en); return T ? T.key : en.type; };
 export const itemIcon = it => it.slot === 'w' ? TYPES[it.type].icon : '🛡️';

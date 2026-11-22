@@ -10,6 +10,7 @@ import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
 import { initFx, updateFx, shakeOffset, clearFx } from './fx.js';
+import { clearTechFx, droneShadows } from './drones.js';
 import * as FXM from './fx.js';
 import { Floor, setNavTime } from './world.js';
 import { openCoffin, setGear } from './units.js';
@@ -60,7 +61,7 @@ function makeFloor(depth) {
   for (const u of G.units) if (u.side !== 'player') u.remove(); for (const c of G.corpses) scene.remove(c.mesh.root); for (const s of G.shots) scene.remove(s.root);
   for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = []; for (const c of G.clouds) scene.remove(c.disc); G.clouds = []; G.bolts = []; for (const L of G.loot) scene.remove(L.root); G.loot = [];
   G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
-  if (G.floor) G.floor.dispose(scene); clearFx();
+  if (G.floor) G.floor.dispose(scene); clearFx(); clearTechFx();
   const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; if (depth > 0) G.deep = depth;
   SH.uAmb.value.setRGB(...F.amb); SH.uLightR.value = F.lightR; renderer.setClearColor(depth === 0 ? 0x0b0d12 : 0x07060a);
   const R = F.R, st = F.start;
@@ -230,7 +231,7 @@ function loop(now) {
   SH.uLight.value.set(P.x, 1.6, P.z); pickTorches(P);
   camera.updateMatrixWorld(); const v = new THREE.Vector3(P.x, 0.8, P.z), vz = v.clone().applyMatrix4(camera.matrixWorldInverse).z; v.project(camera);
   const bw = VW * RS, bh = VH * RS; SH.uCutC.value.set((v.x + 1) / 2 * bw, (v.y + 1) / 2 * bh); SH.uCutR.value = Math.min(bw, bh) * 0.17; SH.uCutZ.value = vz;
-  shadows.begin(); for (const u of G.units) if (!u.dead && u.mesh.root.visible && !(u === P && P.dead)) shadows.add(u.x, u.z, u.r * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1)); shadows.end();
+  shadows.begin(); for (const u of G.units) if (!u.dead && u.mesh.root.visible && !(u === P && P.dead)) shadows.add(u.x, u.z, u.r * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1)); droneShadows((x, z, r) => shadows.add(x, z, r)); shadows.end();
   parts.update(dt);
   P.mesh.mat.uniforms.uFlash.value = P.flash * 0.6;
   renderer.render(scene, camera);

@@ -53,7 +53,11 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
     a stunning impact), Shield Field (when swarmed or hurt: a dome soaks a share of its life and taunts everyone around), Overload
     (charges up, then an EMP shockwave from itself that damages, stuns and knocks back). Dome helmet with an antenna, steel plates,
     a glowing reactor and a thruster backpack.
-  - Planned: 机械师骷髅 (Mage, drones; repair drone, orbital strike).
+  - **魂钢指挥杖 → 机械师骷髅** (Mage): a hard hat with goggles, a headset and a drone dock on its back; shoots a bolt from the rod and
+    commands little skull drones: Attack Drones (1 at first, one more per rank up to 5; they circle it and fire lasers), Repair Drone
+    (from the start: flies to whoever is hurt worst, the summoner included, and keeps fixing them — it takes over the mage's healing),
+    Orbital Strike (marks a pack or an elite, a column of light comes down a second later: big damage and a stun), Prism Lasers
+    (lasers bounce to nearby enemies). The drones fly free in the world (`drones.js`) and fall out of the air when it dies.
 
 ## Monsters
 Skeleton Warrior (telegraphed smash, knock-back), Skeleton Minion packs (panic and flee when a packmate falls apart),

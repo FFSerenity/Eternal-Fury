@@ -8,6 +8,7 @@ import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, prop
 import { slash, impact, burst, shake, trail, spinFx, slamMark, debris, shieldDome, domeHit, domeEnd, empWave } from './fx.js';
 import { S } from './audio.js';
 import { runeCircle } from './vfx.js';
+import { engTick, clearDrones, rodBeam, orbitalSkill, updateCall, updateTechFx } from './drones.js';
 
 export const C = { scene: null, parts: null, floor: null, say: () => {} };
 const rand = (a, b) => a + Math.random() * (b - a), TAU = Math.PI * 2, tmp = { x: 0, z: 0 };
@@ -55,7 +56,7 @@ export class Unit {
     if (this.mods.includes('stone')) { const l = mlv(this, 'stone'); this.armor += 35 + 25 * l; this.maxHp *= 1.2 + 0.1 * l; this.speed *= 0.85; this.noStun = true; }
     this.taunt = ally && this.kind === 'brute'; this.tauntR = 5;
     if (!this.entry) return;
-    const r = id => rk(this, id), tech = this.tech = techOf(this.entry), gunHeld = !!tech && tech.key === 'gunner', mortar = !!tech && tech.key === 'bomber', mech = !!tech && tech.key === 'mech';
+    const r = id => rk(this, id), tech = this.tech = techOf(this.entry), gunHeld = !!tech && tech.key === 'gunner', mortar = !!tech && tech.key === 'bomber', mech = !!tech && tech.key === 'mech', eng = !!tech && tech.key === 'engineer';
     if (this.kind === 'brute' && !mech) { this.maxHp *= 1 + 0.12 * r('bone'); this.armor += 5 * r('bone'); this.tauntR = 5 + 1.5 * r('taunt'); }
     else if (this.kind === 'imp' && !gunHeld) { this.cd *= 1 - 0.07 * r('haste'); this.speed *= 1 + 0.04 * r('haste'); } // the gunner's tree has no attack speed
     else if (this.kind === 'archer' && !mortar) { this.dmg *= 1 + 0.12 * r('eagle'); this.range += 0.4 * r('eagle'); this.cd *= 1 - 0.08 * r('rapid'); }
@@ -68,8 +69,10 @@ export class Unit {
     this.mortar = mortar; if (mortar) { this.cd *= 1.4; this.range = 9; this.maxHp *= 1.3; this.armor += 5; }
     // 机甲骷髅: soulsteel armour — tougher, a touch slower; the drill grinds (drillTick)
     this.mech = mech; if (mech) { this.maxHp *= 1.45; this.armor += 15; this.speed *= 0.95; this.r *= 1.04; this.tauntR = 6; }
+    // 机械师骷髅: the drones do most of the work (drones.js); a bit sturdier, a touch more reach
+    this.eng = eng; if (eng) { this.maxHp *= 1.25; this.armor += 6; this.range = 7.5; }
   }
-  remove() { C.scene.remove(this.mesh.root); }
+  remove() { C.scene.remove(this.mesh.root); if (this.dr) clearDrones(this); }
   // new weapon / shield in hand after an equipment change
   rebuildMesh() {
     const old = this.mesh; this.mesh = makeUnitMesh(this.kind, { ...this.meshOpts, gear: this.entry && this.entry.gear });
@@ -120,7 +123,7 @@ function kill(u, src) {
     if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
     makeCorpse(u);
   } else if (u.side === 'ally') {
-    S.die(); const en = u.entry; if (en) { en.unit = null; en.reviveT = en.reviveMax = 10 + 1.5 * en.level; } if (u.dieHard && u.mesh.root.visible) debris(u.x, 0.7, u.z, u.dieDx || 1, u.dieDz || 0, 3, 3.5);
+    S.die(); if (u.dr) clearDrones(u, true); const en = u.entry; if (en) { en.unit = null; en.reviveT = en.reviveMax = 10 + 1.5 * en.level; } if (u.dieHard && u.mesh.root.visible) debris(u.x, 0.7, u.z, u.dieDx || 1, u.dieDz || 0, 3, 3.5);
     deathBlast(u, 0.5);
     C.say(tr(`${u.name} 倒下了，${Math.round(en ? en.reviveT : 10)} 秒后复原`, `${u.name} fell — back in ${Math.round(en ? en.reviveT : 10)}s`)); fadeOut(u);
   } else { // player
@@ -361,7 +364,7 @@ export function shoot(src, kind, tx, tz, o = {}) {
   return s;
 }
 export function updateShots(dt) {
-  updateTracers(dt); updateNades(dt);
+  updateTracers(dt); updateNades(dt); updateTechFx(dt);
   const F = C.floor; let j = 0;
   for (const s of G.shots) {
     s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z);
@@ -411,6 +414,7 @@ function strike(u) {
         if (nx) { u.chainLeft--; u.chainNext = nx; } } } }
   else if (u.kind === 'archer') { const lead = Math.min(0.5, dist(u, t) / 12), n = 1 + rk(u, 'multi'), tx = t.x + (t.vx || 0) * lead, tz = t.z + (t.vz || 0) * lead;
     for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.17; shoot(u, 'arrow', tx, tz, { life: 0.9 + 0.04 * rk(u, 'eagle'), ang: a, pierce: rk(u, 'pierce'), dmg: u.dmg * (a ? 0.75 : 1) }); } }
+  else if (u.eng) rodBeam(u, t);
   else if (u.kind === 'shaman') shoot(u, 'fire', t.x, t.z, { life: 1.1, dmg: u.dmg * (1 + 0.15 * rk(u, 'fire')), splash: 1.4 + 0.15 * rk(u, 'fire') });
 }
 // sustained fire: one round every rof seconds at the target (or the nearest enemy in range), tracer + muzzle flash + sparks; every 6th round carries the affix effects
@@ -586,7 +590,7 @@ function allyThink(u, dt) {
     const cur = u.target && !u.target.dead && dist(u.target, P) < 15 ? u.target : null;
     u.target = cur && best && allyScore(u, cur, P) < bs + 1.5 ? cur : best || cur; }
   if (u.target && (u.target.dead || dist(u.target, P) > 15)) u.target = null;
-  if (u.kind === 'shaman') { u.healCD -= dt;
+  if (u.kind === 'shaman' && !u.eng) { u.healCD -= dt; // (the 机械师骷髅 leaves healing to its repair drone)
     if (u.healCD <= 0) { let lo = null, lr = 0.75; for (const f of G.friends) { if (f.dead || dist(f, u) > 8) continue; const r = f.hp / f.maxHp; if (r < lr) { lr = r; lo = f; } }
       if (lo) { u.state = 'cast'; u.st = 0; u.castH = lo; u.wantX = u.wantZ = 0; faceTo(u, lo); u.healCD = 3.5 - 0.3 * rk(u, 'heal'); return; } u.healCD = 0.6; } }
   if (!u.target || dp > 15) { // formation: melee summons walk ahead of the summoner, ranged ones beside / behind
@@ -601,6 +605,7 @@ function allyThink(u, dt) {
     if (u.deployT > 0 && dp > 3.5 && u.state !== 'windup') seek(u, P.x, P.z, u.speed); } } // braced: keeps up with the summoner, firing as it walks
   else if (isMelee(u)) { if (u.mech) { aegisSkill(u); if (overloadSkill(u)) return; } if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
   else if (u.mortar) mortarLogic(u, t, dt);
+  else if (u.eng) { if (orbitalSkill(u)) return; rangedLogic(u, t, dt, 4.5, 7.5); }
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 3.5, 6.5 + 0.4 * rk(u, 'eagle'));
   else rangedLogic(u, t, dt, 4.5, 7);
 }
@@ -717,6 +722,7 @@ export function updateUnit(u, dt) {
   if (u.dead) return;
   u.flash = Math.max(0, u.flash - dt * 6.5); u.barT -= dt; u.cdT -= dt * slowK(u); dt *= slowK(u) < 1 ? 0.75 : 1;
   if (u.spawnT > 0) { u.spawnT -= dt; u.wantX = u.wantZ = 0; return; }
+  if (u.eng) engTick(u, dt); else if (u.dr) clearDrones(u);
   if (u.burst > 0) gunTick(u, dt); if (u.recoilT > 0) u.recoilT -= dt; if (u.grind > 0) drillTick(u, dt); if (u.shieldT > 0) shieldTick(u, dt);
   if (u.mech && u.state === 'windup' && u.mesh.drill) u.mesh.drill.spin = Math.max(u.mesh.drill.spin, 12 + 30 * Math.min(1, u.st / Math.max(0.05, u.wind))); // spinning up
   if (u.shred && G.t - u.shredT > 3) u.shred = Math.max(0, u.shred - dt * 10);
@@ -730,6 +736,7 @@ export function updateUnit(u, dt) {
   else if (u.state === 'barrage') updateBarrage(u, dt);
   else if (u.state === 'rocket') updateRocket(u, dt);
   else if (u.state === 'overload') updateOverload(u, dt);
+  else if (u.state === 'call') updateCall(u, dt);
   else if (u.state === 'leap') updateLeap(u, dt);
   else if (u.state === 'lunge') updateLunge(u, dt);
   else if (u.state === 'throw') { u.st += dt; u.wantX = u.wantZ = 0; if (!u.thrown && u.st >= u.wind) { u.thrown = true; launchNade(u, u.nadeAt); } if (u.st >= u.wind + 0.3) { u.state = 'idle'; u.thrown = false; } }
@@ -842,7 +849,7 @@ function animate(u, dt, sp) {
   if (u.spawnT > 0) return;
   if ((m.gun || u.mortar) && u.state !== 'leap') { gunnerAnim(u, sp); return; }
   if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover' || u.state === 'leap' || u.state === 'lunge' || u.state === 'rocket') return; }
-  if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload') return;
+  if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload' || u.state === 'call') return;
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
