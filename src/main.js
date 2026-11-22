@@ -8,7 +8,8 @@ import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
 import { Floor, setNavTime } from './world.js';
 import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
-import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt } from './ui.js';
+import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt, goFull } from './ui.js';
+import { initMap, updateMap } from './minimap.js';
 import { S, unlock } from './audio.js';
 
 const $ = s => document.querySelector(s), QS = new URLSearchParams(location.search);
@@ -25,7 +26,11 @@ let qLvl = 0, RS = QS.has('rs') ? +QS.get('rs') : DPR; const PM = { t: 0, n: 0, 
 let VW = 0, VH = 0;
 function resize() { VW = innerWidth; VH = innerHeight; renderer.setPixelRatio(RS); renderer.setSize(VW, VH, false); canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
   camera.aspect = VW / VH; camera.updateProjectionMatrix(); resizeUI(VW, VH); parts.mat.uniforms.uScale.value = VH * RS * 1.37; }
-addEventListener('resize', resize); resize();
+// phones report the new size late (and in steps) after a rotation or when the browser bars move: re-check a few times
+const fitSoon = () => { resize(); for (const d of [120, 400, 900]) setTimeout(() => { if (innerWidth !== VW || innerHeight !== VH) resize(); if (scrollY || scrollX) scrollTo(0, 0); }, d); };
+addEventListener('resize', fitSoon); addEventListener('orientationchange', fitSoon); if (window.visualViewport) visualViewport.addEventListener('resize', fitSoon);
+document.addEventListener('fullscreenchange', fitSoon); document.addEventListener('webkitfullscreenchange', fitSoon); resize();
+setInterval(() => { if (innerWidth !== VW || innerHeight !== VH) resize(); }, 600); // safety net for missed resize events
 function perf(ms) { PM.ft += ms; PM.fn++; if (PM.ft > 500) { PM.fps = Math.round(PM.fn * 1000 / PM.ft); PM.ft = PM.fn = 0; }
   if (QS.has('rs') || document.hidden || ms > 500 || !started) return; if (PM.cool > 0) { PM.cool -= ms; return; }
   PM.t += ms; PM.n++; if (ms > 24) PM.slow++; if (PM.t > 2500) { if (PM.n > 20 && PM.slow > PM.n * 0.25 && qLvl < 3) { qLvl++; RS = RS_STEPS[qLvl]; resize(); PM.cool = 3000; } PM.t = PM.n = PM.slow = 0; } }
@@ -39,7 +44,7 @@ function placeCamera(snap) {
 }
 const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 function groundAt(cx, cy) { ndc.set(cx / VW * 2 - 1, -(cy / VH) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(plane, hit) ? { x: hit.x, z: hit.z } : null; }
-initUI({ camera, groundAt, canvas, reset: what => what === 'all' ? resetAll() : resetDungeon() });
+initUI({ camera, groundAt, canvas, reset: what => what === 'all' ? resetAll() : resetDungeon() }); initMap();
 
 // ---------- floors ----------
 let packId = 1;
@@ -147,7 +152,7 @@ const hasSave = load();
 $('#startMsg').textContent = hasSave ? tr(`继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · ${G.crypt.length} in the Crypt · floor ${G.deep}`) : tr('第一次进入墓穴', 'A new descent');
 $('#help').innerHTML = touchUI ? tr('左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服身边所有尸体　·　「墓典」编辑出战', 'Drag on the left half to move · hold Bone Spear to fire (auto-aim)<br>After a fight, tap Raise to capture every corpse around you · Crypt: pick your party') :
   tr('左键：移动 / 点怪攻击　·　右键：朝鼠标方向放骨矛（Shift+左键同效）<br>Q：唤魂（收服身边一圈内的所有尸体）　·　W：愈合　·　Tab：墓典　·　I：背包　·　走到楼梯点击或按 Enter 下楼', 'Left click: move / attack · Right click: Bone Spear toward the cursor (or Shift + left)<br>Q: Raise (capture every corpse around you) · W: Mend · Tab: Crypt · I: Bag · Enter on the stairs to go down');
-$('#bStart').addEventListener('click', () => { if (!A.ready) return; unlock(); $('#start').classList.add('hide'); started = true; });
+$('#bStart').addEventListener('click', () => { if (!A.ready) return; unlock(); if (touchUI) goFull(); $('#start').classList.add('hide'); started = true; });
 $('#bNew').addEventListener('click', () => { if (!confirm(tr('清除存档重新开始？', 'Delete the save and start over?'))) return; wipe(); location.reload(); });
 const bS = $('#bStart'), label = bS.textContent; bS.disabled = true;
 loadAll(k => { bS.textContent = tr(`载入中 ${Math.round(k * 100)}%`, `Loading ${Math.round(k * 100)}%`); }).then(() => { makeIcons(); bS.disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
@@ -194,6 +199,6 @@ function loop(now) {
   parts.update(dt);
   P.mesh.mat.uniforms.uFlash.value = P.flash * 0.6;
   renderer.render(scene, camera);
-  drawOverlay(); updateHUD(dt, PM.fps);
+  drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { dbg: { dropLoot, rollItem, fuse, fusionOdds }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { dbg: { dropLoot, rollItem, fuse, fusionOdds, message }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

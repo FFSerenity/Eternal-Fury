@@ -6,12 +6,22 @@ import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn
 import { openGear, closeGear, gearOpen, toggleBag } from './gearui.js';
 import { portrait } from './icons.js';
 import { tr, ZH, LANG, setLang, SP } from './i18n.js';
+import { cycleMap } from './minimap.js';
 import { S } from './audio.js';
 import { unlock, setSfx, sfxOn } from './audio.js';
 
 const $ = s => document.querySelector(s);
 export const IN = { joy: null, moveTo: null, hold: false, attack: null, castAt: null, castHold: false, autoAtk: false, raise: null, raiseKey: false, mend: false, stairs: false, cursor: null, shift: false };
 export const touchUI = matchMedia('(pointer: coarse)').matches;
+// fullscreen: Android / desktop browsers can do it from a tap; iPhone Safari can't (only "Add to Home Screen" removes the bars)
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+export const fsOK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+export const isIPhone = /iPhone|iPod/.test(navigator.userAgent);
+export const installed = !!navigator.standalone || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+export function goFull(on = true) {
+  try { if (on && !fsEl()) { const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen; const p = f && f.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); }
+    else if (!on && fsEl()) { const f = document.exitFullscreen || document.webkitExitFullscreen; const p = f && f.call(document); if (p && p.catch) p.catch(() => {}); } } catch (e) {}
+}
 let cam = null, groundAt = null, W = 0, H = 0;
 let onReset = null;
 // static texts in index.html carry their English version in data-en / data-en-title / data-en-c
@@ -74,7 +84,7 @@ function bindInput(cv) {
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   addEventListener('keydown', e => { if (e.repeat && e.key !== 'Shift') return; const k = e.key.toLowerCase(); unlock();
     if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleBag(); }
-    else if (k === 'enter') IN.stairs = true; else if (k === 'escape') { closeCrypt(); closeGear(); } });
+    else if (k === 'm') cycleMap(); else if (k === 'enter') IN.stairs = true; else if (k === 'escape') { closeCrypt(); closeGear(); } });
   addEventListener('keyup', e => { if (e.key === 'Shift') IN.shift = false; });
 }
 // screen-space stick direction -> world direction (camera looks diagonally: screen up = world (-1,0,-1))
@@ -96,6 +106,12 @@ function bindButtons() {
   hold($('#bStairs'), () => { IN.stairs = true; });
   const sfxLabel = () => { $('#bSfx').textContent = sfxOn() ? '🔊 ' + tr('开', 'On') : '🔇 ' + tr('关', 'Off'); };
   hold($('#bSfx'), () => { setSfx(!sfxOn()); sfxLabel(); }); sfxLabel();
+  const fsLabel = () => { $('#bFull').textContent = fsEl() ? '⛶ ' + tr('退出全屏', 'Exit fullscreen') : '⛶ ' + tr('全屏', 'Fullscreen'); };
+  if (fsOK) { $('#bFull').addEventListener('click', e => { e.stopPropagation(); goFull(!fsEl()); }); document.addEventListener('fullscreenchange', fsLabel); document.addEventListener('webkitfullscreenchange', fsLabel); fsLabel(); }
+  else { $('#bFull').style.display = 'none';
+    if (isIPhone && !installed) $('#fsTip').textContent = tr('iPhone 的浏览器不能全屏：点 Safari 的分享按钮 →「添加到主屏幕」，以后从桌面图标打开就没有浏览器栏了。', 'iPhone browsers can’t go fullscreen: tap Share → “Add to Home Screen”, then open the game from that icon — no browser bars.');
+    else $('#fsBox').style.display = 'none'; }
+  if (isIPhone && !installed) $('#startTip').textContent = tr('📱 iPhone：分享 →「添加到主屏幕」，从桌面图标打开可全屏玩', '📱 iPhone: Share → “Add to Home Screen”, then open it from the icon to play fullscreen');
   // test helpers behind ↺: reset the dungeon (back to camp, fresh monsters) or wipe everything and start over; each needs a second tap
   const sm = $('#setMenu'), menu = $('#resetMenu'), shut = () => { sm.classList.remove('open'); for (const b of menu.querySelectorAll('.btn')) { b.classList.remove('arm'); b.textContent = b.dataset.l; } };
   for (const b of menu.querySelectorAll('.btn')) b.dataset.l = b.textContent;

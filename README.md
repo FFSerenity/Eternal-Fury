@@ -7,6 +7,10 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - **Desktop:** left click to move / click a monster to attack · right click (or Shift + left click) casts Bone Spear toward the cursor ·
   **Q** 唤魂 (capture the corpse nearest the cursor) · **W** 愈合 (heal) · **Tab** 墓典 (your collection) · **Enter** on the stairs to go down
 - **Phone:** drag on the left half to move · hold 🦴 to fire Bone Spear (auto-aim) · 👻 to capture the nearest corpse · 💚 heal · 📜 墓典
+- **Minimap:** top right, drawn at the camera's angle; it fills in as you explore (a room maps fully when you walk in) and shows the way down, loot, allies and nearby monsters.
+  Tap / click it for a big see-through map (clicks pass through it; the 🗺 chip shrinks it back); **M** cycles small → big → off; ⚙ → Minimap turns it on or off.
+- **Phones:** Android browsers go fullscreen when you enter the crypt (⚙ → Screen toggles it). iPhone Safari can't go fullscreen from a web page:
+  Share → "Add to Home Screen" and open the game from that icon to play without browser bars. The game re-fits itself after you rotate the phone.
 - **Language:** English by default. ⚙ (top right) → Language → 中文 switches to Chinese (and back); the game saves and reloads.
   The same menu holds the sound toggle and the testing resets (dungeon reset / wipe everything).
 

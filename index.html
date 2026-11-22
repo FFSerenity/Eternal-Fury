@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Grave Tamer">
 <meta name="theme-color" content="#07060a">
 <title>唤魂墓穴</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -13,7 +14,7 @@
 <link rel="icon" href="icon-192.png">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-html,body{margin:0;height:100%;overflow:hidden;background:#07060a;color:#e8e0f0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overscroll-behavior:none}
+html,body{margin:0;height:100%;overflow:hidden;position:fixed;inset:0;width:100%;background:#07060a;color:#e8e0f0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overscroll-behavior:none}
 #c{position:fixed;left:0;top:0;touch-action:none;display:block}
 #ov{position:fixed;left:0;top:0;pointer-events:none}
 #hud{position:fixed;inset:0;pointer-events:none;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
@@ -183,7 +184,7 @@ body.touch .sk .k{display:none}
 .tN{font-weight:900;font-size:14px}.tB{color:#e8e2d6}.tI{color:#bfb6a6;font-size:12px}.tL{color:#7f98ff}.tR{color:#e8e2d6}.tR.bad{color:#ff5a5a}.tC{color:#c9b8a0;font-size:12px}.tC.up{color:#6dff8e}.tC.dn{color:#ff6b6b}
 #gHeld{position:fixed;display:none;width:56px;height:56px;transform:translate(-50%,-50%);pointer-events:none;z-index:21}#gHeld img{width:100%;filter:drop-shadow(0 4px 6px rgba(0,0,0,.9))}
 @media (max-width:700px){.mDoll .gMain,.mBag .gMain{grid-template-columns:1fr}.gInfo{height:104px}#gDoll{width:140px;height:180px}.gSlot{width:56px;height:96px}#gearBox{padding:12px 10px}.gF{width:160px}}
-@media (max-width:520px){#fps{display:none}#tr{max-width:calc(100vw - 196px);flex-wrap:wrap;justify-content:flex-end;gap:6px}#tr .lb{display:none}#tr .btn{height:38px}#bSet{width:38px}#bCrypt,#bGear{padding:0 8px}}
+@media (max-width:520px){#fps{display:none}#tr{max-width:calc(100vw - 188px);flex-wrap:wrap;justify-content:flex-end;gap:5px}#tr .lb{display:none}#tr .btn{height:38px}#bSet{width:36px}#bCrypt,#bGear{padding:0 6px}}
 .gSide .gF{width:100%}@media (max-width:700px){.gSide .gF{grid-template-columns:repeat(6,1fr)}}
 .achip{display:inline-block;font-size:11px;font-weight:800;padding:0 6px;border:1px solid;border-radius:8px;margin-right:4px;line-height:17px;background:rgba(0,0,0,.25)}
 .fchips{margin-top:2px}.odds2 .fo{white-space:nowrap;display:inline-block}.fuse .fr{align-items:center}.odds2{font-size:11px;color:#c9b8e8;text-align:right;line-height:1.7;max-width:46%}.odds2 .dim,.fzR .dim{color:#8f82aa}
@@ -243,6 +244,24 @@ body.en .sk .nm{font-size:8.5px;letter-spacing:-.1px}body.en #sAtk .nm{font-size
 body.en .pc .pn{font-size:10.5px}body.en .card .nm{font-size:14px;line-height:1.25}body.en #cryptHead{font-size:19px}
 body.en .ftabs .btn{padding:0 12px;font-size:13px}body.en .dHead .nm{font-size:16px;line-height:1.2}
 body.en #floorTag{letter-spacing:1px}body.en .gsL{gap:2px 10px}body.en #help{max-width:640px}
+
+/* minimap: small in the corner under the top bar; big = see-through overlay in the middle (clicks pass through) */
+#mmap{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);width:140px;height:140px;border-radius:12px;background:rgba(8,6,14,.55);border:1px solid rgba(200,180,255,.25);box-shadow:0 2px 12px rgba(0,0,0,.5);pointer-events:auto;cursor:zoom-in;touch-action:none}
+#mmap.big{right:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(80vw,78vh,560px);height:min(80vw,78vh,560px);background:radial-gradient(circle,rgba(6,4,12,.32),rgba(6,4,12,0) 70%);border:none;border-radius:50%;pointer-events:none;box-shadow:none}
+#mmap.off{display:none}#bMap:not(.on){opacity:.55}body.touch #bMap{display:none}@media (max-width:520px){#bMap{display:none}}
+#mapChip{display:none;position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);width:40px;height:40px;font-size:18px;pointer-events:auto;align-items:center;justify-content:center;padding:0}#mmap.big + #mapChip{display:flex}@media (max-height:520px){#mapChip{top:calc(max(8px,env(safe-area-inset-top)) + 44px)}}
+body.touch #mmap:not(.big){width:108px;height:108px}@media (max-height:520px){#mmap:not(.big){width:96px;height:96px;top:calc(max(8px,env(safe-area-inset-top)) + 44px)}}
+body:has(#start:not(.hide)) #mmap{visibility:hidden}
+/* phones: smaller banner messages */
+body.touch #msg .m{font-size:12.5px;padding:4px 10px;border-radius:8px}body.touch #msg .m.big{font-size:15px;letter-spacing:.5px}body.touch #msg{top:18%;gap:4px;width:80vw}
+#fsTip{font-size:11.5px;line-height:1.45;color:#c9b8e8;max-width:230px}#fsTip:empty{display:none}
+#startTip{font-size:12.5px;color:#c9b8e8;text-align:center;max-width:300px;line-height:1.5}#startTip:empty{display:none}
+
+/* phones: the floor name sits under the minimap (or under the map chip / top bar when the map is big / off) */
+body.touch #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 50px);right:max(10px,env(safe-area-inset-right));left:auto;transform:none;font-size:11px;letter-spacing:1px;width:108px;text-align:center;white-space:nowrap}
+body.touch:has(#mmap.small) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 162px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 96px)}
+@media (max-height:520px){body.touch #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 44px);width:96px}body.touch:has(#mmap.small) #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 144px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 90px)}}
+@media (max-width:560px){body:not(.touch):has(#mmap.small) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 196px)}}
 </style>
 </head>
 <body>
@@ -253,9 +272,11 @@ body.en #floorTag{letter-spacing:1px}body.en .gsL{gap:2px 10px}body.en #help{max
     <div class="bar"><i id="hpB"></i><span id="hpT"></span></div><div class="bar"><i id="mpB"></i><span id="mpT"></span></div><div class="bar xp"><i id="xpB"></i></div></div>
   <div id="party"></div>
   <div id="floorTag"></div>
-  <div id="tr"><span id="fps">60</span><button class="btn" id="bSet" title="设置" data-en-title="Settings">⚙</button><button class="btn" id="bGear">🎒<span class="lb" data-en=" Bag"> 背包</span> <b id="gearN">0</b></button><button class="btn" id="bCrypt">📜<span class="lb" data-en=" Crypt"> 墓典</span> <b id="cryptN">0</b></button></div>
+  <div id="tr"><span id="fps">60</span><button class="btn" id="bMap" title="地图 · M" data-en-title="Map · M">🗺</button><button class="btn" id="bSet" title="设置" data-en-title="Settings">⚙</button><button class="btn" id="bGear">🎒<span class="lb" data-en=" Bag"> 背包</span> <b id="gearN">0</b></button><button class="btn" id="bCrypt">📜<span class="lb" data-en=" Crypt"> 墓典</span> <b id="cryptN">0</b></button></div>
   <div id="setMenu" class="panel"><div class="smT" data-en="Settings">设置</div>
     <div class="smL" data-en="Language">语言</div><div class="smRow"><button class="btn lg" data-l="en">English</button><button class="btn lg" data-l="zh">中文</button></div>
+    <div id="fsBox"><div class="smL" data-en="Screen">屏幕</div><div class="smRow"><button class="btn" id="bFull">⛶</button></div><div id="fsTip"></div></div>
+    <div class="smL" data-en="Minimap">小地图</div><div class="smRow"><button class="btn" id="bMapSet">🗺</button></div>
     <div class="smL" data-en="Sound">音效</div><div class="smRow"><button class="btn" id="bSfx">🔊</button></div>
     <div class="smL" data-en="Testing">测试用</div><div id="resetMenu"><button class="btn" data-r="dungeon" data-c="确认：回营地、刷新怪物" data-en="↺ Reset dungeon" data-en-c="Confirm: back to camp, fresh monsters">↺ 重置副本</button><button class="btn danger" data-r="all" data-c="确认：清空存档从头开始" data-en="⚠ Reset everything" data-en-c="Confirm: wipe the save and start over">⚠ 全部重置</button><div class="rmT" data-en="tap twice to confirm">点两次生效</div></div></div>
   <div id="msg"></div>
@@ -268,7 +289,7 @@ body.en #floorTag{letter-spacing:1px}body.en .gsL{gap:2px 10px}body.en #help{max
 </div>
 <div id="joy"><div id="joyK"></div></div>
 <div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead"></div><div id="cryptList"></div></div></div>
-<div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="help"></div><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
+<div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="startTip"></div><div id="help"></div><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
 <script src="game.js"></script>
 <script>try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}</script>
 </body>
