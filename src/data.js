@@ -18,13 +18,17 @@ export const TYPES = {
   },
 };
 export const MODS = {
-  fast:      { name: '迅捷', col: 0xe6eef8, desc: '移动和攻击都更快，跑动时留下残影' },
-  fire:      { name: '火焰强化', col: 0xff8a2a, desc: '武器带火，倒下时爆炸，灼烧周围的敌人' },
-  stone:     { name: '石肤', col: 0xb9b2a4, desc: '护甲极高、生命更多，不会被打断' },
-  cold:      { name: '冰冻', col: 0x7cc8ff, desc: '攻击让敌人冻结减速，倒下时放出冰霜新星' },
-  poison:    { name: '剧毒', col: 0x7dff5a, desc: '攻击让敌人中毒持续掉血，倒下时留下一团毒云' },
-  lightning: { name: '闪电强化', col: 0xfff07a, desc: '攻击有几率连锁闪电打到旁边的敌人，倒下时放出雷暴' },
+  fast:      { name: '迅捷', short: '迅', col: 0xe6eef8, desc: '移动和攻击都更快，跑动时留下残影' },
+  fire:      { name: '火焰强化', short: '火', col: 0xff8a2a, desc: '武器带火，倒下时爆炸，灼烧周围的敌人' },
+  stone:     { name: '石肤', short: '石', col: 0xb9b2a4, desc: '护甲极高、生命更多，不会被打断' },
+  cold:      { name: '冰冻', short: '冰', col: 0x7cc8ff, desc: '攻击让敌人冻结减速，倒下时放出冰霜新星' },
+  poison:    { name: '剧毒', short: '毒', col: 0x7dff5a, desc: '攻击让敌人中毒持续掉血，倒下时留下一团毒云' },
+  lightning: { name: '闪电强化', short: '雷', col: 0xfff07a, desc: '攻击有几率连锁闪电打到旁边的敌人，倒下时放出雷暴' },
 };
+// affix names: one affix keeps its full name, several are joined by their one-character names (冰火, 冰火雷)
+export const ROMAN = ['', 'Ⅱ', 'Ⅲ'];
+export const affixName = (mods, champ = true) => !champ || !mods || !mods.length ? '' : mods.length === 1 ? MODS[mods[0]].name : mods.map(m => MODS[m].short).join('');
+export const MAX_AFFIX = 3, MAX_AFFIX_LV = 3;
 // elemental look of champion affixes: weapon glow, particles off the weapon, hit sparks, projectile trails
 export const ELEM = {
   fire:  { col: 0xff7a20, emis: 0x7a2a00, part: { col: 0xff8a2a, spd: 0.35, up: 1.3, grav: -1.4, life: 0.5, size: 0.24, spread: 0.08 },

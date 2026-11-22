@@ -5,7 +5,7 @@
 // A fixed info box shows the hovered or held item, so nothing jumps around.
 import * as THREE from 'three';
 import { G, save, bagPut, bagFree } from './state.js';
-import { TYPES, MODS, QUAL, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem } from './data.js';
+import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem } from './data.js';
 import { setGear, Unit, ANIM } from './units.js';
 import { makeUnitMesh, play } from './assets.js';
 import { initR, lit, itemIconURL as iconOf, portrait } from './icons.js';
@@ -21,7 +21,7 @@ let R = null, dollScene, dollCam, doll = null, dollKey = '';
 function setDoll() {
   const en = selEn, key = en && mode === 'doll' ? en.id + ':' + (en.gear?.w?.id || 0) + ':' + (en.gear?.a?.id || 0) : ''; if (key === dollKey) return; dollKey = key;
   if (doll) { dollScene.remove(doll.root); doll = null; } if (!key) return;
-  doll = makeUnitMesh(en.type, { gear: en.gear, elem: en.champ && en.mods[0] ? en.mods[0] : null, tint: en.mods.includes('stone') ? 0xb8b4ac : 0xffffff });
+  doll = makeUnitMesh(en.type, { gear: en.gear, elems: en.champ ? en.mods : null, tint: en.mods.includes('stone') ? 0xb8b4ac : 0xffffff });
   dollScene.add(doll.root); play(doll, ANIM[en.type].idle, {}); doll.mixer.update(0);
   const box = new THREE.Box3().setFromObject(doll.root), h = box.max.y - box.min.y || 1.2;
   dollCam.position.set(0, h * 0.62, h * 2.55); dollCam.lookAt(0, h * 0.48, 0); doll.root.rotation.y = 0.5;
@@ -109,7 +109,7 @@ export function render() {
     for (const el of document.querySelectorAll('.gSlot')) { const c = el.dataset.c, it = en.gear ? en.gear[c] : null, ok = held && fitsSlot(held.it, c);
       el.className = 'gSlot' + (it ? ' q' + it.q : '') + (held ? ok ? ' can' : ' no' : '');
       el.innerHTML = it ? `<img src="${iconOf(it)}" draggable="false">` : `<span>${c === 'w' ? WEAPONS[en.type].cat : '盾'}</span>`; }
-    $('#gStats').innerHTML = `<div class="gsN">${portrait(en.type, 'sm')}${en.champ && en.mods[0] ? `<span style="color:#ffb347">${MODS[en.mods[0]].name}</span>` : ''}${TYPES[en.type].name} <small>Lv ${en.level}${en.active ? ' · 出战中' : ''}</small></div>
+    $('#gStats').innerHTML = `<div class="gsN">${portrait(en.type, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${TYPES[en.type].name} <small>Lv ${en.level}${en.active ? ' · 出战中' : ''}</small></div>
       <div class="gsL"><span>生命 <b>${Math.round(o.maxHp)}</b></span><span>伤害 <b>${o.dmg.toFixed(1)}</b></span><span>护甲 <b>${Math.round(o.armor)}</b></span><span>攻击间隔 <b>${o.cd.toFixed(2)}s</b></span></div>`;
     $('#gSide').innerHTML = '';
   } else {

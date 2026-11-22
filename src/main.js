@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G, save, load, wipe } from './state.js';
-import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE } from './data.js';
+import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
 import { A, loadAll, propGeo } from './assets.js';
 import { makeIcons } from './icons.js';
@@ -174,7 +174,7 @@ function loop(now) {
     G.units = G.units.filter(u => !u.dead || u === P);
     // revive timers (a shaman in the party speeds them up)
     let rvs = 1; for (const f of G.friends) if (f.side === 'ally' && f.kind === 'shaman') rvs = Math.max(rvs, 1.4 * (1 + 0.2 * rk(f, 'soul')));
-    for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(`${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${TYPES[en.type].name} 复原了`); } } }
+    for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(`${affixName(en.mods, en.champ)}${TYPES[en.type].name} 复原了`); } } }
     G.floor.stairsGlow.material.opacity = 0.55 + 0.25 * Math.sin(G.t * 2.5);
   }
   const P = G.player;

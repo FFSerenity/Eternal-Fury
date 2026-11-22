@@ -185,6 +185,13 @@ body.touch .sk .k{display:none}
 @media (max-width:700px){.mDoll .gMain,.mBag .gMain{grid-template-columns:1fr}.gInfo{height:104px}#gDoll{width:140px;height:180px}.gSlot{width:56px;height:96px}#gearBox{padding:12px 10px}.gF{width:160px}}
 @media (max-width:520px){#fps{display:none}#tr{max-width:calc(100vw - 196px);flex-wrap:wrap;justify-content:flex-end;gap:6px}#tr .lb{display:none}#tr .btn{height:38px}#bSfx,#bReset{width:38px}#bCrypt,#bGear{padding:0 8px}}
 .gSide .gF{width:100%}
+.achip{display:inline-block;font-size:11px;font-weight:800;padding:0 6px;border:1px solid;border-radius:8px;margin-right:4px;line-height:17px;background:rgba(0,0,0,.25)}
+.fchips{margin-top:2px}.fuse .fr{align-items:center}.odds2{font-size:11px;color:#c9b8e8;text-align:right;line-height:1.7;max-width:46%}.odds2 .dim,.fzR .dim{color:#8f82aa}
+.fr .fz{height:30px;padding:0 12px;font-size:12px;font-weight:800;background:linear-gradient(180deg,#5a3f86,#35234f)}
+#fuseFx{position:absolute;inset:0;border-radius:12px;background:rgba(8,5,12,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:4}
+.fzRow{position:relative;width:240px;height:110px}.fzA,.fzB{position:absolute;top:0;width:100px;height:100px;border-radius:14px;overflow:hidden;border:2px solid #3fe0d0;background:#120c1c;transition:transform 1s cubic-bezier(.6,0,.4,1),opacity 1s,box-shadow .3s}
+.fzA{left:0}.fzB{right:0}#fuseFx.merge .fzA{transform:translateX(70px)}#fuseFx.merge .fzB{transform:translateX(-70px) scale(.7);opacity:0}
+#fuseFx.flash .fzA{box-shadow:0 0 40px 10px rgba(111,247,232,.8);animation:pop .45s}.fzT{font-size:20px;font-weight:900;color:#e9dcff}.fzR{text-align:center;line-height:1.9;font-weight:700;color:#e9dcff}#fuseFx .ok{height:38px;padding:0 28px;font-weight:900}
 </style>
 </head>
 <body>

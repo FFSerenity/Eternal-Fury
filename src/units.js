@@ -1,7 +1,7 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
 import { G, save, bagPut } from './state.js';
-import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, QUAL, BAG_MAX, rollDrop, itemName, itemBase } from './data.js';
+import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase } from './data.js';
 import { glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { makeUnitMesh, play, clipLen, CHARS, propMesh } from './assets.js';
 import { S } from './audio.js';
@@ -11,12 +11,14 @@ const rand = (a, b) => a + Math.random() * (b - a), TAU = Math.PI * 2, tmp = { x
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // rank of a summon skill (enemies have none)
 export const rk = (u, id) => (u.entry && u.entry.skills && u.entry.skills[id]) || 0;
+// affix strength (1..3; raised by fusion)
+export const mlv = (u, m) => (u.modLv && u.modLv[m]) || 1;
 let nextId = 1;
 
 export class Unit {
   constructor(kind, side, x, z, o = {}) {
     this.id = nextId++; this.kind = kind; this.side = side; this.x = x; this.z = z; this.vx = this.vz = this.kx = this.kz = 0; this.wantX = this.wantZ = 0;
-    this.level = o.level || 1; this.mods = o.mods || []; this.champ = !!o.champ; this.entry = o.entry || null; this.packId = o.packId ?? -1;
+    this.level = o.level || 1; this.mods = o.mods || []; this.modLv = o.modLv || {}; this.champ = !!o.champ; this.entry = o.entry || null; this.packId = o.packId ?? -1;
     this.T = TYPES[kind] || null; this.state = 'idle'; this.st = 0; this.cdT = rand(0.2, 0.8); this.target = null; this.face = rand(0, TAU);
     this.home = { x, z }; this.aggro = false; this.scanT = rand(0, 0.35); this.flash = 0; this.stun = 0; this.dead = false; this.barT = 0;
     this.flank = Math.random() < 0.5 ? -1 : 1; this.strafeT = 0; this.strafeDir = 0; this.resCD = rand(2, 4); this.healCD = 2; this.walkPh = rand(0, 6); this.lostT = 0;
@@ -27,7 +29,7 @@ export class Unit {
     this.meshOpts = {
       scale: champ ? (ally ? 1.1 : 1.25) : 1,
       tint: this.mods.includes('stone') ? 0xb8b4ac : this.mods.includes('fire') && champ ? 0xffc8a8 : 0xffffff,
-      emis: 0x000000, rim: 0x000000, elem: champ && mod0 ? this.mods[0] : null, soul: ally,
+      emis: 0x000000, rim: 0x000000, elems: champ && mod0 ? this.mods.slice() : null, soul: ally,
       outline: 0x120a10, outlineW: champ ? 0.06 : 0.05,
     };
     this.mesh = makeUnitMesh(kind, { ...this.meshOpts, gear: this.entry && this.entry.gear });
@@ -36,7 +38,7 @@ export class Unit {
     if (ally) { const rg = ring(0.45, 0.5, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
     if (champ && mod0) { const rg = ring(0.56, 0.685, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
-  get name() { return (this.champ && this.mods[0] ? MODS[this.mods[0]].name : '') + (this.T ? this.T.name : '召唤师'); }
+  get name() { return affixName(this.mods, this.champ) + (this.T ? this.T.name : '召唤师'); }
   stats() { Unit.prototype._stats.call(this); this.speed *= PACE.move; if (this.cd) this.cd /= PACE.act; }
   _stats() {
     const L = this.level;
@@ -46,8 +48,8 @@ export class Unit {
     this.armor = T.armor + 2 * (L - 1); this.speed = T.speed * (ally ? 1.08 : 1); this.range = T.range; this.cd = T.cd; this.r = T.r; this.noStun = false;
     if (ally && this.kind === 'brute') this.speed = TYPES.imp.speed * 1.08 * 0.92;
     if (this.champ) { this.maxHp *= 2.4; this.dmg *= 1.35; this.r *= ally ? 1.08 : 1.2; }
-    if (this.mods.includes('fast')) { this.speed *= 1.45; this.cd *= 0.7; }
-    if (this.mods.includes('stone')) { this.armor += 60; this.maxHp *= 1.3; this.speed *= 0.85; this.noStun = true; }
+    if (this.mods.includes('fast')) { const l = mlv(this, 'fast'); this.speed *= 1.35 + 0.1 * l; this.cd *= 0.75 - 0.05 * l; }
+    if (this.mods.includes('stone')) { const l = mlv(this, 'stone'); this.armor += 35 + 25 * l; this.maxHp *= 1.2 + 0.1 * l; this.speed *= 0.85; this.noStun = true; }
     this.taunt = ally && this.kind === 'brute'; this.tauntR = 5;
     if (!this.entry) return;
     const r = id => rk(this, id);
@@ -79,7 +81,7 @@ export function damage(src, dst, amt, o = {}) {
   if (dst.kind !== 'player' && !dst.noStun && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
   if (dst.kind === 'player') S.hurt(); else if (!o.dot) S.hit(Math.min(1, d / 20));
-  const mod = src && src.champ && src.mods[0], el = mod && ELEM[mod]; if (el && !o.noFx) { C.parts.emit(dst.x, 0.7, dst.z, 11, el.hit); elemHit(mod, src, dst, d, o); }
+  if (src && src.champ && !o.noFx) for (const mod of src.mods) { const el = ELEM[mod]; if (!el) continue; C.parts.emit(dst.x, 0.7, dst.z, src.mods.length > 1 ? 6 : 11, el.hit); elemHit(mod, src, dst, d, o); }
   if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? '暴击 ' : '') + Math.round(d), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4);
   if (dst.hp <= 0) kill(dst, src);
   return d;
@@ -111,7 +113,7 @@ function fireBlast(u) {
   S.boom(); C.parts.emit(u.x, 0.4, u.z, 40, { col: 0xff8a2a, spd: 5, up: 2, life: 0.7, size: 0.35 });
   const rg = ring(0.2, 0.5, 0xff7a20, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
   G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * 5); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
-  for (const h of (u.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && dist(h, u) < 2.4) damage(u, h, u.dmg * 1.6, { knock: 3, fx: u.x, fz: u.z });
+  const lv = mlv(u, 'fire'); for (const h of (u.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && dist(h, u) < 2.4 + 0.3 * (lv - 1)) damage(u, h, u.dmg * 1.6 * (1 + 0.4 * (lv - 1)), { knock: 3, fx: u.x, fz: u.z, noFx: true });
 }
 // ---------- loot on the ground: glows in its quality colour (rare items get a light beam), walk over it to pick it up ----------
 export function dropLoot(it, x, z) {
@@ -126,7 +128,7 @@ export function updateLoot(dt) {
   const P = G.player; let j = 0;
   for (const L of G.loot) { L.t += dt; const k = Math.min(1, L.t / 0.45), x = L.x0 + (L.x - L.x0) * k, z = L.z0 + (L.z - L.z0) * k, y = k < 1 ? 1 * (1 - k) + Math.sin(Math.PI * k) * 0.8 : 0.12 + Math.sin(G.t * 2.5 + L.ph) * 0.04;
     L.root.position.set(x, y, z); L.m.rotation.z += dt * 0.8;
-    if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 0.9) {
+    if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 1.5) {
       if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say('背包满了，打开装备界面（I）把多余的丢进熔炉吧'); } }
       else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(`拾取：${itemName(L.it)}`); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0); save(); continue; } }
     G.loot[j++] = L; }
@@ -140,36 +142,37 @@ function gearChanged(en) { const u = en.unit; if (u && !u.dead) { const f = u.hp
 // ---------- elemental affixes: what champion hits do, and what champions leave behind when they fall ----------
 const CHILL = 2.2;
 function elemHit(mod, src, dst, d, o) {
-  if (mod === 'cold') { if (!dst.dead) { if (!(dst.chillT > 0)) say(dst.x, dst.z, '冻结', '#bfe8ff', 13, 2.0); dst.chillT = Math.max(dst.chillT || 0, CHILL); } }
-  else if (mod === 'poison' && !o.dot) { if (!dst.dead) { const tot = d * 0.6, p = dst.poison; if (!p || p.left * p.dps < tot) dst.poison = { dps: tot / 3, left: 3, tick: 0.5, src }; } }
-  else if (mod === 'lightning' && !o.noChain && Math.random() < (src.kind === 'archer' || src.kind === 'shaman' ? 0.5 : 0.35)) {
+  const lv = mlv(src, mod);
+  if (mod === 'cold') { if (!dst.dead) { if (!(dst.chillT > 0)) say(dst.x, dst.z, '冻结', '#bfe8ff', 13, 2.0); dst.chillT = Math.max(dst.chillT || 0, CHILL * (1 + 0.3 * (lv - 1))); } }
+  else if (mod === 'poison' && !o.dot) { if (!dst.dead) { const tot = d * 0.6 * (1 + 0.4 * (lv - 1)), p = dst.poison; if (!p || p.left * p.dps < tot) dst.poison = { dps: tot / 3, left: 3, tick: 0.5, src }; } }
+  else if (mod === 'lightning' && !o.noChain && Math.random() < (src.kind === 'archer' || src.kind === 'shaman' ? 0.5 : 0.35) + 0.1 * (lv - 1)) {
     let from = dst, n = 0; const hit = new Set([dst]);
     while (n < 2) { let nx = null, nd = 3.8; for (const h of (dst.side === 'enemy' ? G.enemies : G.friends)) { if (h.dead || hit.has(h)) continue; const dd = dist(h, from); if (dd < nd) { nd = dd; nx = h; } }
-      if (!nx) break; bolt(from, nx); hit.add(nx); damage(src, nx, d * 0.55, { noChain: true, noFx: true }); C.parts.emit(nx.x, 0.8, nx.z, 8, ELEM.lightning.hit); from = nx; n++; }
+      if (!nx) break; bolt(from, nx); hit.add(nx); damage(src, nx, d * (0.45 + 0.1 * lv), { noChain: true, noFx: true }); C.parts.emit(nx.x, 0.8, nx.z, 8, ELEM.lightning.hit); from = nx; n++; }
     if (n) S.zap(); }
 }
 export function bolt(a, b, life = 0.22) { G.bolts.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, until: G.t + life, seed: Math.random() * 100 }); }
 function deathBlast(u, delay) {
-  const m = u.mods[0]; if (!u.champ && m !== 'fire') return;
-  if (m === 'fire') G.fx.push({ t: delay, fn: () => fireBlast(u) });
-  else if (m === 'cold') G.fx.push({ t: delay * 0.6, fn: () => frostNova(u) });
-  else if (m === 'poison') G.fx.push({ t: delay * 0.6, fn: () => poisonCloud(u) });
-  else if (m === 'lightning') G.fx.push({ t: delay * 0.6, fn: () => thunder(u) });
+  if (!u.champ) return; u.mods.forEach((m, i) => { const d = delay * 0.6 + i * 0.35;
+    if (m === 'fire') G.fx.push({ t: delay + i * 0.35, fn: () => fireBlast(u) });
+    else if (m === 'cold') G.fx.push({ t: d, fn: () => frostNova(u) });
+    else if (m === 'poison') G.fx.push({ t: d, fn: () => poisonCloud(u) });
+    else if (m === 'lightning') G.fx.push({ t: d, fn: () => thunder(u) }); });
 }
 function shock(u, col, r) { const rg = ring(0.2, 0.5, col, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg); G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * r * 2); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) }); }
 function frostNova(u) {
   S.frost(); C.parts.emit(u.x, 0.4, u.z, 36, { col: 0xcfeeff, spd: 5, up: 1.5, grav: 3, life: 0.6, size: 0.28 }); shock(u, 0x7cc8ff, 3);
-  for (const h of hostilesOf(u)) if (!h.dead && dist(h, u) < 3.2) { damage(u, h, u.dmg * 0.9, { noFx: true }); h.chillT = Math.max(h.chillT || 0, 3.5); }
+  const lv = mlv(u, 'cold'); for (const h of hostilesOf(u)) if (!h.dead && dist(h, u) < 3.2 + 0.4 * (lv - 1)) { damage(u, h, u.dmg * 0.9 * (1 + 0.4 * (lv - 1)), { noFx: true }); h.chillT = Math.max(h.chillT || 0, 3.5 + lv - 1); }
 }
 function poisonCloud(u) {
   S.fire(); const disc = new THREE.Mesh(new THREE.CircleGeometry(2.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3fbf2a, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending }));
   disc.position.set(u.x, 0.04, u.z); disc.renderOrder = 2; C.scene.add(disc);
-  G.clouds.push({ x: u.x, z: u.z, r: 2.3, t: 0, max: 4.5, tick: 0, dps: u.dmg * 0.55, side: u.side, src: u, disc });
+  const lv = mlv(u, 'poison'); G.clouds.push({ x: u.x, z: u.z, r: 2.3, t: 0, max: 4.5 + (lv - 1), tick: 0, dps: u.dmg * 0.55 * (1 + 0.4 * (lv - 1)), side: u.side, src: u, disc });
 }
 function thunder(u) {
   S.zap(); S.boom(); C.parts.emit(u.x, 1.0, u.z, 30, { col: 0xfffbd0, spd: 5, up: 2, grav: 0, life: 0.3, size: 0.22 }); shock(u, 0xfff07a, 2.5);
-  const list = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 4.8).sort((a, b) => dist(a, u) - dist(b, u)).slice(0, 4);
-  for (const h of list) { bolt(u, h, 0.3); damage(u, h, u.dmg * 1.1, { noChain: true, noFx: true }); C.parts.emit(h.x, 0.8, h.z, 8, ELEM.lightning.hit); }
+  const lv = mlv(u, 'lightning'), list = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 4.8).sort((a, b) => dist(a, u) - dist(b, u)).slice(0, 3 + lv);
+  for (const h of list) { bolt(u, h, 0.3); damage(u, h, u.dmg * 1.1 * (1 + 0.3 * (lv - 1)), { noChain: true, noFx: true }); C.parts.emit(h.x, 0.8, h.z, 8, ELEM.lightning.hit); }
 }
 // chill / poison ticking, poison clouds; chilled units move, attack and animate slower
 export const slowK = u => u.chillT > 0 ? 0.55 : 1;
@@ -203,11 +206,11 @@ export function finishRaise(c) {
   if (!G.corpses.includes(c)) return;
   const ok = Math.random() < captureChance(c); removeCorpse(c);
   if (ok) {
-    const en = { id: G.uid++, type: c.kind, level: c.level, xp: 0, mods: c.mods, champ: c.champ, active: false, reviveT: 0, unit: null, sp: 0, skills: {} };
+    const en = { id: G.uid++, type: c.kind, level: c.level, xp: 0, mods: c.mods, modLv: {}, champ: c.champ, active: false, reviveT: 0, unit: null, sp: 0, skills: {} };
     G.crypt.push(en); const room = activeCount() < partySize(G.level);
     if (room) { en.active = true; spawnAlly(en, c.rx ?? c.x, c.rz ?? c.z, 'reassemble'); } else soulToSummoner(c);
     S.caught(); C.parts.emit(c.x, 0.5, c.z, 30, { col: 0x6ff7e8, spd: 1.5, up: 3, life: 1.0, size: 0.3, grav: -1 });
-    C.say(`收服了 ${(c.champ ? MODS[c.mods[0]].name : '') + TYPES[c.kind].name}！` + (room ? '' : '（灵魂收入墓典）')); save();
+    C.say(`收服了 ${affixName(c.mods, c.champ) + TYPES[c.kind].name}！` + (room ? '' : '（灵魂收入墓典）')); save();
   } else { S.fail(); C.parts.emit(c.x, 0.3, c.z, 24, { col: 0x8a8090, spd: 1.2, up: 1.2, life: 0.9, size: 0.3 }); say(c.x, c.z, '唤魂失败', '#b9a8c8', 16); }
 }
 // party full: the captured monster still stands up, then turns into a soul that flies into the summoner
@@ -251,6 +254,34 @@ export function absorb(to, f) {
   else S.heal();
   save(); return { pts, xp, up: to.level - before };
 }
+// ---------- fusion: two summons of the same kind become one (the one you are looking at stays) ----------
+// normal + normal: small chance to turn elite · normal + elite: chance to inherit one of its affixes
+// elite + elite: each partner affix may be added (2nd 35%, 3rd 20%) or, if already owned, strengthened (40%, up to Ⅲ)
+export const canFuse = (f, to) => f !== to && f.type === to.type && !f.active;
+const ALL_MODS = ['fast', 'fire', 'stone', 'cold', 'poison', 'lightning'];
+export function fusionOdds(to, f) {
+  const o = { elite: 0, add: [], up: [], xp: Math.round(soulXP(f, to) * 0.5) }, lv = m => (to.modLv && to.modLv[m]) || 1;
+  if (!to.champ && !f.champ) o.elite = 0.12;
+  else if (!to.champ && f.champ) o.add = f.mods.map(m => ({ m, p: 0.45 / f.mods.length }));
+  else if (to.champ && !f.champ) { const own = to.mods.filter(m => lv(m) < MAX_AFFIX_LV); if (own.length) o.up = own.map(m => ({ m, p: 0.15 / own.length })); }
+  else { let n = to.mods.length; for (const m of f.mods) { if (to.mods.includes(m)) { if (lv(m) < MAX_AFFIX_LV) o.up.push({ m, p: 0.4 }); } else if (n < MAX_AFFIX) { o.add.push({ m, p: n === 1 ? 0.35 : 0.2 }); n++; } } }
+  return o;
+}
+export function fuse(to, f) {
+  if (!canFuse(f, to)) return null; const odds = fusionOdds(to, f), r = { elite: false, added: [], upped: [], xp: odds.xp, before: to.level };
+  // the partner's gear goes back to the bag first
+  for (const s of ['w', 'a']) { const it = f.gear && f.gear[s]; if (it && !bagPut(it)) { C.say('背包放不下它的装备，先清一下背包'); return null; } if (it) delete f.gear[s]; }
+  G.crypt.splice(G.crypt.indexOf(f), 1); to.modLv = to.modLv || {};
+  if (odds.elite && Math.random() < odds.elite) { r.elite = true; const m = ALL_MODS[Math.floor(Math.random() * ALL_MODS.length)]; to.champ = true; to.mods = [m]; to.modLv = { [m]: 1 }; r.added.push(m); }
+  if (!to.champ && odds.add.length) { const roll = Math.random(); let acc = 0; for (const a of odds.add) { acc += a.p; if (roll < acc) { to.champ = true; to.mods = [a.m]; to.modLv = { [a.m]: 1 }; r.elite = true; r.added.push(a.m); break; } } }
+  else { for (const a of odds.add) if (to.mods.length < MAX_AFFIX && Math.random() < a.p) { to.mods = [...to.mods, a.m]; to.modLv[a.m] = 1; r.added.push(a.m); }
+    if (odds.up.length) { const pool = odds.up.filter(u => !r.added.includes(u.m)); if (to.champ && !f.champ) { const roll = Math.random(); let acc = 0; for (const u of pool) { acc += u.p; if (roll < acc) { to.modLv[u.m] = ((to.modLv[u.m]) || 1) + 1; r.upped.push(u.m); break; } } }
+      else for (const u of pool) if (Math.random() < u.p) { to.modLv[u.m] = ((to.modLv[u.m]) || 1) + 1; r.upped.push(u.m); } } }
+  to.xp += odds.xp; while (to.xp >= xpNeed(to.level) * 0.8) { to.xp -= xpNeed(to.level) * 0.8; to.level++; }
+  // a summon that is out in the world is reborn with its new look
+  const u = to.unit; if (u && !u.dead) { const x = u.x, z = u.z; dismissAlly(to); spawnAlly(to, x, z, 'reassemble'); C.parts.emit(x, 0.8, z, 40, { col: 0x6ff7e8, spd: 2.5, up: 3, life: 0.9, size: 0.3, grav: -1 }); }
+  save(); return r;
+}
 export function learn(en, id) {
   const def = (TREE[en.type] || []).find(d => d.id === id); if (!def) return false; en.skills = en.skills || {}; const r = en.skills[id] || 0;
   if (r >= def.max || (en.sp || 0) < 1) return false; en.skills[id] = r + 1; en.sp--;
@@ -260,7 +291,7 @@ export function learn(en, id) {
 export const activeCount = () => G.crypt.filter(e => e.active).length;
 export function spawnAlly(en, x, z, how = 'ground') {
   const P = G.player; if (x == null) { const a = rand(0, TAU); x = P.x + Math.cos(a) * 1.4; z = P.z + Math.sin(a) * 1.4; if (!C.floor.walk(x, z)) { x = P.x; z = P.z; } }
-  const u = new Unit(en.type, 'ally', x, z, { level: en.level, mods: en.mods, champ: en.champ, entry: en }); en.unit = u; G.units.push(u);
+  const u = new Unit(en.type, 'ally', x, z, { level: en.level, mods: en.mods, modLv: en.modLv, champ: en.champ, entry: en }); en.unit = u; G.units.push(u);
   if (how) { u.face = Math.atan2(P.x - x, P.z - z); u.faceT = u.face; rise(u, how === 'reassemble' ? 'Death_C_Skeletons_Resurrect' : 'Spawn_Ground_Skeletons', how === 'reassemble' ? 1.4 : 1.7); }
   C.parts.emit(x, 0.4, z, 18, { col: 0x6ff7e8, spd: 1.6, up: 2, life: 0.7, size: 0.25 }); return u;
 }
@@ -289,7 +320,7 @@ export function shoot(src, kind, tx, tz, o = {}) {
   if (kind === 'spear') { const m = new THREE.Mesh(SPEAR_G, toonMat({ emis: 0x2a3a3a })); s.root.add(m, glowSprite(0x9ff7ff, 0.9, 0.6)); }
   else if (kind === 'arrow') s.root.add(new THREE.Mesh(ARROW_G, toonMat()));
   else s.root.add(glowSprite(0xff8a2a, 1.3), glowSprite(0xffe080, 0.5));
-  const el = src.champ && src.mods[0] && ELEM[src.mods[0]]; if (el) { s.el = el; s.root.add(glowSprite(el.col, kind === 'fire' ? 2.0 : 0.8, 0.85)); }
+  const el = src.champ && src.mods.length && ELEM[src.mods[Math.floor(Math.random() * src.mods.length)]]; if (el) { s.el = el; s.root.add(glowSprite(el.col, kind === 'fire' ? 2.0 : 0.8, 0.85)); }
   s.root.position.set(s.x, s.y, s.z); s.root.rotation.y = Math.atan2(dx, dz); C.scene.add(s.root); G.shots.push(s);
   if (kind === 'spear') S.spear(); else if (kind === 'arrow') S.arrow(); else S.fire();
   return s;
@@ -321,7 +352,7 @@ function flee(u, fx, fz, spd) {
   u.wantX = u.wantZ = 0; return false;
 }
 const faceTo = (u, t) => { u.faceT = Math.atan2(t.x - u.x, t.z - u.z); };
-function startWindup(u, t) { u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.7 : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind);
+function startWindup(u, t) { u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind);
   if (u.kind === 'brute') { const rg = ring(0.2, u.range + u.r + 0.3, u.side === 'enemy' ? 0xff3a2a : 0x3fe0d0, 0.0); rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
   const t = u.tgt; u.state = 'recover'; u.st = 0; u.cdT = u.cd * rand(0.9, 1.15); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
@@ -501,7 +532,7 @@ function resurrect(by, c) {
   S.raise(); C.parts.emit(c.x, 0.5, c.z, 24, { col: 0xc070ff, spd: 1.4, up: 2.5, life: 0.8 }); say(c.x, c.z, '复活了！', '#c88cff', 16);
 }
 // movement, separation, walls, visuals
-let frame = 0, camX = 0, camZ = 0; const WP = new THREE.Vector3();
+let frame = 0, camX = 0, camZ = 0; const WP = new THREE.Vector3(), TMPC = new THREE.Color();
 export function integrate(units, dt) {
   const F = C.floor; frame++; if (G.player) { camX = G.player.x; camZ = G.player.z; }
   for (const u of units) { if (u.dead) continue; updateStatus(u, dt); if (u.dead) continue; const a = Math.min(1, dt * 10), sk = slowK(u); u.vx += (u.wantX * sk - u.vx) * a; u.vz += (u.wantZ * sk - u.vz) * a; }
@@ -519,7 +550,9 @@ export function integrate(units, dt) {
     animate(u, dt, sp); m.u.uFlash.value = u.flash * 0.7; if (u.ringMesh) u.ringMesh.rotation.y += dt;
     if (m.soul) { const f = 1 + Math.sin(G.t * 9 + u.id) * 0.08 + Math.sin(G.t * 23 + u.id * 3) * 0.05; m.soul.scale.setScalar(f); m.soul.position.x = Math.sin(G.t * 2 + u.id) * 0.06;
       if (Math.random() < dt * 2.5) { m.soul.getWorldPosition(WP); C.parts.emit(WP.x, WP.y, WP.z, 1, { col: 0x5ff6e6, spd: 0.1, up: 0.5, grav: -0.4, life: 0.6, size: 0.12, spread: 0.08 }); } }
-    if (m.elem && m.root.visible && (u.elemT = (u.elemT || 0) - dt) <= 0) { const el = ELEM[m.elem]; u.elemT = 0.045;
+    if (m.elems && m.elems.length > 1) { const n = m.elems.length, f = (G.t * 0.6 + u.id * 0.37) % n, i = Math.floor(f), k = f - i, a = ELEM[m.elems[i]].col, b = ELEM[m.elems[(i + 1) % n]].col;
+      m.u.uRim.value.setHex(a).lerp(TMPC.setHex(b), k * k * (3 - 2 * k)).multiplyScalar(0.95); }
+    if (m.elem && m.root.visible && (u.elemT = (u.elemT || 0) - dt) <= 0) { const el = ELEM[m.elems[Math.floor(Math.random() * m.elems.length)]]; u.elemT = 0.045;
       const t = m.tips[Math.floor(Math.random() * m.tips.length)]; if (t) { t.getWorldPosition(WP); C.parts.emit(WP.x, WP.y, WP.z, 1, el.part); }
       if (m.elem === 'fast' && sp > 1.5) C.parts.emit(u.x, 0.6, u.z, 1, { col: 0x8fe0ff, spd: 0.05, up: 0, grav: 0, life: 0.22, size: 0.42, spread: 0.3 }); }
     // animation level of detail: far units update their skeleton every other frame

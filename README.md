@@ -14,6 +14,9 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - Captured monsters go into the **墓典**. You start with 1 party slot, +1 at levels 3, 6 and 9 (max 4). Edit the party when not in combat.
 - Each summon keeps its monster personality: brute = tank (draws enemy attacks), imp = fast melee with crits, archer = keeps distance,
   shaman = heals the party and makes revives faster. Champions keep their affix (Swift / Fire-enchanted / Stoneskin).
+- **Fusion (融合):** in the 墓典, fuse a resting summon of the same kind into another: normal + normal may turn elite (12%),
+  normal + elite may inherit an affix, elite + elite may add the partner's affixes (up to three, e.g. 冰火 / 冰火雷) or
+  strengthen one it already has (up to Ⅲ). The partner disappears; the kept summon always gets some experience.
 - Summons level up from kills. When one dies it keeps its level and comes back after a revive timer.
 - When the party is full a capture still stands up, then flies into the summoner as a soul and is stored in the 墓典.
 - **Soul energy:** in the 墓典, resting non-champion summons can be converted into soul energy for another summon:

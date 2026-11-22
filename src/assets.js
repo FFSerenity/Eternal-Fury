@@ -85,7 +85,7 @@ export function makeUnitMesh(kind, o = {}) {
   });
   // champion affix: the weapons glow in the element's colour and get a glowing tip that sheds particles
   // champion affix glows on the body (rim light, faint emissive, particles from chest / head / hands); weapons only show gear quality
-  const el = o.elem && ELEM[o.elem], tips = [], glows = [], matW = matFor;
+  const elems = (o.elems || (o.elem ? [o.elem] : [])).filter(m => ELEM[m]), el = elems.length ? ELEM[elems[0]] : null, tips = [], glows = [], matW = matFor;
   if (el) { u.uRim.value.set(el.col).multiplyScalar(0.95); u.uEmis.value.set(el.emis).multiplyScalar(0.3);
     for (const n of ['chest', 'head', 'hand.l', 'hand.r', 'lowerleg.l', 'lowerleg.r']) { const b = findBone(model, n); if (b) tips.push(b); } }
   // summons: a small soul flame floating over the head marks them as yours (keeps the body free for affix colours)
@@ -104,7 +104,7 @@ export function makeUnitMesh(kind, o = {}) {
   model.scale.setScalar(def.scale * (o.scale ?? 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
-  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, elem: el ? o.elem : null };
+  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, elem: el ? elems[0] : null, elems };
 }
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current
