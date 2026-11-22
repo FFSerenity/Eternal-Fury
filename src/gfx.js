@@ -11,14 +11,26 @@ export const SH = {
   uCutC: { value: new THREE.Vector2(-9999, -9999) }, uCutR: { value: 120 }, uCutZ: { value: -1e9 },
 };
 
+// shared torch lights (nearest few to the summoner are uploaded each frame): xyz + radius
+export const TORCH_N = 6;
+SH.uTL = { value: Array.from({ length: TORCH_N }, () => new THREE.Vector4(0, 0, 0, 0)) };
+SH.uTC = { value: new THREE.Color(1.0, 0.62, 0.3) };
+SH.uLightC = { value: new THREE.Color(1.0, 0.85, 0.64) };
+
 const TOON_V = `
-varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ;
+#include <common>
+#include <skinning_pars_vertex>
+varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
 void main(){
-  vec4 p = vec4(position, 1.0); vec3 n = normal;
+  vec3 objectNormal = vec3(normal); vec3 transformed = vec3(position);
+  #include <skinbase_vertex>
+  #include <skinnormal_vertex>
+  #include <skinning_vertex>
+  vec4 p = vec4(transformed, 1.0); vec3 n = objectNormal;
   #ifdef USE_INSTANCING
   p = instanceMatrix * p; n = mat3(instanceMatrix) * n;
   #endif
-  vec4 w = modelMatrix * p; vW = w.xyz; vN = normalize(mat3(modelMatrix) * n);
+  vec4 w = modelMatrix * p; vW = w.xyz; vN = normalize(mat3(modelMatrix) * n); vUv = uv;
   #ifdef USE_COLOR
   vC = color;
   #else
@@ -30,11 +42,17 @@ void main(){
   vec4 mv = viewMatrix * w; vVZ = mv.z; gl_Position = projectionMatrix * mv;
 }`;
 const TOON_F = `
+#define TN ${TORCH_N}
 uniform vec3 uTint; uniform float uFlash; uniform vec3 uEmis; uniform float uFade;
-uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb;
+uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC;
+uniform vec4 uTL[TN]; uniform vec3 uTC;
 uniform float uCut; uniform vec2 uCutC; uniform float uCutR; uniform float uCutZ;
-varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ;
+#ifdef HAS_MAP
+uniform sampler2D uMap;
+#endif
+varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
 float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float band(vec3 N, vec3 L){ float k = dot(N, normalize(L)); return k > 0.3 ? 1.0 : (k > -0.15 ? 0.68 : 0.42); }
 void main(){
   if (uCut > 0.5) { vec2 d = gl_FragCoord.xy - uCutC; float k = length(d) / uCutR;
     if (vVZ > uCutZ + 0.8 && k < 1.0 && (k < 0.8 || h21(gl_FragCoord.xy) > (k - 0.8) / 0.2)) discard; }
@@ -42,29 +60,52 @@ void main(){
   vec3 N = normalize(vN);
   float nk = dot(N, normalize(vec3(-0.45, 1.0, 0.3)));
   float tk = nk > 0.55 ? 1.0 : (nk > 0.1 ? 0.74 : 0.52);
-  vec3 tl = uLight - vW; float np = dot(N, normalize(tl));
-  float tp = np > 0.3 ? 1.0 : (np > -0.15 ? 0.68 : 0.42);
   float dl = length(vW.xz - uLight.xz);
-  float fall = 1.0 - smoothstep(uLightR * 0.3, uLightR, dl);
-  fall = floor(fall * 4.0 + 0.6) / 4.0;
+  float fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;
+  vec3 lit = uAmb * tk + uLightC * fall * band(N, uLight - vW) * 0.78;
+  for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue;
+    float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f;
+    lit += uTC * f * band(N, t.xyz - vW) * 0.75; }
+  lit = min(lit, vec3(1.12));
   vec3 base = vC * uTint;
-  vec3 col = base * (uAmb * tk + vec3(1.0, 0.85, 0.64) * fall * tp * 1.05) + uEmis;
+  #ifdef HAS_MAP
+  base *= texture2D(uMap, vUv).rgb;
+  #endif
+  vec3 col = base * lit + uEmis;
   col = mix(col, vec3(1.0, 0.96, 0.9), uFlash);
   gl_FragColor = vec4(col, 1.0);
 }`;
+// o.u: per-character uniforms shared by all of its materials (tint/flash/emissive/fade)
+export function charUniforms(o = {}) { return { uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uFlash: { value: 0 }, uEmis: { value: new THREE.Color(o.emis ?? 0x000000) }, uFade: { value: 1 } }; }
 export function toonMat(o = {}) {
-  return new THREE.ShaderMaterial({
-    vertexShader: TOON_V, fragmentShader: TOON_F, vertexColors: o.vc !== false,
-    uniforms: { ...SH, uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uFlash: { value: 0 }, uEmis: { value: new THREE.Color(o.emis ?? 0x000000) },
-      uFade: { value: 1 }, uCut: { value: o.cut ? 1 : 0 } },
+  const u = o.u || charUniforms(o);
+  const m = new THREE.ShaderMaterial({
+    vertexShader: TOON_V, fragmentShader: TOON_F, vertexColors: o.vc !== false && !o.map,
+    uniforms: { ...SH, ...u, uCut: { value: o.cut ? 1 : 0 }, uMap: { value: o.map || null } },
   });
+  if (o.map) m.defines = { HAS_MAP: '' };
+  return m;
 }
-const OUT_V = `uniform float uW; void main(){ gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position + normal * uW, 1.0); }`;
+const OUT_V = `
+#include <common>
+#include <skinning_pars_vertex>
+uniform float uW;
+void main(){
+  vec3 objectNormal = vec3(normal); vec3 transformed = vec3(position);
+  #include <skinbase_vertex>
+  #include <skinnormal_vertex>
+  #include <skinning_vertex>
+  vec4 p = vec4(transformed + normalize(objectNormal) * uW, 1.0);
+  #ifdef USE_INSTANCING
+  p = instanceMatrix * p;
+  #endif
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * p;
+}`;
 const OUT_F = `uniform vec3 uCol; uniform float uFade; float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main(){ if (uFade < 0.999 && h21(gl_FragCoord.xy) > uFade) discard; gl_FragColor = vec4(uCol, 1.0); }`;
-export function outlineMat(col, w = 0.045) {
+export function outlineMat(col, w = 0.045, fade = null) {
   return new THREE.ShaderMaterial({ vertexShader: OUT_V, fragmentShader: OUT_F, side: THREE.BackSide,
-    uniforms: { uW: { value: w }, uCol: { value: new THREE.Color(col) }, uFade: { value: 1 } } });
+    uniforms: { uW: { value: w }, uCol: { value: new THREE.Color(col) }, uFade: fade || { value: 1 } } });
 }
 
 // ---------- geometry building ----------
@@ -81,77 +122,6 @@ const sph = (r, w = 14, h = 10) => new THREE.SphereGeometry(r, w, h);
 const cap = (r, l, s = 6, rs = 12) => new THREE.CapsuleGeometry(r, l, s, rs);
 const cone = (r, h, s = 12) => new THREE.ConeGeometry(r, h, s);
 const cyl = (r1, r2, h, s = 10) => new THREE.CylinderGeometry(r1, r2, h, s);
-
-// characters face +z; feet at y = 0. Each model: body geometry (outlined) + optional held item geometry
-const MODELS = {};
-function eyes(col, y, z, dx, r = 0.06) { return [part(sph(r, 8, 6), col, [-dx, y, z]), part(sph(r, 8, 6), col, [dx, y, z])]; }
-MODELS.player = () => ({
-  body: merge([
-    part(cone(0.42, 1.15, 14), 0x5b3a8c, [0, 0.58, 0]),
-    part(sph(0.24), 0xe9dcc8, [0, 1.22, 0.02]),
-    part(cone(0.3, 0.52, 14), 0x45296e, [0, 1.42, -0.04], [-0.15, 0, 0]),
-    part(cap(0.09, 0.4), 0x5b3a8c, [-0.33, 0.74, 0.08], [0.3, 0, 0.3]),
-    part(cap(0.09, 0.4), 0x5b3a8c, [0.33, 0.74, 0.08], [0.3, 0, -0.3]),
-    ...eyes(0x9ff7ff, 1.24, 0.21, 0.09, 0.05),
-  ]),
-  item: merge([part(cyl(0.035, 0.035, 1.5, 6), 0x6b4a2e, [0.42, 0.85, 0.28]), part(sph(0.13, 10, 8), 0xf2ead8, [0.42, 1.65, 0.28]), ...eyes(0x7ffcff, 1.66, 0.38, 0.05, 0.03).map(g => g.translate(0.42, 0, 0))]),
-});
-MODELS.imp = () => ({
-  body: merge([
-    part(cap(0.22, 0.3), 0xd9473f, [0, 0.42, 0]),
-    part(sph(0.2), 0xe05a48, [0, 0.82, 0.05]),
-    part(cone(0.06, 0.22, 8), 0x3b1a14, [-0.13, 1.02, 0], [0, 0, 0.5]), part(cone(0.06, 0.22, 8), 0x3b1a14, [0.13, 1.02, 0], [0, 0, -0.5]),
-    part(cone(0.07, 0.2, 8), 0xe05a48, [-0.22, 0.86, 0], [0, 0, 1.3]), part(cone(0.07, 0.2, 8), 0xe05a48, [0.22, 0.86, 0], [0, 0, -1.3]),
-    ...eyes(0xffe14d, 0.86, 0.21, 0.08),
-    part(cap(0.06, 0.2), 0xc23a33, [-0.2, 0.45, 0.1], [0.8, 0, 0.3]), part(cap(0.06, 0.2), 0xc23a33, [0.2, 0.45, 0.1], [0.8, 0, -0.3]),
-  ]),
-});
-MODELS.brute = () => ({
-  body: merge([
-    part(cap(0.42, 0.45), 0x6f8a5a, [0, 0.78, -0.05], [0.25, 0, 0]),
-    part(sph(0.22), 0x7d9a66, [0, 1.25, 0.25]),
-    part(cone(0.07, 0.3, 8), 0xe8e0c8, [-0.17, 1.42, 0.25], [0, 0, 0.6]), part(cone(0.07, 0.3, 8), 0xe8e0c8, [0.17, 1.42, 0.25], [0, 0, -0.6]),
-    ...eyes(0xff4a2a, 1.28, 0.44, 0.08),
-    part(cap(0.13, 0.5), 0x6f8a5a, [-0.52, 0.72, 0.15], [0.4, 0, 0.2]), part(cap(0.13, 0.5), 0x6f8a5a, [0.52, 0.72, 0.15], [0.4, 0, -0.2]),
-    part(sph(0.2), 0x55704a, [-0.58, 0.38, 0.32]), part(sph(0.2), 0x55704a, [0.58, 0.38, 0.32]),
-    part(cap(0.15, 0.25), 0x4f5f45, [-0.2, 0.28, 0]), part(cap(0.15, 0.25), 0x4f5f45, [0.2, 0.28, 0]),
-  ]),
-});
-MODELS.archer = () => ({
-  body: merge([
-    part(cap(0.13, 0.5), 0xe8e2cc, [0, 0.62, 0]),
-    part(sph(0.19), 0xf2ecd8, [0, 1.12, 0.02]),
-    part(sph(0.06, 8, 6), 0x1a1210, [-0.07, 1.13, 0.17]), part(sph(0.06, 8, 6), 0x1a1210, [0.07, 1.13, 0.17]),
-    ...eyes(0x9dffb0, 1.13, 0.2, 0.07, 0.03),
-    part(cap(0.05, 0.4), 0xe8e2cc, [-0.2, 0.72, 0.1], [0.9, 0, 0.2]), part(cap(0.05, 0.4), 0xe8e2cc, [0.2, 0.72, 0.1], [0.9, 0, -0.2]),
-    part(cap(0.06, 0.4), 0xd8d0b8, [-0.1, 0.22, 0]), part(cap(0.06, 0.4), 0xd8d0b8, [0.1, 0.22, 0]),
-    part(cyl(0.2, 0.15, 0.12, 10), 0x5a3f2a, [0, 0.45, 0]),
-  ]),
-  item: merge([part(new THREE.TorusGeometry(0.42, 0.035, 6, 16, Math.PI * 0.9), 0x7a5532, [0, 0.8, 0.45], [0, Math.PI / 2, Math.PI / 2 + 0.15])]),
-});
-MODELS.shaman = () => ({
-  body: merge([
-    part(cone(0.36, 0.85, 12), 0x8c3a7a, [0, 0.43, 0]),
-    part(sph(0.2), 0x9fae6a, [0, 0.96, 0.08]),
-    part(cone(0.05, 0.42, 6), 0xffcf4a, [-0.1, 1.24, 0], [0, 0, 0.35]), part(cone(0.05, 0.48, 6), 0x4ad0ff, [0, 1.28, -0.02]), part(cone(0.05, 0.42, 6), 0xff5a5a, [0.1, 1.24, 0], [0, 0, -0.35]),
-    ...eyes(0xffe86a, 0.99, 0.26, 0.08),
-    part(cyl(0.22, 0.22, 0.08, 12), 0xd8c07a, [0, 0.7, 0.02]),
-  ]),
-  item: merge([part(cyl(0.03, 0.03, 1.2, 6), 0x5b3a22, [0.34, 0.65, 0.2]), part(sph(0.1, 8, 6), 0xffa040, [0.34, 1.3, 0.2])]),
-});
-const CACHE = {};
-export function model(kind) { if (!CACHE[kind]) CACHE[kind] = MODELS[kind](); return CACHE[kind]; }
-
-// a unit's visual: group(root) -> pivot (lean/hop/squash) -> body + outline + item
-export function makeUnitMesh(kind, o) {
-  const m = model(kind), root = new THREE.Group(), pivot = new THREE.Group(); root.add(pivot);
-  const mat = toonMat({ tint: o.tint ?? 0xffffff, emis: o.emis ?? 0x000000 });
-  const body = new THREE.Mesh(m.body, mat), out = new THREE.Mesh(m.body, outlineMat(o.outline ?? 0x120a10, o.outlineW ?? 0.045));
-  pivot.add(out, body);
-  let item = null; if (m.item) { item = new THREE.Mesh(m.item, mat); pivot.add(item); }
-  root.scale.setScalar(o.scale ?? 1);
-  return { root, pivot, body, out, item, mat };
-}
 
 // ---------- glow sprites ----------
 function radialTex(stops) {

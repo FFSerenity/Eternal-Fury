@@ -1,12 +1,16 @@
 // Random crypt floors: rooms joined by wide corridors, plus navigation (walkability, line of sight, cached flow fields)
 import * as THREE from 'three';
-import { part, merge, toonMat, glowSprite } from './gfx.js';
+import { glowSprite } from './gfx.js';
+import { PropBatch } from './assets.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 export class Floor {
   constructor(seed, depth) {
-    const R = rng(seed), W = 60, H = 60; this.W = W; this.H = H; this.depth = depth;
+    this.depth = depth; this.torches = []; this.fields = new Map();
+    if (depth === 0) { this.camp(rng(seed)); return; }
+    this.amb = [0.30, 0.31, 0.44]; this.lightR = 8.5;
+    const R = rng(seed), W = 60, H = 60; this.W = W; this.H = H;
     const g = this.g = new Uint8Array(W * H); // 0 void, 1 floor, 2 wall
     const rooms = this.rooms = [], ri = (a, b) => a + Math.floor(R() * (b - a + 1));
     for (let tries = 0; tries < 300 && rooms.length < 13; tries++) {
@@ -31,10 +35,21 @@ export class Floor {
     // start = first room, stairs = the room farthest by walking distance
     this.start = rooms[0]; const d0 = this.bfs(Math.floor(this.start.cx), Math.floor(this.start.cy)); let far = rooms[0], fd = -1;
     for (const r of rooms) { const d = d0[Math.floor(r.cy) * W + Math.floor(r.cx)]; if (d > fd && d < 1e8) { fd = d; far = r; } }
-    this.end = far; this.stairs = { x: Math.floor(far.cx) + 0.5, z: Math.floor(far.cy) + 0.5 };
-    this.R = R; this.fields = new Map();
+    this.end = far; this.stairs = { x: Math.floor(far.cx), z: Math.floor(far.cy) }; // a grid vertex: the grate covers the 4 cells around it
+    this.R = R;
+  }
+  // ---------- the graveyard camp (start area): an open clearing with a crypt that leads down ----------
+  camp(R) {
+    const W = 40, H = 40; this.W = W; this.H = H; this.R = R; this.amb = [0.40, 0.44, 0.64]; this.lightR = 9.5;
+    const g = this.g = new Uint8Array(W * H);
+    for (let z = 8; z < 32; z++) for (let x = 8; x < 32; x++) g[z * W + x] = 1;
+    const crypt = { x: 14, z: 12.4, s: 0.65 }; this.crypt = crypt;
+    for (let z = 9; z <= 14; z++) for (let x = 12; x <= 15; x++) g[z * W + x] = 2;
+    this.start = { x: 21, y: 22, w: 5, h: 5, cx: 23.5, cy: 24.5 }; this.rooms = [this.start]; this.end = this.start;
+    this.stairs = { x: 14, z: 16.1 };
   }
   walk(x, z) { const X = Math.floor(x), Z = Math.floor(z); return X >= 0 && Z >= 0 && X < this.W && Z < this.H && this.g[Z * this.W + X] === 1; }
+  block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); return true; } return false; }
   // line of sight on the tile grid (also used for projectiles)
   los(ax, az, bx, bz) { const dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz), n = Math.ceil(d / 0.3); for (let i = 1; i < n; i++) if (!this.walk(ax + dx * i / n, az + dz * i / n)) return false; return true; }
   bfs(tx, tz) {
@@ -63,28 +78,110 @@ export class Floor {
         const nx = Math.max(tx, Math.min(u.x, tx + 1)), nz = Math.max(tz, Math.min(u.z, tz + 1)), ddx = u.x - nx, ddz = u.z - nz, d = Math.hypot(ddx, ddz);
         if (d < r) { if (d > 1e-5) { u.x = nx + ddx / d * r; u.z = nz + ddz / d * r; } else { u.x = tx + 0.5 + (u.x < tx + 0.5 ? -1 : 1) * (0.5 + r); } } } }
   }
-  randomSpot(room, R = this.R) { return { x: room.x + 1 + R() * (room.w - 2), z: room.y + 1 + R() * (room.h - 2) }; }
-  // meshes: floor tiles (one draw), walls (one draw, see-through near the player), decorations
+  randomSpot(room, R = this.R) { let p; for (let i = 0; i < 12; i++) { p = { x: room.x + 1 + R() * (room.w - 2), z: room.y + 1 + R() * (room.h - 2) }; if (this.walk(p.x, p.z)) break; } return p; }
+  // ---------- meshes ----------
   build(scene) {
-    const W = this.W, H = this.H, R = this.R, fparts = [], wparts = [], dparts = [], grp = new THREE.Group();
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const v = this.g[y * W + x];
-      if (v === 1) { const s = 0.85 + R() * 0.15, chk = (x + y) % 2 ? 0.96 : 1; const c = new THREE.Color(0.38 * s * chk, 0.34 * s * chk, 0.33 * s * chk);
-        const p = new THREE.PlaneGeometry(0.985, 0.985); p.rotateX(-Math.PI / 2); fparts.push(part(p, c, [x + 0.5, 0, y + 0.5]));
-        if (R() < 0.035) dparts.push(part(new THREE.CapsuleGeometry(0.04, 0.28, 3, 6), 0xd8d0b8, [x + R(), 0.05, y + R()], [Math.PI / 2, 0, R() * 3])); }
-      else if (v === 2) { const hgt = 1.5, s = 0.8 + R() * 0.2; const b = new THREE.BoxGeometry(1, hgt, 1); fparts.length; wparts.push(part(b, new THREE.Color(0.42 * s, 0.38 * s, 0.44 * s), [x + 0.5, hgt / 2, y + 0.5])); } }
-    const floor = new THREE.Mesh(merge(fparts), toonMat()); const under = new THREE.Mesh(new THREE.PlaneGeometry(W * 3, H * 3).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a1418 }));
-    under.position.set(W / 2, -0.02, H / 2); grp.add(under, floor);
-    const walls = new THREE.Mesh(merge(wparts), toonMat({ cut: true })); grp.add(walls);
-    if (dparts.length) grp.add(new THREE.Mesh(merge(dparts), toonMat()));
-    // candles near room walls
-    for (const r of this.rooms) for (let k = 0; k < 2; k++) { const cx = r.x + 0.4 + R() * (r.w - 0.8), cz = R() < 0.5 ? r.y + 0.35 : r.y + r.h - 0.35;
-      const c = new THREE.Mesh(merge([part(new THREE.CylinderGeometry(0.06, 0.07, 0.3, 6), 0xf0e6c8, [0, 0.15, 0])]), toonMat({ emis: 0x302010 })); c.position.set(cx, 0, cz);
-      const gl = glowSprite(0xffb347, 1.1, 0.8); gl.position.set(cx, 0.42, cz); grp.add(c, gl); }
-    // stairs down: dark pit with a blue glow
-    const st = new THREE.Mesh(new THREE.CircleGeometry(0.75, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x050308 })); st.position.set(this.stairs.x, 0.015, this.stairs.z);
-    const sg = glowSprite(0x6fb6ff, 2.6, 0.7); sg.position.set(this.stairs.x, 0.4, this.stairs.z); grp.add(st, sg); this.stairsGlow = sg;
-    scene.add(grp); this.group = grp; return grp;
+    const grp = new THREE.Group(); this.group = grp; this.glows = [];
+    const under = new THREE.Mesh(new THREE.PlaneGeometry(this.W * 4, this.H * 4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: this.depth === 0 ? 0x0b0d12 : 0x07060a }));
+    under.position.set(this.W / 2, -0.06, this.H / 2); grp.add(under);
+    if (this.depth === 0) this.buildCamp(grp); else this.buildCrypt(grp);
+    scene.add(grp); return grp;
   }
-  dispose(scene) { scene.remove(this.group); this.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); }); }
+  glow(x, y, z, col, size, op) { const s = glowSprite(col, size, op); s.position.set(x, y, z); this.group.add(s); this.glows.push(s); return s; }
+  torch(x, y, z, r = 4.5) { this.torches.push({ x, y, z, r, ph: Math.random() * 6.28 }); }
+  buildCrypt(grp) {
+    const W = this.W, H = this.H, g = this.g, R = this.R, isF = (x, z) => x >= 0 && z >= 0 && x < W && z < H && (g[z * W + x] === 1 || g[z * W + x] === 3);
+    const CUT = { cut: true }, B = new PropBatch({ wall_half: CUT, pillar: CUT, torch_mounted: CUT, banner_red: CUT, banner_patternA_blue: CUT, rubble_half: CUT });
+    const st = this.stairs, isStair = (x, z) => (x === st.x || x === st.x - 1) && (z === st.z || z === st.z - 1);
+    const hsh = (x, z, k = 0) => { let h = (x * 374761393 + z * 668265263 + k * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    // props along room borders (they block movement) — never near doorways or the start / stairs
+    const PROPS = [['barrel_small', 3], ['barrel_large', 2], ['box_small', 2], ['box_large', 2], ['crates_stacked', 1], ['chest', 0.6], ['keg', 1], ['trunk_large_A', 1], ['table_medium_broken', 0.7]];
+    const pw = PROPS.reduce((a, p) => a + p[1], 0), pick = r => { let t = r * pw; for (const p of PROPS) { t -= p[1]; if (t <= 0) return p[0]; } return PROPS[0][0]; };
+    for (const r of this.rooms) {
+      const near = (x, z) => { for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) { const X = x + dx, Z = z + dz; if (isF(X, Z) && (X < r.x || X >= r.x + r.w || Z < r.y || Z >= r.y + r.h)) return true; } return false; };
+      for (let z = r.y; z < r.y + r.h; z++) for (let x = r.x; x < r.x + r.w; x++) {
+        const edge = x === r.x || z === r.y || x === r.x + r.w - 1 || z === r.y + r.h - 1; if (!edge || R() > 0.16) continue;
+        if (r === this.start || Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) < 3 || near(x, z)) continue;
+        if (!this.block(x, z)) continue; const name = pick(R()), round = name.startsWith('barrel') || name === 'keg';
+        B.add(name, x + 0.5 + (R() - 0.5) * 0.1, 0, z + 0.5 + (R() - 0.5) * 0.1, round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.3, 0.5);
+        if (R() < 0.25 && isF(x, z)) {} } }
+    // floor tiles
+    const FT = ['floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small_broken_A', 'floor_tile_small_broken_B', 'floor_tile_small_weeds_A', 'floor_dirt_small_A'];
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (!isF(x, z) || isStair(x, z)) continue;
+      const h = hsh(x, z), name = h < 0.78 ? 'floor_tile_small' : FT[5 + Math.floor((h - 0.78) / 0.22 * 4)]; B.add(name, x + 0.5, 0, z + 0.5, Math.floor(hsh(x, z, 1) * 4) * Math.PI / 2, 0.5);
+      if (hsh(x, z, 2) < 0.025) B.add(['bone_A', 'bone_B', 'ribcage'][Math.floor(hsh(x, z, 3) * 3)], x + hsh(x, z, 4), 0.04, z + hsh(x, z, 5), hsh(x, z, 6) * 6.28, 0.5); }
+    // walls on the edges between floor and wall cells: far walls (−x / −z of a floor cell) full height, near walls cut down so they never hide the action
+    const V = new Map(), vk = (x, z) => x * 1000 + z, SH_Y = 0.05, TALL = 0.5;
+    const edge = (vx, vz, dir, c, tall) => { for (const [x, z, d] of dir === 'x' ? [[vx, vz, 'E'], [vx + 1, vz, 'W']] : [[vx, vz, 'S'], [vx, vz + 1, 'N']]) {
+      const k = vk(x, z); let e = V.get(k); if (!e) V.set(k, e = { x, z, d: new Set(), cx: null, cz: null, tall: false }); e.d.add(d); if (dir === 'x') e.cz = c; else e.cx = c; e.tall = e.tall || tall; } };
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (g[z * W + x] !== 2) continue;
+      if (isF(x + 1, z)) { const X = x + 0.75; B.add('wall_half', X, 0, z, -Math.PI / 2, 0.5); edge(x + 1, z, 'z', X, true); this.wallDeco(B, x + 1, z + 0.5, Math.PI / 2, hsh(x, z, 7)); }
+      if (isF(x - 1, z)) { const X = x + 0.25; B.add('wall_half', X, 0, z, -Math.PI / 2, 0.5, SH_Y); edge(x, z, 'z', X, false); }
+      if (isF(x, z + 1)) { const Z = z + 0.75; B.add('wall_half', x, 0, Z, 0, 0.5); edge(x, z + 1, 'x', Z, true); this.wallDeco(B, x + 0.5, z + 1, 0, hsh(x, z, 8)); }
+      if (isF(x, z - 1)) { const Z = z + 0.25; B.add('wall_half', x, 0, Z, 0, 0.5, SH_Y); edge(x, z, 'x', Z, false); } }
+    for (const e of V.values()) { const d = e.d, straight = d.size === 2 && ((d.has('E') && d.has('W')) || (d.has('N') && d.has('S')));
+      if (straight && hsh(e.x, e.z, 9) > 0.2) continue; B.add('pillar', e.cx ?? e.x, 0, e.cz ?? e.z, 0, 0.5, e.tall ? TALL * 1.04 : SH_Y * 1.3); }
+    // stairs down: an open grate glowing from below
+    B.add('floor_tile_big_grate_open', st.x, 0, st.z, 0, 0.5);
+    this.stairsGlow = this.glow(st.x, 0.25, st.z, 0x6fb6ff, 3.2, 0.7); this.glow(st.x, -0.2, st.z, 0x3f7fff, 1.8, 0.9);
+    this.torches.push({ x: st.x, y: 0.3, z: st.z, r: 2.6, ph: 0 });
+    B.build(grp);
+  }
+  // torch or banner on a far wall face at (fx, fz); rot: 0 faces +z, PI/2 faces +x
+  wallDeco(B, fx, fz, rot, h) {
+    const ox = Math.sin(rot), oz = Math.cos(rot);
+    if (h < 0.3 && !this.torches.some(t => Math.abs(t.x - fx) + Math.abs(t.z - fz) < 3.2)) { B.add('torch_mounted', fx, 1.0, fz, rot, 0.5); this.glow(fx + ox * 0.22, 1.42, fz + oz * 0.22, 0xffa040, 1.0, 0.95); this.torch(fx + ox * 0.6, 1.3, fz + oz * 0.6, 4.6); }
+    else if (h > 0.9) B.add(h > 0.95 ? 'banner_red' : 'banner_patternA_blue', fx, 0, fz, rot, 0.5);
+  }
+  buildCamp(grp) {
+    const W = this.W, H = this.H, g = this.g, R = this.R;
+    const CUT = { cut: true }, B = new PropBatch({ crypt: CUT, fence: CUT, fence_broken: CUT, fence_pillar: CUT, arch_gate: CUT, post_lantern: CUT, post_skull: CUT,
+      tree_dead_large: CUT, tree_dead_medium: CUT, tree_dead_small: CUT, tree_pine_orange_large: CUT, tree_pine_orange_medium: CUT, tree_pine_yellow_medium: CUT });
+    const inC = (x, z) => x >= 8 && x < 32 && z >= 8 && z < 32;
+    // ground
+    for (let z = -1; z < H + 2; z += 2) for (let x = -1; x < W + 2; x += 2) B.add(R() < 0.3 ? 'floor_dirt_large_rocky' : 'floor_dirt_large', x + 1, 0, z + 1, Math.floor(R() * 4) * Math.PI / 2, 0.5);
+    // paths
+    const pathCells = new Set(), path = (ax, az, bx, bz) => { let x = ax, z = az; const put = () => { const k = z * W + x; if (pathCells.has(k)) return; pathCells.add(k);
+      B.add('path_' + 'ABCD'[Math.floor(R() * 4)], x + 0.5, 0.005, z + 0.5, Math.floor(R() * 4) * Math.PI / 2, 0.5); };
+      while (z !== bz) { put(); z += Math.sign(bz - z); } while (x !== bx) { put(); x += Math.sign(bx - x); } put(); };
+    path(23, 25, 14, 16); path(23, 20, 26, 8); path(14, 16, 13, 16); path(14, 16, 15, 17);
+    const C = this.crypt; B.add('crypt', C.x, 0, C.z, 0, C.s);
+    B.add('lantern_standing', 12.2, 0, 16.0, 0, 0.6); B.add('lantern_standing', 15.8, 0, 16.0, 0, 0.6); this.block(12, 15); this.block(15, 15);
+    for (const [x, z] of [[12.2, 16.0], [15.8, 16.0]]) { this.glow(x, 0.45, z, 0xffb050, 1.1, 0.9); this.torch(x, 0.8, z + 0.3, 3.6); }
+    this.stairsGlow = this.glow(14, 0.9, 15.3, 0x6fb6ff, 2.6, 0.5);
+    this.torches.push({ x: 14, y: 0.6, z: 15.6, r: 2.8, ph: 0 });
+    // lantern posts along the paths
+    for (const [x, z, r] of [[21.6, 21.2, 0], [17.2, 16.4, 0], [24.6, 15.0, Math.PI], [22.0, 26.4, 0]]) { const cx = Math.floor(x), cz = Math.floor(z); this.block(cx, cz);
+      B.add('post_lantern', cx + 0.5, 0, cz + 0.5, r, 0.5); const lx = cx + 0.5 + Math.sin(r) * 0.6, lz = cz + 0.5 + Math.cos(r) * 0.6; this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
+    // the shrine by the spawn point
+    B.add('shrine_candles', 26.5, 0, 26.5, -Math.PI * 0.75, 0.6); this.block(26, 26); this.glow(26.5, 0.8, 26.5, 0xffc060, 1.6, 0.8); this.torch(26.2, 1.0, 26.2, 5.0);
+    B.add('bench', 21.0, 0, 28.3, 0, 0.5); this.block(20, 28); this.block(21, 28);
+    // graveyard plot
+    const GR = ['grave_A', 'grave_B', 'gravestone', 'gravestone', 'gravemarker_A', 'gravemarker_B'];
+    for (let z = 19; z <= 29; z += 3) for (let x = 9; x <= 17; x += 2) { if (R() < 0.15) continue; const cx = x, cz = z; if (pathCells.has(cz * W + cx) || pathCells.has((cz + 1) * W + cx)) continue;
+      const name = GR[Math.floor(R() * GR.length)]; B.add(name, cx + 0.5 + (R() - 0.5) * 0.2, 0, cz + 0.5 + (R() - 0.5) * 0.2, (R() - 0.5) * 0.25, 0.5); this.block(cx, cz);
+      if (name.startsWith('grave_')) this.block(cx, cz + 1); }
+    for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
+    for (const [x, z] of [[27.5, 13.5], [29.5, 20.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
+    B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12);
+    B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 16.6, 0, 14.3, 0, 0.5); this.block(16, 14);
+    // trees inside the clearing
+    for (const [x, z, t] of [[29.5, 10.5, 'tree_dead_large'], [10.5, 30.5, 'tree_dead_medium'], [30.5, 29.5, 'tree_dead_small'], [28.5, 17.5, 'tree_dead_medium'], [19.5, 30.5, 'tree_dead_small']]) {
+      B.add(t, x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); }
+    // fence around the clearing, with an arch gate on the far side
+    for (let t = 8; t < 32; t += 2) { const brk = () => R() < 0.2 ? 'fence_broken' : 'fence';
+      if (!(t >= 24 && t <= 26)) B.add(brk(), t + 1, 0, 8.05, 0, 0.5);
+      B.add(brk(), 8.05, 0, t + 1, Math.PI / 2, 0.5); B.add(brk(), t + 1, 0, 31.95, 0, 0.5); B.add(brk(), 31.95, 0, t + 1, Math.PI / 2, 0.5); }
+    for (const [x, z] of [[8.05, 8.05], [31.95, 8.05], [8.05, 31.95], [31.95, 31.95]]) B.add('fence_pillar', x, 0, z, 0, 0.5);
+    B.add('arch_gate', 26, 0, 8.05, 0, 0.6);
+    // forest around
+    for (let z = -3; z < H + 3; z += 2.3) for (let x = -3; x < W + 3; x += 2.3) { const jx = x + (R() - 0.5) * 1.6, jz = z + (R() - 0.5) * 1.6;
+      if (jx > 6.6 && jx < 33.4 && jz > 6.6 && jz < 33.4) continue; if (Math.abs(jx - 26) < 2.5 && jz < 8 && jz > 2) continue;
+      const front = jx > 33 || jz > 33; if (R() < (front ? 0.45 : 0.15)) continue;
+      const k = R(), t = front ? (k < 0.6 ? 'tree_dead_small' : 'tree_dead_medium') : k < 0.3 ? 'tree_pine_orange_large' : k < 0.5 ? 'tree_pine_orange_medium' : k < 0.65 ? 'tree_pine_yellow_medium' : k < 0.85 ? 'tree_dead_large' : 'tree_dead_medium';
+      B.add(t, jx, 0, jz, R() * 6.28, 0.5 * (0.85 + R() * 0.35)); }
+    B.build(grp);
+  }
+  dispose(scene) { scene.remove(this.group); this.group.traverse(o => { if (o.isSprite && o.material) o.material.dispose(); if (o.isInstancedMesh) o.dispose(); }); }
 }
 let G_T = 0; export function setNavTime(t) { G_T = t; }

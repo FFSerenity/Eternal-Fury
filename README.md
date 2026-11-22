@@ -17,12 +17,23 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - Summons level up from kills. When one dies it keeps its level and comes back after a revive timer.
 
 ## Monsters
-Brute (telegraphed smash, knock-back), Imp packs (panic and flee when a packmate dies), Skeleton archers (kite and strafe),
-Shamans (fireballs, resurrect fallen allies). Champions get an affix and an aura ring. Packs alert each other; hard hits stagger.
+Skeleton Warrior (telegraphed smash, knock-back), Skeleton Minion packs (panic and flee when a packmate falls apart),
+Skeleton Crossbowmen (kite and strafe), Skeleton Mages (fireballs, resurrect fallen allies). Champions get an affix and an aura ring.
+Packs alert each other; hard hits stagger.
+
+## World
+You start in a small graveyard camp; the crypt door leads down to the deepest floor you have reached.
+Each crypt floor is generated: rooms and corridors, torch-lit far walls, props, and a grate down to the next floor.
 
 ## Tech
-Three.js (bundled with esbuild into `game.js`), low-poly toon shading with a torch light radius, walls that turn see-through
-in front of the hero, flow-field pathfinding, random rooms-and-corridors floors. Save data lives in the browser (localStorage).
+Three.js (bundled with esbuild into `game.js`). Animated low-poly characters share one rig and one animation set;
+props are instanced per map chunk so off-screen parts are culled. Toon shading with the hero's light radius plus the nearest
+torches, near walls cut down and a see-through circle around the hero, flow-field pathfinding. Save data lives in the browser (localStorage).
 `?rs=1.5` forces a render scale; otherwise quality steps down automatically when frames run late.
 
 Build: `npm install && npm run build`
+Assets: `node tools/build-assets.mjs <path to the KayKit packs>` rebuilds `assets/*.glb` (merged skinned meshes, meshopt-compressed).
+
+## Credits
+3D models and animations: **KayKit** by Kay Lousberg (www.kaylousberg.com) — Character Pack: Skeletons, Character Pack: Adventurers,
+Dungeon Remastered and Halloween Bits. Licensed CC0 1.0; thank you, Kay!
