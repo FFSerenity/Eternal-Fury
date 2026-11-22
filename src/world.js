@@ -49,9 +49,24 @@ export class Floor {
     this.stairs = { x: 14, z: 16.1 };
   }
   walk(x, z) { const X = Math.floor(x), Z = Math.floor(z); return X >= 0 && Z >= 0 && X < this.W && Z < this.H && this.g[Z * this.W + X] === 1; }
-  block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); return true; } return false; }
+  block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); this.nw = null; return true; } return false; }
   // line of sight on the tile grid (also used for projectiles)
   los(ax, az, bx, bz) { const dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz), n = Math.ceil(d / 0.3); for (let i = 1; i < n; i++) if (!this.walk(ax + dx * i / n, az + dz * i / n)) return false; return true; }
+  // nearest walkable point to (x, z) (spiral over cells, cached per cell)
+  nearestWalk(x, z) {
+    if (this.walk(x, z)) return { x, z }; const X = Math.floor(x), Z = Math.floor(z), key = Z * this.W + X; this.nw = this.nw || new Map(); const c = this.nw.get(key); if (c) return c;
+    let best = null, bd = 1e9;
+    for (let r = 1; r <= 12 && !best; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+      const cx = X + dx, cz = Z + dz; if (!this.walk(cx + 0.5, cz + 0.5)) continue; const px = Math.min(cx + 0.8, Math.max(cx + 0.2, x)), pz = Math.min(cz + 0.8, Math.max(cz + 0.2, z)), d = Math.hypot(px - x, pz - z);
+      if (d < bd) { bd = d; best = { x: px, z: pz }; } }
+    best = best || { x: this.start.cx, z: this.start.cy }; this.nw.set(key, best); return best;
+  }
+  // where a click on an unreachable spot should send the summoner: back along the line toward him to the first walkable point
+  snapToward(x, z, fx, fz) {
+    if (this.walk(x, z)) return { x, z }; const dx = fx - x, dz = fz - z, d = Math.hypot(dx, dz), n = Math.ceil(d / 0.2);
+    for (let i = 1; i <= n; i++) { const px = x + dx * i / n, pz = z + dz * i / n; if (this.walk(px, pz)) { const k = Math.min(1, (i * d / n + 0.35) / d); return { x: x + dx * k, z: z + dz * k }; } }
+    return this.nearestWalk(x, z);
+  }
   // a straight walk is only taken when a body of radius r fits along the whole line (stops units hugging corners)
   clear(ax, az, bx, bz, r = 0.36) { const dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz) || 1, px = -dz / d * r, pz = dx / d * r;
     return this.los(ax, az, bx, bz) && this.los(ax + px, az + pz, bx + px, bz + pz) && this.los(ax - px, az - pz, bx - px, bz - pz); }
@@ -65,6 +80,7 @@ export class Floor {
   }
   // direction to walk from (x,z) toward (tx,tz): straight if visible, otherwise down a cached flow field
   dirTo(x, z, tx, tz, out) {
+    if (!this.walk(tx, tz)) { const n = this.nearestWalk(tx, tz); tx = n.x; tz = n.z; }
     if (this.clear(x, z, tx, tz)) { const dx = tx - x, dz = tz - z, d = Math.hypot(dx, dz) || 1; out.x = dx / d; out.z = dz / d; return out; }
     const TX = Math.floor(tx), TZ = Math.floor(tz), key = TZ * this.W + TX; let f = this.fields.get(key);
     if (!f || G_T - f.t > 2) { f = { d: this.bfs(TX, TZ), t: G_T }; this.fields.set(key, f); if (this.fields.size > 40) this.fields.delete(this.fields.keys().next().value); }

@@ -1,9 +1,9 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
 import { G, save } from './state.js';
-import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM } from './data.js';
+import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, QUAL, BAG_MAX, rollDrop, itemName, itemBase } from './data.js';
 import { glowSprite, ring, toonMat, part, merge } from './gfx.js';
-import { makeUnitMesh, play, clipLen, CHARS } from './assets.js';
+import { makeUnitMesh, play, clipLen, CHARS, propMesh } from './assets.js';
 import { S } from './audio.js';
 
 export const C = { scene: null, parts: null, floor: null, say: () => {} };
@@ -24,16 +24,17 @@ export class Unit {
     this.hp = this.maxHp * (o.hpFrac ?? 1);
     const ally = side === 'ally', champ = this.champ;
     const mod0 = this.mods[0] && MODS[this.mods[0]];
-    this.mesh = makeUnitMesh(kind, {
+    this.meshOpts = {
       scale: champ ? 1.25 : 1,
       tint: this.mods.includes('stone') ? 0xb8b4ac : this.mods.includes('fire') && champ ? 0xffc8a8 : 0xffffff,
       emis: 0x000000, rim: ally ? 0x36d2c4 : 0x000000, elem: champ && mod0 ? this.mods[0] : null,
       outline: 0x120a10, outlineW: champ ? 0.06 : 0.05,
-    });
+    };
+    this.mesh = makeUnitMesh(kind, { ...this.meshOpts, gear: this.entry && this.entry.gear });
     this.mesh.root.position.set(x, 0, z); this.mesh.root.rotation.y = this.face; C.scene.add(this.mesh.root);
     this.spawnT = 0; this.animLock = 0; this.mixAcc = 0; play(this.mesh, ANIM[kind].idle, { at: Math.random() });
-    if (ally) { const rg = ring(0.42, 0.52, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
-    if (champ && mod0) { const rg = ring(0.5, 0.75, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
+    if (ally) { const rg = ring(0.45, 0.5, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
+    if (champ && mod0) { const rg = ring(0.56, 0.685, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
   get name() { return (this.champ && this.mods[0] ? MODS[this.mods[0]].name : '') + (this.T ? this.T.name : '召唤师'); }
   stats() {
@@ -52,8 +53,17 @@ export class Unit {
     if (this.kind === 'brute') { this.maxHp *= 1 + 0.12 * r('bone'); this.armor += 5 * r('bone'); this.tauntR = 5 + 1.5 * r('taunt'); }
     else if (this.kind === 'imp') { this.cd *= 1 - 0.07 * r('haste'); this.speed *= 1 + 0.04 * r('haste'); }
     else if (this.kind === 'archer') { this.dmg *= 1 + 0.12 * r('eagle'); this.range += 0.4 * r('eagle'); this.cd *= 1 - 0.08 * r('rapid'); }
+    const g = this.entry.gear || {};
+    if (g.w && g.w.type === this.kind) { const v = g.w.v; this.dmg *= 1 + v.dmg / 100; this.cd *= itemBase(g.w).cd / (1 + (v.spd || 0) / 100); this.maxHp *= 1 + (v.hp || 0) / 100; }
+    if (g.a) { const v = g.a.v; this.maxHp *= 1 + v.hp / 100; this.armor += v.arm; this.dmg *= 1 + (v.dmg || 0) / 100; this.speed *= 1 + (v.move || 0) / 100; }
   }
   remove() { C.scene.remove(this.mesh.root); }
+  // new weapon / shield in hand after an equipment change
+  rebuildMesh() {
+    const old = this.mesh; this.mesh = makeUnitMesh(this.kind, { ...this.meshOpts, gear: this.entry && this.entry.gear });
+    this.mesh.root.position.copy(old.root.position); this.mesh.root.rotation.y = this.face; if (this.ringMesh) { old.root.remove(this.ringMesh); this.mesh.root.add(this.ringMesh); }
+    C.scene.remove(old.root); C.scene.add(this.mesh.root); play(this.mesh, ANIM[this.kind].idle, {}); this.mesh.mixer.update(0);
+  }
 }
 
 export const hostilesOf = u => u.side === 'enemy' ? G.friends : G.enemies;
@@ -83,7 +93,7 @@ function kill(u, src) {
     S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 });
     const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(xp);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
-    deathBlast(u, 0.7);
+    deathBlast(u, 0.7); const it = rollDrop(G.uid, G.depth, u.champ); if (it) { G.uid++; dropLoot(it, u.x, u.z); }
     if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5) panic(e, src || u);
     makeCorpse(u);
   } else if (u.side === 'ally') {
@@ -102,6 +112,33 @@ function fireBlast(u) {
   G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * 5); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
   for (const h of (u.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && dist(h, u) < 2.4) damage(u, h, u.dmg * 1.6, { knock: 3, fx: u.x, fz: u.z });
 }
+// ---------- loot on the ground: glows in its quality colour (rare items get a light beam), walk over it to pick it up ----------
+export function dropLoot(it, x, z) {
+  const root = new THREE.Group(), m = propMesh(itemBase(it).model); m.scale.setScalar(0.5); m.rotation.set(Math.PI / 2, 0, Math.random() * 6.28); root.add(m);
+  const Q = QUAL[it.q], gl = glowSprite(Q.hex, it.q ? 1.4 : 0.9, it.q ? 0.75 : 0.45); gl.position.y = 0.1; root.add(gl);
+  if (it.q === 2) { const beam = glowSprite(Q.hex, 1, 0.55); beam.scale.set(0.45, 5, 1); beam.position.y = 2.2; root.add(beam); }
+  const a = Math.random() * 6.28, r = 0.5 + Math.random() * 0.7; root.position.set(x, 1, z); C.scene.add(root);
+  G.loot.push({ it, root, m, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: 0, ph: Math.random() * 6 });
+  if (it.q === 2) S.level(); else if (it.q === 1) S.heal();
+}
+export function updateLoot(dt) {
+  const P = G.player; let j = 0;
+  for (const L of G.loot) { L.t += dt; const k = Math.min(1, L.t / 0.45), x = L.x0 + (L.x - L.x0) * k, z = L.z0 + (L.z - L.z0) * k, y = k < 1 ? 1 * (1 - k) + Math.sin(Math.PI * k) * 0.8 : 0.12 + Math.sin(G.t * 2.5 + L.ph) * 0.04;
+    L.root.position.set(x, y, z); L.m.rotation.z += dt * 0.8;
+    if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 0.9) {
+      if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say('背包满了，去墓典里把多余的装备丢进熔炉吧'); } }
+      else { G.bag.push(L.it); C.scene.remove(L.root); S.pick(); C.say(`拾取：${itemName(L.it)}`); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0); save(); continue; } }
+    G.loot[j++] = L; }
+  G.loot.length = j;
+}
+// equipment changes from the 墓典
+export function equip(en, it) {
+  const slot = it.slot === 'w' ? 'w' : 'a', i = G.bag.indexOf(it); if (i < 0) return false; en.gear = en.gear || {};
+  G.bag.splice(i, 1); if (en.gear[slot]) G.bag.push(en.gear[slot]); en.gear[slot] = it; gearChanged(en); return true;
+}
+export function unequip(en, slot) { const it = en.gear && en.gear[slot]; if (!it) return false; if (G.bag.length >= BAG_MAX) { C.say('背包满了'); return false; } G.bag.push(it); delete en.gear[slot]; gearChanged(en); return true; }
+function gearChanged(en) { const u = en.unit; if (u && !u.dead) { const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.rebuildMesh(); } S.pick(); save(); }
+
 // ---------- elemental affixes: what champion hits do, and what champions leave behind when they fall ----------
 const CHILL = 2.2;
 function elemHit(mod, src, dst, d, o) {

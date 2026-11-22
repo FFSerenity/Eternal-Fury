@@ -20,6 +20,13 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
   it gains experience (same type +50%) and 魂能点 (soul points). Points buy ranks in that summon's own skill tree
   (4 skills per monster type, e.g. Warrior: Leap Slam / Hard Bones / Whirlwind / War Cry).
 
+## Equipment
+- Only summons wear gear: a weapon of their own type (Warrior axes, Minion blades, Crossbowman crossbows, Mage staves; three bases each,
+  from fast-and-light to slow-and-heavy) and a shield as armour (anyone). Quality: 普通 / 精良 / 稀有 (rare items get an extra line).
+- Monsters sometimes drop gear, champions always do; rare drops shine with a light beam. Walk over loot to pick it up (bag of 40).
+- Equip in the 墓典: tap a summon, then its weapon / armour slot (▲ / ▼ compares with what it wears). The warrior shows its shield.
+- **Furnace (熔炉):** throw unwanted gear in (2+ pieces) and get one random item back; more and better input raises the odds.
+
 ## Monsters
 Skeleton Warrior (telegraphed smash, knock-back), Skeleton Minion packs (panic and flee when a packmate falls apart),
 Skeleton Crossbowmen (kite and strafe), Skeleton Mages (fireballs, resurrect fallen allies). Champions get an affix and an aura ring.

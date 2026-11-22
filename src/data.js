@@ -88,3 +88,50 @@ export const TREE = {
 // what a summon is worth when absorbed: experience for the absorber (same type +50%) and soul points
 export const soulPoints = en => 1 + Math.floor((en.level - 1) / 3);
 export const soulXP = (en, to) => Math.round(xpNeed(en.level) * 0.8 * 0.6 * (en.type === to.type ? 1.5 : 1));
+
+// ---------- equipment: summons only. Weapons are per monster type (collect them all), armour (shields) fits everyone ----------
+export const QUAL = [
+  { name: '普通', col: '#e6dfd2', hex: 0xe6dfd2, k: 1 },
+  { name: '精良', col: '#6fa8ff', hex: 0x5f9cff, k: 1.4 },
+  { name: '稀有', col: '#ffcf4a', hex: 0xffc83a, k: 1.9 },
+];
+export const WEAPONS = {
+  brute:  { cat: '斧', bases: [{ name: '骨斧', model: 'sk_axe', dm: 1, cd: 1 }, { name: '战斧', model: 'axe_1handed', dm: 0.82, cd: 0.82 }, { name: '巨斧', model: 'axe_2handed', dm: 1.32, cd: 1.16 }] },
+  imp:    { cat: '刃', bases: [{ name: '骨刃', model: 'sk_blade', dm: 1, cd: 1 }, { name: '匕首', model: 'dagger', dm: 0.8, cd: 0.8 }, { name: '长剑', model: 'sword_1handed', dm: 1.25, cd: 1.12 }] },
+  archer: { cat: '弩', bases: [{ name: '骨弩', model: 'sk_crossbow', dm: 1, cd: 1 }, { name: '轻弩', model: 'crossbow_1handed', dm: 0.82, cd: 0.82 }, { name: '重弩', model: 'crossbow_2handed', dm: 1.3, cd: 1.15 }] },
+  shaman: { cat: '杖', bases: [{ name: '骨杖', model: 'sk_staff', dm: 1, cd: 1 }, { name: '魔杖', model: 'wand', dm: 0.82, cd: 0.82 }, { name: '法师长杖', model: 'mage_staff', dm: 1.3, cd: 1.15 }] },
+};
+export const ARMORS = [{ name: '骨盾', model: 'sk_shield_large', hm: 1.3, am: 0.7 }, { name: '圆盾', model: 'shield_round', hm: 1, am: 1 }, { name: '方盾', model: 'shield_square', hm: 0.7, am: 1.4 }];
+// rare items get one extra line
+const EXTRA = { w: [['spd', '攻击速度', il => 6 + il], ['hp', '生命', il => 6 + 2 * il]], a: [['dmg', '伤害', il => 5 + 2 * il], ['move', '移动速度', il => 5 + il]] };
+export const BAG_MAX = 40;
+const pickI = n => Math.floor(Math.random() * n), jit = () => 0.88 + Math.random() * 0.24;
+export function rollItem(id, il, q, slot = Math.random() < 0.62 ? 'w' : 'a', type = Object.keys(WEAPONS)[pickI(4)]) {
+  const qm = QUAL[q].k, it = { id, slot, q, il, v: {} };
+  if (slot === 'w') { it.type = type; it.b = pickI(3); const B = WEAPONS[type].bases[it.b]; it.v.dmg = Math.round((10 + 4 * il) * qm * B.dm * jit()); }
+  else { it.b = pickI(ARMORS.length); const B = ARMORS[it.b]; it.v.hp = Math.round((8 + 3 * il) * qm * B.hm * jit()); it.v.arm = Math.round((4 + 2 * il) * qm * B.am * jit()); }
+  if (q === 2) { const [k, , f] = EXTRA[slot][pickI(2)]; it.v[k] = Math.round(f(il) * jit()); }
+  return it;
+}
+export const itemBase = it => it.slot === 'w' ? WEAPONS[it.type].bases[it.b] : ARMORS[it.b];
+export const itemName = it => (it.q ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
+export const itemIcon = it => it.slot === 'w' ? TYPES[it.type].icon : '🛡️';
+export function itemLines(it) {
+  const v = it.v, B = itemBase(it), L = [];
+  if (it.slot === 'w') { L.push(`伤害 +${v.dmg}%`); if (B.cd !== 1) L.push(`攻击间隔 ${B.cd < 1 ? '-' : '+'}${Math.round(Math.abs(1 - B.cd) * 100)}%`); if (v.spd) L.push(`攻击速度 +${v.spd}%`); if (v.hp) L.push(`生命 +${v.hp}%`); }
+  else { L.push(`生命 +${v.hp}%`, `护甲 +${v.arm}`); if (v.dmg) L.push(`伤害 +${v.dmg}%`); if (v.move) L.push(`移动速度 +${v.move}%`); }
+  return L;
+}
+// rough power, for the ▲ / ▼ comparison
+export function itemScore(it) { if (!it) return 0; const v = it.v, B = itemBase(it);
+  return it.slot === 'w' ? (100 + v.dmg) / B.cd * (1 + (v.spd || 0) / 100) * (1 + (v.hp || 0) / 300) : (100 + v.hp) * (1 + v.arm / 60) * (1 + (v.dmg || 0) / 150) * (1 + (v.move || 0) / 200); }
+export const itemFits = (it, type) => it.slot === 'a' || it.type === type;
+// furnace: everything thrown in turns into one random item; more (and better) input, better odds
+export const itemPts = it => [1, 3, 8][it.q] * (1 + it.il / 10);
+export function furnaceOdds(items) { const p = items.reduce((a, it) => a + itemPts(it), 0), gold = Math.min(0.7, 0.01 + p * 0.022), blue = Math.min(1 - gold, 0.15 + p * 0.07); return { gold, blue, white: Math.max(0, 1 - gold - blue), pts: p }; }
+export function furnaceRoll(items, id) { const o = furnaceOdds(items), r = Math.random(), q = r < o.gold ? 2 : r < o.gold + o.blue ? 1 : 0, il = Math.max(...items.map(it => it.il)) + (q === 2 ? 1 : 0); return rollItem(id, il, q); }
+// drops: champions always drop something decent, normal monsters sometimes
+export function rollDrop(id, depth, champ) {
+  if (!champ && Math.random() > 0.09) return null; const r = Math.random(), q = champ ? (r < 0.3 ? 2 : 1) : (r < 0.05 ? 2 : r < 0.3 ? 1 : 0);
+  return rollItem(id, Math.max(1, depth) + (champ ? 1 : 0), q);
+}

@@ -82,7 +82,9 @@ await anims(`${CL}/Skeleton_Minion.glb`, ['Idle', 'Idle_Combat', 'Unarmed_Idle',
   '1H_Melee_Attack_Jump_Chop', 'Dodge_Forward', 'Running_C']);
 const SA = `${SK}/Assets/gltf`, AA = `${AD}/Assets/gltf`;
 await props('weapons', [['sk_axe', `${SA}/Skeleton_Axe.gltf`], ['sk_blade', `${SA}/Skeleton_Blade.gltf`], ['sk_crossbow', `${SA}/Skeleton_Crossbow.gltf`], ['sk_staff', `${SA}/Skeleton_Staff.gltf`],
-  ['sk_shield', `${SA}/Skeleton_Shield_Small_A.gltf`], ['sk_arrow', `${SA}/Skeleton_Arrow.gltf`], ['mage_staff', `${AA}/staff.gltf`], ['spellbook', `${AA}/spellbook_open.gltf`]]);
+  ['sk_shield', `${SA}/Skeleton_Shield_Small_A.gltf`], ['sk_arrow', `${SA}/Skeleton_Arrow.gltf`], ['mage_staff', `${AA}/staff.gltf`], ['spellbook', `${AA}/spellbook_open.gltf`],
+  ...['axe_1handed', 'axe_2handed', 'dagger', 'sword_1handed', 'crossbow_1handed', 'crossbow_2handed', 'wand', 'shield_round', 'shield_square', 'shield_spikes'].map(n => [n, `${AA}/${n}.gltf`]),
+  ['sk_shield_large', `${SA}/Skeleton_Shield_Large_A.gltf`]]);
 const dg = n => [n, fs.existsSync(`${DG}/${n}.gltf.glb`) ? `${DG}/${n}.gltf.glb` : `${DG}/${n}.glb`];
 await props('dungeon', ['floor_tile_small', 'floor_tile_small_broken_A', 'floor_tile_small_broken_B', 'floor_tile_small_weeds_A', 'floor_tile_small_decorated', 'floor_dirt_small_A',
   'wall_half', 'pillar', 'torch_mounted', 'barrel_small', 'barrel_large', 'box_large', 'box_small', 'crates_stacked', 'chest', 'chest_gold', 'candle_lit', 'candle_triple', 'column',

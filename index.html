@@ -74,6 +74,23 @@ body.touch .sk .k{display:none}
 .card .xp{height:4px;border-radius:2px;background:rgba(0,0,0,.5);overflow:hidden}.card .xp i{display:block;height:100%;background:#e6c35a}
 .card .ds{font-size:11px;color:#a898c4;margin-top:5px;line-height:1.35}
 .cEmpty{grid-column:1/-1;padding:30px 10px;text-align:center;color:#b9a8d8;line-height:1.8}
+.tabs{display:flex;gap:6px;margin-top:8px}.tabs .btn{height:32px;padding:0 14px;font-size:13px;font-weight:800;background:rgba(40,28,60,.6);box-shadow:none}.tabs .btn.cur{background:linear-gradient(180deg,#5a3f86,#35234f);border-color:rgba(220,190,255,.6)}.tabs b{color:#e6c35a;font-size:11px}
+.gear,.bag,.pick{display:flex;flex-direction:column;gap:5px}
+.gs,.pr,.it{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:10px;background:rgba(40,28,60,.55);border:1px solid rgba(200,170,255,.14)}
+.gs .ic,.pr .ic,.it .ic,.ri .ic{font-size:22px;width:32px;text-align:center;flex:none}.ic.dim,.in.dim{opacity:.5}
+.idt{flex:1;min-width:0}.in{font-weight:800;font-size:13px}.in small{color:#a898c4;font-weight:600;font-size:10px;margin-left:4px}.il{font-size:11px;color:#bfb0dc;margin-top:2px;line-height:1.35}
+.gs .btn,.pr .pk{height:30px;padding:0 11px;font-size:12px;font-weight:800;flex:none}.pick{margin:-2px 0 4px 18px;padding-left:8px;border-left:2px solid rgba(200,170,255,.25)}
+.cmp{font-weight:900;font-size:13px;color:#a898c4;width:16px;text-align:center}.cmp.up{color:#6dff8e}.cmp.dn{color:#ff6b6b}
+.furn{padding:10px;border-radius:12px;background:linear-gradient(180deg,rgba(90,40,20,.45),rgba(40,20,20,.35));border:1px solid rgba(255,150,80,.35)}
+.fh{font-weight:900;font-size:15px;color:#ffd0a0}.fh small{display:block;font-weight:600;font-size:11px;color:#d8b8a0;margin-top:3px;line-height:1.4}
+.odds{display:flex;gap:14px;font-weight:800;font-size:13px;margin:8px 0}.odds .dim{color:#a898c4;font-weight:600;font-size:12px}
+.fb{display:flex;gap:6px;flex-wrap:wrap}.fb .btn{height:32px;padding:0 12px;font-size:12px;font-weight:800}.fb .go{margin-left:auto;background:linear-gradient(180deg,#c0582a,#7a2e12);border-color:rgba(255,170,110,.6)}
+.it{cursor:pointer}.it .chk{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.3);color:transparent;display:flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+.it.on{border-color:rgba(255,150,80,.7);background:rgba(90,40,20,.45)}.it.on .chk{background:#ff8a3a;color:#2a1005;border-color:#ff8a3a}
+#lotto{position:absolute;inset:0;border-radius:12px;background:rgba(10,5,10,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:3;padding:20px}
+#lotto .lt{font-weight:900;font-size:18px;color:#ffd0a0}#lotto .reel{width:min(90%,420px)}#lotto .ri{display:flex;align-items:center;gap:10px;padding:14px;border-radius:12px;border:2px solid;background:rgba(40,28,60,.7)}
+#lotto .reel.done.q2 .ri{box-shadow:0 0 30px rgba(255,200,60,.7);animation:pop .4s}#lotto .reel.done.q1 .ri{box-shadow:0 0 22px rgba(95,156,255,.6);animation:pop .4s}
+@keyframes pop{0%{transform:scale(.8)}60%{transform:scale(1.08)}100%{transform:scale(1)}}#lotto .ok{height:40px;padding:0 26px;font-weight:900}
 .cTip{grid-column:1/-1;font-size:12px;color:#a898c4;padding:0 4px 2px}
 .card{position:relative}.card .tg{position:absolute;right:8px;top:8px;height:28px;padding:0 10px;font-size:12px;font-weight:800;border-radius:9px}
 .card.on .tg{background:linear-gradient(180deg,#2f5a58,#1c3433);border-color:rgba(63,224,208,.45)}.card .nm{padding-right:54px}
