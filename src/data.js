@@ -135,7 +135,16 @@ export const itemName = it => (it.q && it.q < 3 ? QUAL[it.q].name + ' ' : '') + 
 // the easter egg: hidden in the camp coffin; a Skeleton Minion holding it becomes a Gunner Skeleton (ranged bursts)
 export const makeGun = id => ({ id, slot: 'w', type: 'imp', b: 3, q: 3, il: 5, uniq: 'mg', v: { dmg: 40, spd: 15 } });
 export const isGunner = en => !!(en && en.type === 'imp' && en.gear && en.gear.w && en.gear.w.uniq === 'mg');
-export const GUNNER = { name: tr('机枪骷髅', 'Gunner Skeleton'), short: tr('机枪骷髅', 'Gunner') };
+export const GUNNER = { name: tr('机枪骷髅', 'Gunner Skeleton'), short: tr('机枪骷髅', 'Gunner'), role: tr('重火力', 'Heavy gunner'),
+  ally: tr('远程持续扫射；会往敌群里扔手雷，破甲弹越打越疼，敌人多时就地架起变成炮台。', 'Sustained fire from range; lobs grenades into packs, armour-piercing rounds that hurt more the longer it fires, and digs in as a turret when the fight gets big.') };
+// 机枪骷髅 has its own tree (no attack speed in it): grenade (innate), armour-piercing rounds, dig in (turret), cluster grenades
+TREE.gunner = [
+  { id: 'nade', name: tr('手雷', 'Grenade'), icon: '💣', max: 5, desc: r => tr(`往敌群扔手雷：${pct(1.6 + 0.35 * r)} 伤害，爆炸半径 ${(1.7 + 0.12 * r).toFixed(1)} 米，冷却 ${(9 - 0.8 * r).toFixed(1)} 秒`, `Lobs a grenade into a pack: ${pct(1.6 + 0.35 * r)} damage within ${(1.7 + 0.12 * r).toFixed(1)} m, cooldown ${(9 - 0.8 * r).toFixed(1)}s`) },
+  { id: 'shred', name: tr('破甲弹', 'AP Rounds'), icon: '🔩', max: 5, desc: r => tr(`每发子弹给目标叠 1 层破甲，最多 ${8 * r} 层：每层护甲 -1、受到的所有伤害 +0.6%（满层 +${(4.8 * r).toFixed(0)}%）。停火 3 秒后消退`, `Every round adds a stack of shred, up to ${8 * r}: each stack −1 armour and +0.6% damage taken from everyone (+${(4.8 * r).toFixed(0)}% at full stacks). Fades 3 s after the shooting stops`) },
+  { id: 'deploy', name: tr('架起', 'Dig In'), icon: '🛡️', max: 3, unlock: true, desc: r => r ? tr(`敌人多（3 个以上）或有精英时就地架起成炮台 ${(4 + 1.5 * r).toFixed(1)} 秒：不能移动、不会被击退，射速 +60%，伤害 +${pct(0.2 * r)}，射程 +2.5 米，受到伤害 -35%；冷却 ${20 - 2 * r} 秒`, `With 3+ enemies close or an elite, digs in as a turret for ${(4 + 1.5 * r).toFixed(1)} s: can't move or be knocked back, +60% fire rate, +${pct(0.2 * r)} damage, +2.5 m range, −35% damage taken; cooldown ${20 - 2 * r}s`) : tr('解锁：架起变成炮台', 'Unlock: dig in as a turret') },
+  { id: 'cluster', name: tr('集束手雷', 'Cluster Grenade'), icon: '🎆', max: 3, unlock: true, desc: r => r ? tr(`手雷炸开后再散出 ${r + 1} 颗小炸弹，每颗 ${pct(0.45)} 手雷伤害`, `Grenades burst into ${r + 1} bomblets, each dealing ${pct(0.45)} of the grenade's damage`) : tr('解锁：手雷炸开后散出小炸弹', 'Unlock: grenades scatter bomblets') },
+];
+export const treeKey = en => isGunner(en) ? 'gunner' : en.type;
 export const itemIcon = it => it.slot === 'w' ? TYPES[it.type].icon : '🛡️';
 export function itemLines(it) {
   const v = it.v, B = itemBase(it), L = [];

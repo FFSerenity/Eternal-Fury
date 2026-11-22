@@ -1,7 +1,7 @@
 // HUD, overlay text/bars, input (mouse + keyboard, touch joystick + buttons) and the crypt (墓典) panel
 import * as THREE from 'three';
 import { G, save } from './state.js';
-import { isGunner, GUNNER } from './data.js';
+import { isGunner, GUNNER, treeKey } from './data.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, affixName, ROMAN, QUAL, WEAPONS, BAG_MAX, itemName, itemLines, itemIcon, itemScore, itemFits, furnaceOdds, furnaceRoll, rollItem } from './data.js';
 import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed, canFuse, fusionOdds, fuse } from './units.js';
 import { openGear, closeGear, gearOpen, toggleBag } from './gearui.js';
@@ -177,14 +177,14 @@ export function renderCrypt(force) {
   list.scrollTop = top;
 }
 function renderDetail(list, en) {
-  const T = TYPES[en.type], st = statsOf(en), tree = TREE[en.type] || [], d = document.createElement('div'); d.className = 'det';
+  const T = isGunner(en) ? { ...TYPES[en.type], ...GUNNER } : TYPES[en.type], st = statsOf(en), tree = TREE[treeKey(en)] || [], d = document.createElement('div'); d.className = 'det';
   const fuseList = G.crypt.filter(f => canFuse(f, en)).sort((a, b) => b.champ - a.champ || b.mods.length - a.mods.length || b.level - a.level);
   // one-click fusion: every plain (no-affix) partner, one by one, until something changes
   const plain = plainPartners(en), o0 = plain.length ? fusionOdds(en, plain[0]) : null, chance0 = o0 && (o0.elite || o0.add.length || o0.up.length);
   const allBar = plain.length > 1 && chance0 ? `<div class="fzAll"><div class="fzAllT">${tr(`把 ${plain.length} 只普通${TYPES[en.type].name}逐只融进来，一出现变化（${en.champ ? '属性强化' : '变成精英'}）就停下，剩下的留着`, `Fuses the ${plain.length} plain ${TYPES[en.type].name}s in one at a time and stops as soon as something changes (${en.champ ? 'an affix strengthens' : 'it turns elite'}); the rest are kept`)}</div>
     <button class="btn fzAllB${isArmed('fzall') ? ' arm' : ''}">${isArmed('fzall') ? tr('确认一键融合', 'Confirm') : tr(`一键融合（${plain.length} 只）`, `Fuse all (${plain.length})`)}</button></div>` : '';
   const need = xpNeed(en.level) * 0.8, feed = G.crypt.filter(f => canFeed(f, en)).sort((a, b) => (b.type === en.type) - (a.type === en.type) || b.level - a.level);
-  const statLine = [`${tr('生命', 'Life')} <b>${Math.round(st.maxHp)}</b>`, `${tr('伤害', 'Damage')} <b>${st.dmg.toFixed(1)}</b>`, `${tr('护甲', 'Armour')} <b>${Math.round(st.armor)}</b>`, `${tr('攻击间隔', 'Interval')} <b>${st.cd.toFixed(2)}s</b>`, en.type === 'archer' ? `${tr('射程', 'Range')} <b>${st.range.toFixed(1)}</b>` : ''].filter(Boolean).join('　');
+  const statLine = [`${tr('生命', 'Life')} <b>${Math.round(st.maxHp)}</b>`, `${tr('伤害', 'Damage')} <b>${st.dmg.toFixed(1)}</b>`, `${tr('护甲', 'Armour')} <b>${Math.round(st.armor)}</b>`, `${tr('攻击间隔', 'Interval')} <b>${st.cd.toFixed(2)}s</b>`, en.type === 'archer' || isGunner(en) ? `${tr('射程', 'Range')} <b>${st.range.toFixed(1)}</b>` : ''].filter(Boolean).join('　');
   d.innerHTML = `<div class="dHead"><button class="btn back">‹ ${tr('返回', 'Back')}</button><div class="ic">${portrait(en)}</div><div class="info"><div class="nm">${enName(en)}</div>
       <div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div><div class="xp"><i style="width:${Math.min(100, en.xp / need * 100)}%"></i></div><div class="xpT">${tr('经验', 'XP')} ${Math.floor(en.xp)} / ${Math.round(need)}</div></div>
       <button class="btn tg">${en.active ? tr('休息', 'Rest') : tr('出战', 'Join')}</button></div>
@@ -285,7 +285,8 @@ export function drawOverlay() {
   // enemy health bars + champion names
   for (const e of G.enemies) { if (e.dead || (e.barT <= 0 && !e.champ)) continue; const [x, y, vis] = toScreen(e.x, 1.6 * (e.champ ? 1.25 : 1) + (e.kind === 'brute' ? 0.2 : 0), e.z); if (!vis || x < -40 || x > W + 40 || y < -20 || y > H + 20) continue;
     const w = e.champ ? 56 : 38; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - w / 2 - 1, y - 3, w + 2, 6); g.fillStyle = e.champ ? '#ffb347' : '#e0413a'; g.fillRect(x - w / 2, y - 2, w * Math.max(0, e.hp / e.maxHp), 4);
-    if (e.champ) { g.font = '700 12px system-ui,sans-serif'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(e.name, x, y - 11); g.fillStyle = '#ffd58a'; g.fillText(e.name, x, y - 11); } }
+    if (e.champ) { g.font = '700 12px system-ui,sans-serif'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(e.name, x, y - 11); g.fillStyle = '#ffd58a'; g.fillText(e.name, x, y - 11); }
+    if (e.shred >= 1) { const t = '⬇' + Math.floor(e.shred); g.font = '800 11px system-ui,sans-serif'; g.textAlign = 'left'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(t, x + w / 2 + 4, y + 4); g.fillStyle = '#d9a8ff'; g.fillText(t, x + w / 2 + 4, y + 4); g.textAlign = 'center'; } }
   for (const a of G.friends) { if (a.side !== 'ally' || a.dead || a.hp >= a.maxHp) continue; const [x, y, vis] = toScreen(a.x, 1.55, a.z); if (!vis) continue;
     g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x - 17, y - 2, 34, 4); g.fillStyle = '#3fe0d0'; g.fillRect(x - 16, y - 1.5, 32 * a.hp / a.maxHp, 3); }
   // loot names

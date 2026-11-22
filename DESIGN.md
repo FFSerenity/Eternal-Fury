@@ -53,3 +53,9 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
   drum, 12% taller; own portrait. The KayKit accessory parts (warrior helmet, rogue hood / cape) made it read as the
   existing warrior / archer, so these pieces are built in code (gun.js) in the same style and hung on the shared rig.
 - New quality tier 史诗 / Epic (purple). Epic items can't be smelted.
+- Own skill tree (shown instead of the minion's while it holds the gun; points stay where they were spent; no attack
+  speed in it — the minion's Haste doesn't apply to the gun): Grenade (innate; lobbed at the spot that catches the most
+  enemies, an elite counts double, a lone normal enemy isn't worth one), AP Rounds (each round stacks −1 armour and +0.6%
+  damage taken from everyone, up to 8/rank, fades 3 s after the firing stops), Dig In (unlock: with 3+ enemies or an elite
+  close, becomes a turret — sandbags, tripod, rune ring — immobile, unstoppable, faster fire, more damage and range, less
+  damage taken), Cluster Grenade (unlock: bomblets). Base: life +40%, armour +8 over a minion of the same level.

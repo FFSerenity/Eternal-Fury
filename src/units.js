@@ -1,11 +1,12 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
 import { G, save, bagPut } from './state.js';
-import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase, GUNNER, makeGun } from './data.js';
+import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase, GUNNER, makeGun, treeKey } from './data.js';
 import { glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
 import { makeUnitMesh, play, clipLen, CHARS, propMesh } from './assets.js';
 import { S } from './audio.js';
+import { runeCircle } from './vfx.js';
 
 export const C = { scene: null, parts: null, floor: null, say: () => {} };
 const rand = (a, b) => a + Math.random() * (b - a), TAU = Math.PI * 2, tmp = { x: 0, z: 0 };
@@ -53,15 +54,15 @@ export class Unit {
     if (this.mods.includes('stone')) { const l = mlv(this, 'stone'); this.armor += 35 + 25 * l; this.maxHp *= 1.2 + 0.1 * l; this.speed *= 0.85; this.noStun = true; }
     this.taunt = ally && this.kind === 'brute'; this.tauntR = 5;
     if (!this.entry) return;
-    const r = id => rk(this, id);
+    const r = id => rk(this, id), gunHeld = this.kind === 'imp' && !!(this.entry.gear && this.entry.gear.w && this.entry.gear.w.uniq === 'mg');
     if (this.kind === 'brute') { this.maxHp *= 1 + 0.12 * r('bone'); this.armor += 5 * r('bone'); this.tauntR = 5 + 1.5 * r('taunt'); }
-    else if (this.kind === 'imp') { this.cd *= 1 - 0.07 * r('haste'); this.speed *= 1 + 0.04 * r('haste'); }
+    else if (this.kind === 'imp' && !gunHeld) { this.cd *= 1 - 0.07 * r('haste'); this.speed *= 1 + 0.04 * r('haste'); } // the gunner's tree has no attack speed
     else if (this.kind === 'archer') { this.dmg *= 1 + 0.12 * r('eagle'); this.range += 0.4 * r('eagle'); this.cd *= 1 - 0.08 * r('rapid'); }
     const g = this.entry.gear || {};
     if (g.w && g.w.type === this.kind) { const v = g.w.v; this.dmg *= 1 + v.dmg / 100; this.cd *= itemBase(g.w).cd / (1 + (v.spd || 0) / 100); this.maxHp *= 1 + (v.hp || 0) / 100; }
     if (g.a) { const v = g.a.v; this.maxHp *= 1 + v.hp / 100; this.armor += v.arm; this.dmg *= 1 + (v.dmg || 0) / 100; this.speed *= 1 + (v.move || 0) / 100; }
     // 机枪骷髅: a minion holding the easter-egg gatling fights at range with sustained fire (each round ~21% of a stab, ~8 rounds a second)
-    this.gun = this.kind === 'imp' && !!(g.w && g.w.uniq === 'mg'); if (this.gun) { this.cd = 0.72 * this.cd / this.T.cd; this.range = 6.5; } // cd = one 6-round belt
+    this.gun = gunHeld; if (this.gun) { this.cd = 0.72 * this.cd / this.T.cd; this.range = 6.5; this.maxHp *= 1.4; this.armor += 8; } // cd = one 6-round belt; a sturdier late-game unit
   }
   remove() { C.scene.remove(this.mesh.root); }
   // new weapon / shield in hand after an equipment change
@@ -78,10 +79,11 @@ export function say(x, z, text, col = '#fff', size = 15, y = 1.7) { G.msgs.push(
 // ---------- damage / death ----------
 export function damage(src, dst, amt, o = {}) {
   if (!dst || dst.dead) return 0;
-  let d = Math.max(1, amt * (1 - dst.armor / (dst.armor + 60)) * (1 - 0.08 * rk(dst, 'taunt'))); if (o.crit) d *= o.critX || 2;
+  const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
+  let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   dst.hp -= d; dst.flash = 1; dst.barT = 3; dst.lastHit = G.t;
-  if (o.knock) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
-  if (dst.kind !== 'player' && !dst.noStun && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
+  if (o.knock && !(dst.deployT > 0)) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
+  if (dst.kind !== 'player' && !dst.noStun && !(dst.deployT > 0) && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
   if (dst.kind === 'player') S.hurt(); else if (!o.dot && !o.sum) S.hit(Math.min(1, d / 20));
   if (src && src.champ && !o.noFx) for (const mod of src.mods) { const el = ELEM[mod]; if (!el) continue; C.parts.emit(dst.x, 0.7, dst.z, src.mods.length > 1 ? 6 : 11, el.hit); elemHit(mod, src, dst, d, o); }
@@ -298,7 +300,7 @@ export function fuse(to, f) {
   save(); return r;
 }
 export function learn(en, id) {
-  const def = (TREE[en.type] || []).find(d => d.id === id); if (!def) return false; en.skills = en.skills || {}; const r = en.skills[id] || 0;
+  const def = (TREE[treeKey(en)] || []).find(d => d.id === id); if (!def) return false; en.skills = en.skills || {}; const r = en.skills[id] || 0;
   if (r >= def.max || (en.sp || 0) < 1) return false; en.skills[id] = r + 1; en.sp--;
   const u = en.unit; if (u && !u.dead) { const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; C.parts.emit(u.x, 0.8, u.z, 16, { col: 0xffe58a, spd: 1, up: 2.5, life: 0.8, size: 0.22, grav: -1 }); }
   S.level(); save(); return true;
@@ -341,7 +343,7 @@ export function shoot(src, kind, tx, tz, o = {}) {
   return s;
 }
 export function updateShots(dt) {
-  updateTracers(dt);
+  updateTracers(dt); updateNades(dt);
   const F = C.floor; let j = 0;
   for (const s of G.shots) {
     s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z);
@@ -371,14 +373,14 @@ const faceTo = (u, t) => { u.faceT = Math.atan2(t.x - u.x, t.z - u.z); };
 const GUN_CLIP = '2H_Ranged_Shoot'; // two-handed shooting stance for the gatling
 function startWindup(u, t) {
   if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire)
-    if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd; if (u.mesh.curName !== GUN_CLIP) play(u.mesh, GUN_CLIP, { once: true, at: 0.55, speed: 0.5, fade: 0.08 }); return; }
+    if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); if (u.mesh.curName !== GUN_CLIP) play(u.mesh, GUN_CLIP, { once: true, at: 0.55, speed: 0.5, fade: 0.08 }); return; }
     u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); play(u.mesh, GUN_CLIP, { once: true, restart: true, speed: 0.5, fade: 0.1 }); u.animLock = 1.1; return; }
   u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind);
   if (u.kind === 'brute') { const rg = ring(0.2, u.range + u.r + 0.3, u.side === 'enemy' ? 0xff3a2a : 0x3fe0d0, 0.0); rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
   const t = u.tgt; u.state = 'recover'; u.st = 0; u.cdT = u.cd * rand(0.9, 1.15); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
   if (!t || t.dead) return;
-  if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; u.cdT = u.cd; return; }
+  if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
   if (u.kind === 'brute') { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 0.8, 0.2, u.z + Math.cos(u.face) * 0.8, 16, { col: 0xb8a890, spd: 3, up: 1.5, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d > u.range + u.r + h.r + 0.35) continue;
       const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1), { knock: 4 }); } }
@@ -392,15 +394,69 @@ function strike(u) {
 // sustained fire: one round every rof seconds at the target (or the nearest enemy in range), tracer + muzzle flash + sparks; every 6th round carries the affix effects
 const _mz = new THREE.Vector3();
 function gunTick(u, dt) {
-  const gn = u.mesh.gun; if (gn) gn.spin = 32; u.burstT -= dt; if (u.burstT > 0) return; u.burstT += u.rof || 0.12; u.burst--; u.lastShot = G.t; u.animLock = Math.max(u.animLock || 0, 0.3);
-  let t = u.tgt; if (!t || t.dead || dist(u, t) > u.range + 1.5) t = nearestHostile(u, u.range + 1); if (!t) { u.burst = 0; return; }
+  const gn = u.mesh.gun; if (gn) gn.spin = 32; u.burstT -= dt; if (u.burstT > 0) return; u.burstT += (u.rof || 0.12) * (u.deployT > 0 ? 0.62 : 1); u.burst--; u.lastShot = G.t; u.animLock = Math.max(u.animLock || 0, 0.3);
+  const R = u.range + (u.deployT > 0 ? 2.5 : 0); let t = u.tgt; if (!t || t.dead || dist(u, t) > R + 1.5) t = nearestHostile(u, R + 1); if (!t) { u.burst = 0; return; }
   faceTo(u, t); u.face = u.faceT;
   if (gn) gn.muzzle.getWorldPosition(_mz); else _mz.set(u.x + Math.sin(u.face) * 0.5, 0.7, u.z + Math.cos(u.face) * 0.5);
   const tx = t.x + rand(-0.18, 0.18), ty = 0.45 + rand(0, 0.45), tz = t.z + rand(-0.18, 0.18);
   tracer(_mz.x, _mz.y, _mz.z, tx, ty, tz); S.gun();
   C.parts.emit(_mz.x, _mz.y, _mz.z, 3, { col: 0xffe6a0, spd: 1.2, up: 0.2, life: 0.1, size: 0.3 });
   C.parts.emit(tx, ty, tz, 4, { col: Math.random() < 0.5 ? 0xd9a8ff : 0xffe6a0, spd: 2.4, up: 1, life: 0.22, size: 0.12 });
-  damage(u, t, u.dmg * 0.21 * rand(0.85, 1.15), { crit: u.side === 'ally' && Math.random() < 0.15 + 0.06 * rk(u, 'crit'), critX: 2 + 0.1 * rk(u, 'crit'), noFx: u.burstN++ % 6 !== 0, sum: true });
+  const sr = rk(u, 'shred'); if (sr) { t.shred = Math.min(8 * sr, (t.shred || 0) + 1); t.shredT = G.t; }
+  damage(u, t, u.dmg * 0.21 * rand(0.85, 1.15) * (u.deployT > 0 ? 1 + 0.2 * rk(u, 'deploy') : 1), { crit: u.side === 'ally' && Math.random() < 0.15 + 0.06 * rk(u, 'crit'), critX: 2 + 0.1 * rk(u, 'crit'), noFx: u.burstN++ % 6 !== 0, sum: true });
+}
+// ---------- 机枪骷髅 skills: grenade (+ cluster bomblets), dig in as a turret; AP rounds stack in gunTick ----------
+function gunSkills(u) {
+  const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 8 && C.floor.los(u.x, u.z, h.x, h.z));
+  if (rk(u, 'deploy') && u.depCD <= 0 && (near.length >= 3 || near.some(h => h.champ))) { deploy(u); return false; }
+  if (u.nadeCD <= 0 && near.length) { // the spot that catches the most enemies in the blast; a lone normal enemy isn't worth one
+    const R = 1.7 + 0.12 * rk(u, 'nade'); let best = null, bn = 0;
+    for (const c of near) { if (dist(c, u) > 7.5 || dist(c, u) < 1.5) continue; let n = 0; for (const h of near) if (Math.hypot(h.x - c.x, h.z - c.z) < R) n += h.champ ? 2 : 1; if (n > bn) { bn = n; best = c; } }
+    if (best && bn >= 2) { u.state = 'throw'; u.st = 0; u.wind = 0.32; u.thrown = false; u.nadeAt = { x: best.x, z: best.z }; faceTo(u, best); u.face = u.faceT; u.wantX = u.wantZ = 0;
+      play(u.mesh, 'Spellcast_Shoot', { once: true, restart: true, speed: 1.25, fade: 0.08 }); u.animLock = 0.7; u.nadeCD = 9 - 0.8 * rk(u, 'nade'); return true; }
+    u.nadeCD = 0.5; }
+  return false;
+}
+const NADES = [], nadeGeo = new THREE.SphereGeometry(1, 10, 8), nadeMat = new THREE.MeshBasicMaterial({ color: 0x2a2433 });
+function launchNade(u, at, o = {}) {
+  const r = rk(u, 'nade'), x0 = o.x ?? u.x + Math.sin(u.face) * 0.3, z0 = o.z ?? u.z + Math.cos(u.face) * 0.3, d = Math.hypot(at.x - x0, at.z - z0);
+  const m = new THREE.Mesh(nadeGeo, nadeMat); m.scale.setScalar(o.mini ? 0.07 : 0.11); const gl = glowSprite(0xb46cff, o.mini ? 0.5 : 0.8, 0.9); m.add(gl); gl.scale.multiplyScalar(1 / m.scale.x); C.scene.add(m);
+  NADES.push({ m, src: u, x0, z0, y0: o.y ?? 1.0, x1: at.x, z1: at.z, t: 0, dur: o.mini ? 0.35 : 0.5 + d * 0.03, h: o.mini ? 0.7 : 1.2 + d * 0.12,
+    dmg: o.dmg ?? u.dmg * (1.6 + 0.35 * r), R: o.mini ? 1.1 : 1.7 + 0.12 * r, mini: !!o.mini, cl: o.mini ? 0 : rk(u, 'cluster') });
+  if (!o.mini) S.arrow();
+}
+function updateNades(dt) { let j = 0;
+  for (const n of NADES) { n.t += dt; const k = Math.min(1, n.t / n.dur), x = n.x0 + (n.x1 - n.x0) * k, z = n.z0 + (n.z1 - n.z0) * k, y = n.y0 * (1 - k) + 0.12 + 4 * n.h * k * (1 - k);
+    n.m.position.set(x, y, z); n.m.rotation.x += dt * 12; if (Math.random() < 0.7) C.parts.emit(x, y, z, 1, { col: 0xffc35a, spd: 0.2, up: 0.3, life: 0.25, size: 0.12, grav: 0 });
+    if (k >= 1) { C.scene.remove(n.m); explodeNade(n); continue; } NADES[j++] = n; }
+  NADES.length = j; }
+function explodeNade(n) {
+  const { x1: x, z1: z, src, R } = n; S.boom(); if (!n.mini) S.smash();
+  C.parts.emit(x, 0.4, z, n.mini ? 14 : 34, { col: 0xff9a3a, spd: n.mini ? 3 : 5.5, up: 2.2, life: 0.55, size: n.mini ? 0.26 : 0.38 });
+  C.parts.emit(x, 0.5, z, n.mini ? 6 : 16, { col: 0xb46cff, spd: n.mini ? 2.5 : 4, up: 2.5, life: 0.7, size: 0.26 });
+  C.parts.emit(x, 0.6, z, n.mini ? 4 : 12, { col: 0x3a3442, spd: 1.2, up: 1.6, grav: -0.6, life: 1.1, size: 0.45 });
+  const fl = glowSprite(0xffb050, R * 2.2, 0.9); fl.position.set(x, 0.6, z); C.scene.add(fl); G.fx.push({ t: 0.28, tick: k => { fl.material.opacity = 0.9 * (1 - k); fl.scale.setScalar(R * 2.2 * (0.7 + 0.6 * k)); }, fn: () => C.scene.remove(fl) });
+  const rg = ring(0.2, 0.5, n.mini ? 0xffa040 : 0xc77dff, 0.9); rg.position.set(x, 0.05, z); C.scene.add(rg); G.fx.push({ t: 0.4, tick: k => { rg.scale.setScalar(1 + k * R * 1.8); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
+  for (const h of hostilesOf(src)) if (!h.dead && Math.hypot(h.x - x, h.z - z) < R + h.r) damage(src, h, n.dmg * rand(0.9, 1.1), { knock: n.mini ? 0.8 : 2.2, fx: x, fz: z, noFx: true });
+  for (let i = 0; i <= n.cl && n.cl; i++) { const a = rand(0, TAU), d = rand(1.2, 2.3); let tx = x + Math.cos(a) * d, tz = z + Math.sin(a) * d; if (!C.floor.walk(tx, tz)) { tx = x + Math.cos(a) * 0.6; tz = z + Math.sin(a) * 0.6; }
+    launchNade(src, { x: tx, z: tz }, { mini: true, x, z, y: 0.4, dmg: n.dmg * 0.45 }); }
+}
+// dig in: sandbags and a tripod appear around it (children of its mesh, so they go wherever the mesh goes), a rune ring on the ground
+function deploy(u) {
+  const r = rk(u, 'deploy'); u.deployT = 4 + 1.5 * r; u.depCD = 20 - 2 * r + u.deployT; u.wantX = u.wantZ = 0; u.kx = u.kz = 0; undeployVis(u);
+  const b = propMesh('turret_base'); b.scale.setScalar(0.3); u.mesh.root.add(b); const rc = runeCircle(1.15, 0xb46cff, 0.55); rc.position.y = 0.04; u.mesh.root.add(rc);
+  u.dep = { b, rc }; G.fx.push({ t: 0.3, tick: k => b.scale.setScalar(0.3 + 0.7 * k) });
+  S.clank(); C.parts.emit(u.x, 0.3, u.z, 20, { col: 0xc9b38a, spd: 2, up: 1.2, life: 0.5, size: 0.25 }); say(u.x, u.z, tr('架起！', 'Dig in!'), '#d9a8ff', 14, 1.0);
+}
+function undeployVis(u) { const d = u.dep; if (!d) return; u.dep = null; const root = u.mesh.root;
+  G.fx.push({ t: 0.3, tick: k => { d.b.scale.setScalar(Math.max(0.01, 1 - k)); d.rc.material.opacity = 0.55 * (1 - k); }, fn: () => { root.remove(d.b); root.remove(d.rc); } }); }
+function undeploy(u) { u.deployT = 0; undeployVis(u); }
+function turretThink(u, dp) {
+  u.wantX = u.wantZ = 0; if (dp > 14) { undeploy(u); return; } // don't get left behind
+  if (u.dep) u.dep.rc.rotation.y += 0.01;
+  if (u.state !== 'idle') return; if (gunSkills(u)) return;
+  const R = u.range + 2.5; let t = u.target && !u.target.dead && dist(u, u.target) < R && C.floor.los(u.x, u.z, u.target.x, u.target.z) ? u.target : nearestHostile(u, R);
+  if (!t) return; u.target = t; faceTo(u, t); if (u.cdT <= 0) startWindup(u, t);
 }
 const TR = [], trGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5), trMat = new THREE.MeshBasicMaterial({ color: 0xffc35a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
 function tracer(x0, y0, z0, x1, y1, z1) { const m = new THREE.Mesh(trGeo, trMat); m.renderOrder = 3; C.scene.add(m); const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0) || 0.01;
@@ -468,6 +524,7 @@ function allyScore(u, e, P) { const de = dist(e, P); return dist(e, u) + de * 0.
 function allyThink(u, dt) {
   const P = G.player; if (P.dead) { u.wantX = u.wantZ = 0; return; }
   const dp = dist(u, P);
+  if (u.deployT > 0) { turretThink(u, dp); return; }
   if (dp > 20 || (dp > 9 && !C.floor.los(u.x, u.z, P.x, P.z) && u.state === 'idle' && Math.random() < dt * 0.5)) { // catch up
     const a = rand(0, TAU); u.x = P.x + Math.cos(a) * 1.2; u.z = P.z + Math.sin(a) * 1.2; if (!C.floor.walk(u.x, u.z)) { u.x = P.x; u.z = P.z; } u.target = null;
     C.parts.emit(u.x, 0.5, u.z, 10, { col: 0x6ff7e8, spd: 1, up: 2, life: 0.5 }); return; }
@@ -488,7 +545,7 @@ function allyThink(u, dt) {
     if (d > 0.5) seek(u, tx, tz, u.speed * Math.min(1.3, 0.35 + d / 2.5)); else { u.wantX = u.wantZ = 0; }
     return; }
   const t = u.target;
-  if (u.gun) rangedLogic(u, t, dt, 3, 6.5);
+  if (u.gun) { if (!gunSkills(u)) rangedLogic(u, t, dt, 3, 6.5); }
   else if (isMelee(u)) { if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 3.5, 6.5 + 0.4 * rk(u, 'eagle'));
   else rangedLogic(u, t, dt, 4.5, 7);
@@ -552,6 +609,8 @@ export function updateUnit(u, dt) {
   u.flash = Math.max(0, u.flash - dt * 5); u.barT -= dt; u.cdT -= dt * slowK(u); dt *= slowK(u) < 1 ? 0.75 : 1;
   if (u.spawnT > 0) { u.spawnT -= dt; u.wantX = u.wantZ = 0; return; }
   if (u.burst > 0) gunTick(u, dt);
+  if (u.shred && G.t - u.shredT > 3) u.shred = Math.max(0, u.shred - dt * 10);
+  if (u.gun) { u.nadeCD = (u.nadeCD ?? 2.5) - dt; u.depCD = (u.depCD ?? 3) - dt; if (u.deployT > 0) { u.deployT -= dt; if (u.deployT <= 0) undeploy(u); } }
   if (u.stun > 0 && u.state !== 'leap') { u.stun -= dt; u.wantX = u.wantZ = 0; if (u.tele) { C.scene.remove(u.tele); u.tele = null; } }
   else if (u.state === 'windup') { u.st += dt; u.wantX = u.wantZ = 0; if (u.tgt && !u.tgt.dead && u.kind !== 'brute') faceTo(u, u.tgt);
     if (u.tele) { const k = u.st / u.wind; u.tele.material.opacity = 0.15 + 0.45 * k; u.tele.position.set(u.x, 0.04, u.z); }
@@ -560,6 +619,7 @@ export function updateUnit(u, dt) {
   else if (u.state === 'spin') updateSpin(u, dt);
   else if (u.state === 'leap') updateLeap(u, dt);
   else if (u.state === 'lunge') updateLunge(u, dt);
+  else if (u.state === 'throw') { u.st += dt; u.wantX = u.wantZ = 0; if (!u.thrown && u.st >= u.wind) { u.thrown = true; launchNade(u, u.nadeAt); } if (u.st >= u.wind + 0.3) { u.state = 'idle'; u.thrown = false; } }
   else if (u.state === 'cast') { u.st += dt; u.wantX = u.wantZ = 0;
     if (u.castC) { if (!G.corpses.includes(u.castC)) { u.state = 'idle'; u.castC = null; } else { if (Math.random() < 0.5) C.parts.emit(u.castC.x, 0.3, u.castC.z, 1, { col: 0xc070ff, spd: 0.5, up: 2, life: 0.6, grav: -1 });
       if (u.st > 1.0 / PACE.act) { resurrect(u, u.castC); u.castC = null; u.state = 'recover'; u.st = 0; u.resCD = rand(5, 7); } } }

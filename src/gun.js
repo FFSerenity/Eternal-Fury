@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CUSTOM_PROPS } from './assets.js';
 
-const PAL = [0x4c4858, 0x25222d, 0xb46cff, 0xdcd1b6, 0x9d98ab, 0x6a3aa8, 0xe6c35a, 0x8ff5ff, 0x66704a];
-const [METAL, DARK, GLOW, BONE, STEEL, DEEP, GOLD, , OLIVE] = PAL.map((_, i) => i);
+const PAL = [0x4c4858, 0x25222d, 0xb46cff, 0xdcd1b6, 0x9d98ab, 0x6a3aa8, 0xe6c35a, 0x8ff5ff, 0x66704a, 0xb59c70, 0x8a7550];
+const [METAL, DARK, GLOW, BONE, STEEL, DEEP, GOLD, , OLIVE, SAND, SAND2] = PAL.map((_, i) => i);
 let tex = null;
 function palette() {
   if (tex) return tex; const d = new Uint8Array(PAL.length * 4);
@@ -75,3 +75,14 @@ function helmet() {
   return mergeGeometries(parts);
 }
 CUSTOM_PROPS.gunner_helmet = () => entry(helmet());
+
+// ---------- 架起 / Dig In: a ring of sandbags in front and a tripod under the gun, in world units around the unit (faces +Z) ----------
+function turretBase() {
+  const parts = [], bag = (x, y, z, ry, col) => { const g = part(new THREE.SphereGeometry(1, 10, 6), col); g.scale(0.24, 0.12, 0.15); g.rotateY(ry); g.translate(x, y, z); return g; };
+  for (let i = 0; i < 7; i++) { const a = -1.75 + i * (3.5 / 6), r = 0.62; parts.push(bag(Math.sin(a) * r, 0.11, Math.cos(a) * r, a + Math.PI / 2, i % 2 ? SAND : SAND2)); }
+  for (let i = 0; i < 5; i++) { const a = -1.3 + i * (2.6 / 4), r = 0.6; parts.push(bag(Math.sin(a) * r, 0.3, Math.cos(a) * r, a + Math.PI / 2, i % 2 ? SAND2 : SAND)); }
+  for (const a of [0, 2.2, -2.2]) parts.push(strap([0, 0.5, 0.3], [Math.sin(a) * 0.38, 0, 0.3 + Math.cos(a) * 0.38], 0.04, 0.04, DARK)); // tripod
+  parts.push(cylZ(0.06, 0.12, METAL, 0, 0.5, 0.3, 10));
+  return mergeGeometries(parts);
+}
+CUSTOM_PROPS.turret_base = () => entry(turretBase());
