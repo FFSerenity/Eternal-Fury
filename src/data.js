@@ -68,7 +68,9 @@ export const PACKS = [
   [['archer', 2], ['shaman', 1], ['imp', 2]],
 ];
 export const xpNeed = L => Math.round(18 * Math.pow(L, 1.55));
-export const partySize = L => Math.min(4, 1 + Math.floor(L / 3));
+// party slots: 1 to start, then more at these levels (gaps of 4, 5 and 6 levels)
+export const PARTY_AT = [5, 10, 16];
+export const partySize = L => 1 + PARTY_AT.filter(l => L >= l).length;
 
 // ---------- summon skill trees: ranks are bought with 魂能点 (soul points), earned by absorbing other summons ----------
 const pct = v => Math.round(v * 100) + '%';

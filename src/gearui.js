@@ -76,13 +76,14 @@ function quick(c, p) {
   else { if (bagFree() < 0) { message(tr('背包满了', 'Bag is full')); return; } bagPut(take(c, p)); S.clank(); }
   infoIt = null; save(); render();
 }
-// auto-fill: plain items first, then 精良 ones nobody would wear; never 稀有
+// auto-fill: 普通 items first, then 精良 ones (those that would be an upgrade for a summon go in last); never 稀有
 function autoFill() {
   const upgrade = it => G.crypt.some(en => (it.slot === 'a' || it.type === en.type) && itemScore(it) > itemScore(en.gear?.[it.slot === 'w' ? 'w' : 'a']) + 0.5);
-  const cand = G.bag.filter(it => it.q === 0 || (it.q === 1 && !upgrade(it))).sort((a, b) => a.q - b.q || itemScore(a) - itemScore(b));
+  const cand = G.bag.filter(it => it.q < 2).sort((a, b) => a.q - b.q || (a.q && (upgrade(a) - upgrade(b))) || itemScore(a) - itemScore(b));
   let n = 0; for (const it of cand) { const fp = furnFree(); if (fp < 0) break; G.bag.splice(G.bag.indexOf(it), 1); it.fpos = fp; G.furn.push(it); n++; }
-  if (n) S.clank(); else message(tr('背包里没有适合丢进熔炉的（稀有和用得上的精良不会自动放）', 'Nothing to add (rares and useful magic items are never added automatically)')); save(); render();
+  if (n) S.clank(); else message(fp0() < 0 ? tr('熔炉已经满了', 'The forge is full') : tr('背包里没有普通或精良装备（稀有不会自动放）', 'No normal or magic items in the bag (rares are never added automatically)')); save(); render();
 }
+const fp0 = () => furnFree();
 function emptyFurn() { for (const it of G.furn.slice()) { if (bagFree() < 0) break; G.furn.splice(G.furn.indexOf(it), 1); bagPut(it); } S.clank(); save(); render(); }
 
 // ---------- DOM ----------
@@ -99,7 +100,7 @@ function build() {
   d.addEventListener('click', e => { const el = e.target.closest('.cell, .gSlot'); if (!el) return; e.stopPropagation(); clickCell(el.dataset.c, +el.dataset.p || 0); });
   d.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse' || held) return; const el = e.target.closest('.cell, .gSlot'), it = el ? at(el.dataset.c, +el.dataset.p || 0) : null; if (it !== infoIt) { infoIt = it; renderInfo(); } });
 }
-const cellHTML = (it, c, p, extra = '') => `<div class="cell${it ? ' q' + it.q : ''}${extra}" data-c="${c}" data-p="${p}">${it ? `<img src="${iconOf(it)}" draggable="false">` : ''}</div>`;
+const cellHTML = (it, c, p, extra = '') => `<div class="cell${it ? ' q' + it.q : ''}${it && c === 'bag' && freshIds.has(it.id) ? ' fresh' : ''}${extra}" data-c="${c}" data-p="${p}">${it ? `<img src="${iconOf(it)}" draggable="false">` : ''}</div>`;
 export function render() {
   if (!gearOpen) return; const en = selEn, doll = mode === 'doll' && en;
   $('#gearBox').className = 'panel ' + (doll ? 'mDoll' : 'mBag');
@@ -147,15 +148,22 @@ function tipHTML(it) {
 
 // ---------- furnace ----------
 function smelt() {
-  if (G.furn.length < 2 || held) return; const odds = furnaceOdds(G.furn), res = furnaceRoll(G.furn, G.uid++); G.furn = [res]; res.fpos = 0; save(); S.fire();
+  if (G.furn.length < 2 || held) return; const odds = furnaceOdds(G.furn), res = furnaceRoll(G.furn, G.uid++); G.furn = [res]; res.fpos = 0; pending = res; save(); S.fire();
   const box = document.createElement('div'); box.className = 'gReel'; box.innerHTML = `<div class="lt">${tr('炉火翻滚……', 'The forge roars…')}</div><div class="reel"></div><button class="btn ok" style="visibility:hidden">${tr('收下', 'Take it')}</button>`;
   $('.gFurn').appendChild(box); const reel = box.querySelector('.reel'); let dly = 45;
   const show = it => { reel.innerHTML = `<div class="ri q${it.q}"><img src="${iconOf(it)}"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)}</div></div>`; };
   const tick = () => { if (!gearOpen || !box.isConnected) return; if (dly > 300) { show(res); reel.classList.add('done', 'q' + res.q); box.querySelector('.lt').textContent = res.q === 2 ? tr('✨ 熔出了稀有装备！', '✨ A rare item!') : res.q === 1 ? tr('熔出了精良装备', 'A magic item') : tr('熔出了一件普通装备', 'A normal item');
-      box.querySelector('.ok').style.visibility = 'visible'; infoIt = res; renderInfo(); if (res.q === 2) S.level(); else if (res.q === 1) S.caught(); else S.pick(); return; }
+      box.querySelector('.ok').style.visibility = 'visible'; collect(); infoIt = res; render(); if (res.q === 2) S.level(); else if (res.q === 1) S.caught(); else S.pick(); return; }
     const r = Math.random(); show(rollItem(0, res.il, r < odds.gold ? 2 : r < odds.gold + odds.blue ? 1 : 0)); S.pick(); dly *= 1.13; setTimeout(tick, dly); };
   tick(); box.querySelector('.ok').addEventListener('click', e => { e.stopPropagation(); box.remove(); render(); });
   render();
+}
+// the smelted item goes straight into the bag once revealed (it stays in the forge only if the bag is full)
+let pending = null; const freshIds = new Set(); // freshly smelted items glow in the bag until the panel closes
+function collect() {
+  const it = pending; pending = null; if (!it || !G.furn.includes(it)) return;
+  if (bagFree() < 0) { message(tr('背包满了，熔出的装备留在熔炉里', 'Bag is full — the new item stays in the forge')); return; }
+  G.furn.splice(G.furn.indexOf(it), 1); delete it.fpos; bagPut(it); freshIds.add(it.id); save();
 }
 
 // ---------- open / close ----------
@@ -165,6 +173,6 @@ function open(m, en) {
 }
 export function openGear(en) { if (!en) return; open('doll', en); }
 export function openBag() { open('bag', null); }
-export function closeGear() { if (!gearOpen) return; returnHeld(); save(); gearOpen = false; const p = $('#gearP'); if (p) p.classList.remove('open'); cancelAnimationFrame(raf); for (const r of document.querySelectorAll('.gReel')) r.remove(); }
+export function closeGear() { if (!gearOpen) return; returnHeld(); collect(); freshIds.clear(); save(); gearOpen = false; const p = $('#gearP'); if (p) p.classList.remove('open'); cancelAnimationFrame(raf); for (const r of document.querySelectorAll('.gReel')) r.remove(); }
 export function toggleBag() { gearOpen && mode === 'bag' ? closeGear() : openBag(); }
 export const toggleGear = toggleBag;

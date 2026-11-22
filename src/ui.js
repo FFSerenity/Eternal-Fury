@@ -157,6 +157,10 @@ export function renderCrypt(force) {
 function renderDetail(list, en) {
   const T = TYPES[en.type], st = statsOf(en), tree = TREE[en.type] || [], d = document.createElement('div'); d.className = 'det';
   const fuseList = G.crypt.filter(f => canFuse(f, en)).sort((a, b) => b.champ - a.champ || b.mods.length - a.mods.length || b.level - a.level);
+  // one-click fusion: every plain (no-affix) partner, one by one, until something changes
+  const plain = plainPartners(en), o0 = plain.length ? fusionOdds(en, plain[0]) : null, chance0 = o0 && (o0.elite || o0.add.length || o0.up.length);
+  const allBar = plain.length > 1 && chance0 ? `<div class="fzAll"><div class="fzAllT">${tr(`把 ${plain.length} 只普通${TYPES[en.type].name}逐只融进来，一出现变化（${en.champ ? '属性强化' : '变成精英'}）就停下，剩下的留着`, `Fuses the ${plain.length} plain ${TYPES[en.type].name}s in one at a time and stops as soon as something changes (${en.champ ? 'an affix strengthens' : 'it turns elite'}); the rest are kept`)}</div>
+    <button class="btn fzAllB${isArmed('fzall') ? ' arm' : ''}">${isArmed('fzall') ? tr('确认一键融合', 'Confirm') : tr(`一键融合（${plain.length} 只）`, `Fuse all (${plain.length})`)}</button></div>` : '';
   const need = xpNeed(en.level) * 0.8, feed = G.crypt.filter(f => canFeed(f, en)).sort((a, b) => (b.type === en.type) - (a.type === en.type) || b.level - a.level);
   const statLine = [`${tr('生命', 'Life')} <b>${Math.round(st.maxHp)}</b>`, `${tr('伤害', 'Damage')} <b>${st.dmg.toFixed(1)}</b>`, `${tr('护甲', 'Armour')} <b>${Math.round(st.armor)}</b>`, `${tr('攻击间隔', 'Interval')} <b>${st.cd.toFixed(2)}s</b>`, en.type === 'archer' ? `${tr('射程', 'Range')} <b>${st.range.toFixed(1)}</b>` : ''].filter(Boolean).join('　');
   d.innerHTML = `<div class="dHead"><button class="btn back">‹ ${tr('返回', 'Back')}</button><div class="ic">${portrait(en.type)}</div><div class="info"><div class="nm">${enName(en)}</div>
@@ -177,7 +181,7 @@ function renderDetail(list, en) {
         <button class="btn eat${isArmed(k) ? ' arm' : ''}" data-id="${f.id}">${isArmed(k) ? tr('确认转化', 'Confirm') : tr('转化', 'Absorb')}</button></div>`; }).join('') +
       (feed.length > 1 ? `<button class="btn eatAll${isArmed('all') ? ' arm' : ''}">${isArmed('all') ? tr('确认全部转化', 'Confirm all') : tr(`全部转化（${feed.length} 只）`, `Absorb all (${feed.length})`)}</button>` : '')
       : `<div class="fEmpty">${tr('墓典里没有可转化的召唤物。精英和出战中的不能转化；满员时收服的怪会存进墓典。', 'Nothing to absorb. Elites and party members cannot be absorbed; captures made with a full party are stored in the Crypt.')}</div>`}</div>
-    <div class="feed fuse"${feedTab === 'fuse' ? '' : ' style="display:none"'}>${fuseList.length ? fuseList.map(f => { const k = 'fuse' + f.id, o = fusionOdds(en, f), pc = v => Math.round(v * 100) + '%';
+    <div class="feed fuse"${feedTab === 'fuse' ? '' : ' style="display:none"'}>${allBar}${fuseList.length ? fuseList.map(f => { const k = 'fuse' + f.id, o = fusionOdds(en, f), pc = v => Math.round(v * 100) + '%';
       const chance = [o.elite ? `${tr('成为精英', 'Turn elite')} ${pc(o.elite)}` : '', ...o.add.map(a => `${en.champ ? tr('新增', 'Add') : tr('继承', 'Inherit')} ${chip(a.m, 1, true)} ${pc(a.p)}`), ...o.up.map(u => `${tr('强化', 'Strengthen')} ${chip(u.m, Math.min(3, ((en.modLv && en.modLv[u.m]) || 1) + 1), true)} ${pc(u.p)}`)].filter(Boolean).map(t => `<span class="fo">${t}</span>`).join(' ') || `<span class="dim">${tr('只有经验', 'Experience only')}</span>`;
       return `<div class="fr"><span class="ic">${portrait(f.type)}</span><div class="fn">${ZH ? enName(f) : TYPES[f.type].name} <small>Lv ${f.level}</small>${chips(f) ? `<div class="fchips">${chips(f, !ZH)}</div>` : ''}</div>
         <div class="odds2">${chance}<br><span class="dim">+${o.xp} ${tr('经验', 'XP')}</span></div><button class="btn fz${isArmed(k) ? ' arm' : ''}" data-id="${f.id}">${isArmed(k) ? tr('确认融合', 'Confirm') : tr('融合', 'Fuse')}</button></div>`; }).join('')
@@ -192,14 +196,24 @@ function renderDetail(list, en) {
   const all = d.querySelector('.eatAll'); if (all) all.addEventListener('click', e => { e.stopPropagation(); if (arm('all')) eat(G.crypt.filter(f => canFeed(f, en))); });
   d.querySelectorAll('.ft').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); feedTab = b.dataset.t; armed = null; renderCrypt(true); }));
   d.querySelectorAll('.fz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const f = G.crypt.find(x => x.id === +b.dataset.id); if (f && arm('fuse' + f.id)) fuseShow(en, f); }));
+  const fa = d.querySelector('.fzAllB'); if (fa) fa.addEventListener('click', e => { e.stopPropagation(); if (arm('fzall')) fuseAll(en); });
   list.appendChild(d);
 }
 
 // fusion: two portraits drift together inside a spinning ring of soul light, a flash, then the outcome:
 // a success bursts into rainbow light (rays, sparks in the affix colours, a rainbow frame), no change just glows softly
 const hex = c => '#' + c.toString(16).padStart(6, '0');
+const plainPartners = en => G.crypt.filter(f => canFuse(f, en) && !(f.champ && f.mods.length)).sort((a, b) => a.level - b.level || a.xp - b.xp);
 function fuseShow(en, f) {
   const before = { champ: en.champ, mods: en.mods.slice() }, r = fuse(en, f); if (!r) { renderCrypt(true); return; }
+  fuseAnim(en, f.type, r, before, 1);
+}
+function fuseAll(en) {
+  const before = { champ: en.champ, mods: en.mods.slice() }, list = plainPartners(en), agg = { elite: false, added: [], upped: [], xp: 0, before: en.level }; let n = 0;
+  for (const f of list) { const r = fuse(en, f); if (!r) break; n++; agg.xp += r.xp; agg.elite = agg.elite || r.elite; agg.added.push(...r.added); agg.upped.push(...r.upped); if (r.elite || r.added.length || r.upped.length) break; }
+  if (!n) { renderCrypt(true); return; } fuseAnim(en, en.type, agg, before, n);
+}
+function fuseAnim(en, ftype, r, before, n) {
   const good = r.elite || r.added.length || r.upped.length, rnd = (a, b) => a + Math.random() * (b - a);
   const gained = [...r.added, ...r.upped], affCols = gained.map(m => hex(MODS[m].col)), rainbow = ['#ff5a5a', '#ffb347', '#ffe66d', '#6fe87a', '#5fd0ff', '#8f7dff', '#e67dff'];
   let motes = ''; for (let i = 0; i < 18; i++) { const a = rnd(0, 6.283), d = rnd(85, 130); motes += `<i class="fzM" style="--x:${(Math.cos(a) * d).toFixed(0)}px;--y:${(Math.sin(a) * d).toFixed(0)}px;--d:${rnd(0, 0.7).toFixed(2)}s;--c:${i % 3 ? '#6ff7e8' : '#b9a2ff'}"></i>`; }
@@ -207,7 +221,7 @@ function fuseShow(en, f) {
     sparks += `<i class="fzSp" style="--x:${(Math.cos(a) * d).toFixed(0)}px;--y:${(Math.sin(a) * d * 0.85).toFixed(0)}px;--d:${rnd(0, 0.15).toFixed(2)}s;--s:${rnd(4, 9).toFixed(1)}px;--c:${c}"></i>`; }
   S.raise(); const box = document.createElement('div'); box.id = 'fuseFx';
   box.innerHTML = `<div class="fzRow"><div class="fzRays"></div><div class="fzRingW"><div class="fzRing"></div></div>${motes}<div class="fzBurst"></div><div class="fzBurst b2"></div>${sparks}
-    <div class="fzA">${portrait(en.type)}</div><div class="fzB">${portrait(f.type)}</div></div><div class="fzT">${tr('融合中……', 'Fusing…')}</div><div class="fzR"></div>
+    <div class="fzA">${portrait(en.type)}</div><div class="fzB">${portrait(ftype)}${n > 1 ? `<b class="fzN">×${n}</b>` : ''}</div></div><div class="fzT">${n > 1 ? tr(`融合中……（${n} 只）`, `Fusing… (${n})`) : tr('融合中……', 'Fusing…')}</div><div class="fzR"></div>
     <button class="btn ok" style="visibility:hidden">${tr('好', 'OK')}</button><div class="fzFlash"></div>`;
   if (good) box.style.setProperty('--gc', affCols[0] || '#ffd36a');
   $('#cryptBox').appendChild(box);
@@ -215,7 +229,7 @@ function fuseShow(en, f) {
   setTimeout(() => { box.classList.add('flash', good ? 'win' : 'meh'); if (good) S.level(); else S.caught();
     box.querySelector('.fzT').innerHTML = good ? `✨ ${enName(en)} ✨` : `${enName(en)}`;
     box.querySelector('.fzR').innerHTML = [r.elite ? `<div class="big">${tr('成为了精英！', 'Became an elite!')}</div>` : '', ...r.added.map(m => `<div>${r.elite && !before.champ ? tr('获得属性', 'Gained') : tr('新增属性', 'New affix')} ${chip(m)}</div>`),
-      ...r.upped.map(m => `<div>${tr('属性强化', 'Strengthened')} ${chip(m, en.modLv[m])}</div>`), `<div class="dim">+${r.xp} ${tr('经验', 'XP')}${en.level > r.before ? tr(`，升到 Lv ${en.level}`, `, now Lv ${en.level}`) : ''}</div>`, !good ? `<div class="dim">${tr('这次没有出现变化', 'Nothing changed this time')}</div>` : ''].join('');
+      ...r.upped.map(m => `<div>${tr('属性强化', 'Strengthened')} ${chip(m, en.modLv[m])}</div>`), n > 1 ? `<div class="dim">${good ? tr(`第 ${n} 只成功`, `Succeeded on fusion #${n}`) : tr(`融合了 ${n} 只，都没有出现变化`, `Fused ${n}, nothing changed`)}</div>` : '', `<div class="dim">+${r.xp} ${tr('经验', 'XP')}${en.level > r.before ? tr(`，升到 Lv ${en.level}`, `, now Lv ${en.level}`) : ''}</div>`, !good && n === 1 ? `<div class="dim">${tr('这次没有出现变化', 'Nothing changed this time')}</div>` : ''].join('');
     box.querySelector('.ok').style.visibility = 'visible'; }, 1200);
   box.querySelector('.ok').addEventListener('click', e => { e.stopPropagation(); box.remove(); renderCrypt(true); });
 }

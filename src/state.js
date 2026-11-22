@@ -1,5 +1,5 @@
 // Shared game state and the save file
-import { BAG_MAX } from './data.js';
+import { BAG_MAX, partySize } from './data.js';
 export const G = {
   units: [], corpses: [], shots: [], fx: [], enemies: [], friends: [], depth: 0, deep: 1, floor: null, player: null, t: 0,
   crypt: [], bag: [], furn: [], loot: [], ghosts: [], bolts: [], clouds: [], level: 1, xp: 0, uid: 1, msgs: [],
@@ -15,7 +15,9 @@ export function save() {
 export function load() {
   try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!d) return false;
     G.level = d.level || 1; G.xp = d.xp || 0; G.deep = d.depth || 1; G.depth = 0; G.uid = d.uid || 1;
-    G.crypt = (d.crypt || []).map(c => Object.assign({ reviveT: 0, unit: null, sp: 0, skills: {}, gear: {} }, c)); G.bag = []; for (const it of d.bag || []) bagPut(it, it.pos); G.furn = d.furn || []; return true; } catch (e) { return false; }
+    G.crypt = (d.crypt || []).map(c => Object.assign({ reviveT: 0, unit: null, sp: 0, skills: {}, gear: {} }, c)); G.bag = []; for (const it of d.bag || []) bagPut(it, it.pos); G.furn = d.furn || [];
+    // a save from before the party-size change may have more summons out than allowed now: the extras rest
+    let n = 0; for (const en of G.crypt) if (en.active && ++n > partySize(G.level)) en.active = false; return true; } catch (e) { return false; }
 }
 export function wipe() { G.noSave = true; try { localStorage.removeItem(KEY); } catch (e) {} }
 // bag = 40 cells, one item per cell (it.pos); bagPut finds a free cell (or uses the wanted one if free)
