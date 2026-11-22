@@ -3,7 +3,7 @@ import { tr, SP } from './i18n.js';
 export const TYPES = {
   imp: {
     name: tr('骷髅小兵', 'Skeleton Minion'), short: tr('骷髅小兵', 'Minion'), role: tr('快攻', 'Striker'), icon: '🗡️', hp: 20, dmg: 3.5, speed: 4.4, range: 0.85, cd: 0.8, windup: 0.16, armor: 0, r: 0.32, xp: 6, capture: 0.6,
-    desc: tr('速度快，成群结队。看到同伴散架会惊慌逃跑，过一会儿再冲回来。', 'Fast and comes in packs. Panics when a packmate falls apart, then rushes back.'),
+    desc: tr('速度快，成群结队。偶尔有胆小的会被吓跑，过一会儿再冲回来。', 'Fast and comes in packs. The odd one panics and runs, then rushes back.'),
     ally: tr('速度快的近战输出，会突刺冲向敌人（必定暴击），平时攻击也有几率暴击。', 'Fast melee damage. Lunges at enemies (always a critical hit) and often crits.'),
   },
   brute: {
@@ -76,7 +76,7 @@ export const partySize = L => 1 + PARTY_AT.filter(l => L >= l).length;
 const pct = v => Math.round(v * 100) + '%';
 export const TREE = {
   brute: [
-    { id: 'leap', name: tr('跳劈', 'Leap Slam'), icon: '🪓', max: 5, desc: r => tr(`跳劈伤害 +${pct(0.2 * r)}，冷却 ${(6.5 - 0.6 * r).toFixed(1)} 秒，砸地范围 +${(0.15 * r).toFixed(2)} 米`, `Leap damage +${pct(0.2 * r)}, cooldown ${(6.5 - 0.6 * r).toFixed(1)}s, slam radius +${(0.15 * r).toFixed(2)} m`) },
+    { id: 'leap', name: tr('跳劈', 'Leap Slam'), icon: '🪓', max: 5, desc: r => tr(`跳劈造成 ${pct(0.55 * (1 + 0.12 * r))} 伤害并击晕，冷却 ${(6.5 - 0.6 * r).toFixed(1)} 秒，砸地范围 +${(0.15 * r).toFixed(2)} 米`, `Leap deals ${pct(0.55 * (1 + 0.12 * r))} damage and stuns, cooldown ${(6.5 - 0.6 * r).toFixed(1)}s, slam radius +${(0.15 * r).toFixed(2)} m`) },
     { id: 'bone', name: tr('坚骨', 'Hard Bones'), icon: '🦴', max: 5, desc: r => tr(`生命 +${pct(0.12 * r)}，护甲 +${5 * r}`, `Life +${pct(0.12 * r)}, armour +${5 * r}`) },
     { id: 'spin', name: tr('旋风斩', 'Whirlwind'), icon: '🌀', max: 3, unlock: true, desc: r => r ? tr(`身边有 2 个以上敌人时旋转劈砍两次，每次 ${pct(0.6 + 0.2 * r)} 伤害，冷却 ${7 - r} 秒`, `With 2+ enemies close, spins and hits all around twice for ${pct(0.6 + 0.2 * r)} damage each, cooldown ${7 - r}s`) : tr('解锁：被围住时旋转劈砍周围所有敌人', 'Unlock: when surrounded, spins and hits everything around') },
     { id: 'taunt', name: tr('战吼', 'War Cry'), icon: '📢', max: 3, unlock: true, desc: r => r ? tr(`受到伤害 -${pct(0.08 * r)}，${(5 + 1.5 * r).toFixed(1)} 米内的敌人更想打它`, `Damage taken -${pct(0.08 * r)}; enemies within ${(5 + 1.5 * r).toFixed(1)} m prefer to attack it`) : tr('解锁：减伤，并把更远的敌人引向自己', 'Unlock: takes less damage and draws enemies from farther away') },

@@ -104,7 +104,7 @@ function kill(u, src) {
     const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(xp);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
     deathBlast(u, 0.7); const it = rollDrop(G.uid, G.depth, u.champ); if (it) { G.uid++; dropLoot(it, u.x, u.z); }
-    if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5) panic(e, src || u);
+    if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
     makeCorpse(u);
   } else if (u.side === 'ally') {
     S.die(); const en = u.entry; if (en) { en.unit = null; en.reviveT = en.reviveMax = 10 + 1.5 * en.level; }
@@ -504,7 +504,7 @@ function enemyThink(u, dt) {
     const dh = Math.hypot(u.home.x - u.x, u.home.z - u.z);
     if (dh > 2.5) seek(u, u.home.x, u.home.z, u.speed * 0.6); else { u.wantX *= 0.9; u.wantZ *= 0.9; if (Math.random() < dt * 0.4) { const a = rand(0, TAU); u.wantX = Math.cos(a) * 0.8; u.wantZ = Math.sin(a) * 0.8; } }
     return; }
-  if (u.kind === 'imp' && !u.champ && !u.panicked && u.hp < u.maxHp * 0.3) { u.panicked = true; panic(u, t); return; }
+  if (u.kind === 'imp' && !u.champ && !u.panicked && u.hp < u.maxHp * 0.3) { u.panicked = true; if (Math.random() < 0.1) { panic(u, t); return; } }
   if (u.kind === 'brute' || u.kind === 'imp') meleeLogic(u, t);
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 4, 7.5);
   else if (u.kind === 'shaman') {
@@ -574,7 +574,7 @@ function updateLeap(u, dt) {
     const rg = ring(0.3, 0.55, 0x6ff7e8, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
     G.fx.push({ t: 0.4, tick: q => { rg.scale.setScalar(1 + q * 3.6); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) });
     const lr = rk(u, 'leap'); for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - u.x, h.z - u.z) > 1.9 + 0.15 * lr + h.r) continue;
-      damage(u, h, u.dmg * 1.3 * (1 + 0.2 * lr) * rand(0.9, 1.1), { knock: 3.2, fx: u.x, fz: u.z }); h.stun = Math.max(h.stun, 0.6); if (!h.dead) { h.target = u; h.aggro = true; } } }
+      damage(u, h, u.dmg * 0.55 * (1 + 0.12 * lr) * rand(0.9, 1.1), { knock: 3.2, fx: u.x, fz: u.z }); /* a gap closer, not a nuke */ h.stun = Math.max(h.stun, 0.6); if (!h.dead) { h.target = u; h.aggro = true; } } }
   if (u.st >= u.t1 + 0.35) { u.state = 'recover'; u.st = 0.0; u.landed = false; u.y = 0; u.cdT = Math.max(u.cdT, 0.5); }
 }
 // 旋风斩: when surrounded, spin and hit everything around twice
