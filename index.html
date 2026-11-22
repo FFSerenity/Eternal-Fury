@@ -28,9 +28,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:#07060a;color:#e8e0f0;
 .bar.xp{height:4px;margin:0}#xpB{background:#e6c35a}
 #party{position:absolute;left:max(10px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 84px);display:flex;flex-direction:column;gap:5px}
 .pc{cursor:pointer}.pc:hover{border-color:rgba(63,224,208,.7)}
-.pc{display:flex;align-items:center;gap:6px;width:clamp(150px,20vw,200px);padding:4px 8px 4px 4px;border-radius:10px;background:rgba(14,10,20,.66);border:1px solid rgba(63,224,208,.35);position:relative}
+.pc{display:flex;align-items:center;gap:6px;width:clamp(172px,20vw,210px);padding:4px 8px 4px 4px;border-radius:10px;background:rgba(14,10,20,.66);border:1px solid rgba(63,224,208,.35);position:relative}
 .pc .ic{font-size:20px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(63,224,208,.12)}
-.pc .pi{flex:1;min-width:0}.pc .pn{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pc small{color:#9fe8de;font-weight:600}
+.pc .pi{flex:1;min-width:0}.pc .pn{font-size:11px;font-weight:700;white-space:nowrap;display:flex;align-items:baseline;gap:4px}.pc .pnn{overflow:hidden;text-overflow:ellipsis;min-width:0}.pc small{color:#9fe8de;font-weight:600;flex:none}.pc .spb{flex:none;margin-left:auto}.pc .pnn.elite{color:#ffb347}.mdots{display:inline-flex;gap:2px;flex:none;align-self:center}.mdots i{width:7px;height:7px;border-radius:50%;box-shadow:0 0 4px currentColor}
 .pc .ph{height:5px;border-radius:3px;background:rgba(0,0,0,.6);margin-top:3px;overflow:hidden}.pc .ph i{display:block;height:100%;background:#3fe0d0}
 .pc.dead{filter:grayscale(.85);opacity:.75}.pc .rv{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:15px;color:#ffd58a;text-shadow:0 1px 3px #000}
 .pc.empty{border-style:dashed;opacity:.5}.pc.empty .ic{background:none;color:#9fe8de}
@@ -39,13 +39,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:#07060a;color:#e8e0f0;
 .btn.down{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
 #bCrypt,#bGear{height:40px;padding:0 12px;font-weight:800;font-size:14px}#bCrypt b{background:#3fe0d0;color:#0b2a28;border-radius:9px;padding:1px 7px;font-size:12px}#bGear b{background:#e6c35a;color:#2a1d05;border-radius:9px;padding:1px 7px;font-size:12px}
 .gsum{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#c9b8e8}.gsum i{color:#8f82aa;font-style:normal}.secT .toGear{margin-left:auto;height:28px;padding:0 10px;font-size:12px;font-weight:800}
-#bSfx,#bReset{width:40px;height:40px;font-size:18px}#bReset{font-size:20px;font-weight:900}#bReset.arm{width:auto;padding:0 10px;font-size:13px;background:linear-gradient(180deg,#a33a3a,#6a1d1d);border-color:rgba(255,140,140,.6)}
+#bSet{width:40px;height:40px;font-size:18px}
 #fps{font:700 11px ui-monospace,monospace;color:#bfb3d6;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:7px;min-width:44px;text-align:center}
 #fps:after{content:' fps'}
 #floorTag{position:absolute;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);font-weight:800;font-size:13px;letter-spacing:2px;color:#cdbbe8;text-shadow:0 1px 4px #000;pointer-events:none}
 #msg{position:absolute;left:50%;top:22%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;width:90vw}
 #msg .m{font-weight:800;font-size:15px;color:#f4ecff;background:rgba(10,6,16,.7);padding:6px 14px;border-radius:10px;text-shadow:0 1px 3px #000;transition:opacity .5s,transform .5s;text-align:center}
-#msg .m.big{font-size:20px;color:#ffe4a8;letter-spacing:1px}#msg .m.out{opacity:0;transform:translateY(-8px)}
+body:has(#start:not(.hide)) #msg{visibility:hidden}#msg .m.big{font-size:20px;color:#ffe4a8;letter-spacing:1px}#msg .m.out{opacity:0;transform:translateY(-8px)}
 #skills{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;gap:10px;align-items:end;justify-items:end}
 .sk{position:relative;width:60px;height:60px;border-radius:50%;font-size:26px;flex-direction:column;gap:0;overflow:hidden}
 .sk .k{position:absolute;bottom:3px;left:0;right:0;font-size:9px;font-weight:700;color:#cbb8ee;text-align:center}
@@ -54,7 +54,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#07060a;color:#e8e0f0;
 #sRaise{grid-column:1;grid-row:1}#sMend{grid-column:1;grid-row:2}
 #sRaise.ready{box-shadow:0 0 0 2px #3fe0d0,0 0 18px rgba(63,224,208,.8),0 3px 0 rgba(0,0,0,.4);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 2px #3fe0d0,0 0 6px rgba(63,224,208,.4),0 3px 0 rgba(0,0,0,.4)}}
-#raiseN{position:absolute;top:2px;right:6px;min-width:18px;height:18px;border-radius:9px;background:#3fe0d0;color:#062420;font-size:11px;font-weight:900;display:none;align-items:center;justify-content:center}
+#sRaise{overflow:visible}#raiseN{position:absolute;top:-4px;right:-4px;z-index:2;box-shadow:0 0 0 2px #1a1226;min-width:18px;height:18px;border-radius:9px;background:#3fe0d0;color:#062420;font-size:11px;font-weight:900;display:none;align-items:center;justify-content:center}
 #sMend:after{content:'';position:absolute;left:0;right:0;bottom:0;height:var(--cd,0%);background:rgba(0,0,0,.55)}
 #bStairs{position:absolute;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 10px);transform:translateX(-50%);height:46px;padding:0 20px;font-size:16px;font-weight:800;display:none;background:linear-gradient(180deg,#3a5fa8,#1d2f60);border-color:rgba(140,190,255,.5)}
 #bStairs.show{display:flex}
@@ -115,7 +115,7 @@ body.touch .sk .k{display:none}
 .btn:disabled{opacity:.35;filter:grayscale(.6);cursor:default}
 .feed{display:flex;flex-direction:column;gap:5px}
 .fr{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:rgba(0,0,0,.22)}.fr .ic{font-size:20px;width:28px;text-align:center}
-.fr .fn{font-weight:700;font-size:13px;flex:1;min-width:0}.fr .fn small{color:#c9b8e8}.fr .gain{font-size:11px;color:#9fe8de;white-space:nowrap}
+.fr .fn{font-weight:700;font-size:13px;flex:1;min-width:0}.fr .fn small{color:#c9b8e8;white-space:nowrap}.fr .gain{font-size:11px;color:#9fe8de;white-space:nowrap}
 .fr .eat,.eatAll{height:30px;padding:0 12px;font-size:12px;font-weight:800}.eatAll{align-self:flex-end;margin-top:4px}
 .btn.arm{background:linear-gradient(180deg,#a33a3a,#6a1d1d);border-color:rgba(255,140,140,.6)}
 .fEmpty{font-size:12px;color:#a898c4;padding:6px 4px}
@@ -129,7 +129,7 @@ body.touch .sk .k{display:none}
 #bStart{height:54px;padding:0 38px;font-size:20px;font-weight:900;background:linear-gradient(180deg,#3fb8a8,#1d6a62);border-color:rgba(140,255,240,.5)}
 #bNew{height:32px;padding:0 14px;font-size:12px;background:none;border-color:rgba(200,170,255,.25);box-shadow:none;color:#a898c4}
 @media (max-width:560px){#floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 50px);right:10px;left:auto;transform:none;font-size:11px;letter-spacing:1px}}
-@media (max-height:520px){#party{top:calc(max(8px,env(safe-area-inset-top)) + 76px)}.pc{width:150px;padding:2px 6px 2px 3px}.pc .ic{width:24px;height:24px;font-size:17px}#me{padding:6px 8px}}
+@media (max-height:520px){#party{top:calc(max(8px,env(safe-area-inset-top)) + 76px)}.pc{width:172px;padding:2px 6px 2px 3px}.pc .ic{width:24px;height:24px;font-size:17px}#me{padding:6px 8px}}
 /* ---- 装备 panel: dark iron & bronze, Diablo-like ---- */
 #gearP{position:fixed;inset:0;background:rgba(5,3,9,.66);display:none;align-items:center;justify-content:center;z-index:6}
 #gearP.open{display:flex}
@@ -183,44 +183,57 @@ body.touch .sk .k{display:none}
 .tN{font-weight:900;font-size:14px}.tB{color:#e8e2d6}.tI{color:#bfb6a6;font-size:12px}.tL{color:#7f98ff}.tR{color:#e8e2d6}.tR.bad{color:#ff5a5a}.tC{color:#c9b8a0;font-size:12px}.tC.up{color:#6dff8e}.tC.dn{color:#ff6b6b}
 #gHeld{position:fixed;display:none;width:56px;height:56px;transform:translate(-50%,-50%);pointer-events:none;z-index:21}#gHeld img{width:100%;filter:drop-shadow(0 4px 6px rgba(0,0,0,.9))}
 @media (max-width:700px){.mDoll .gMain,.mBag .gMain{grid-template-columns:1fr}.gInfo{height:104px}#gDoll{width:140px;height:180px}.gSlot{width:56px;height:96px}#gearBox{padding:12px 10px}.gF{width:160px}}
-@media (max-width:520px){#fps{display:none}#tr{max-width:calc(100vw - 196px);flex-wrap:wrap;justify-content:flex-end;gap:6px}#tr .lb{display:none}#tr .btn{height:38px}#bSfx,#bReset{width:38px}#bCrypt,#bGear{padding:0 8px}}
-.gSide .gF{width:100%}
+@media (max-width:520px){#fps{display:none}#tr{max-width:calc(100vw - 196px);flex-wrap:wrap;justify-content:flex-end;gap:6px}#tr .lb{display:none}#tr .btn{height:38px}#bSet{width:38px}#bCrypt,#bGear{padding:0 8px}}
+.gSide .gF{width:100%}@media (max-width:700px){.gSide .gF{grid-template-columns:repeat(6,1fr)}}
 .achip{display:inline-block;font-size:11px;font-weight:800;padding:0 6px;border:1px solid;border-radius:8px;margin-right:4px;line-height:17px;background:rgba(0,0,0,.25)}
-.fchips{margin-top:2px}.fuse .fr{align-items:center}.odds2{font-size:11px;color:#c9b8e8;text-align:right;line-height:1.7;max-width:46%}.odds2 .dim,.fzR .dim{color:#8f82aa}
+.fchips{margin-top:2px}.odds2 .fo{white-space:nowrap;display:inline-block}.fuse .fr{align-items:center}.odds2{font-size:11px;color:#c9b8e8;text-align:right;line-height:1.7;max-width:46%}.odds2 .dim,.fzR .dim{color:#8f82aa}
 .fr .fz{height:30px;padding:0 12px;font-size:12px;font-weight:800;background:linear-gradient(180deg,#5a3f86,#35234f)}
 #fuseFx{position:absolute;inset:0;border-radius:12px;background:rgba(8,5,12,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:4}
 .fzRow{position:relative;width:240px;height:110px}.fzA,.fzB{position:absolute;top:0;width:100px;height:100px;border-radius:14px;overflow:hidden;border:2px solid #3fe0d0;background:#120c1c;transition:transform 1s cubic-bezier(.6,0,.4,1),opacity 1s,box-shadow .3s}
 .fzA{left:0}.fzB{right:0}#fuseFx.merge .fzA{transform:translateX(70px)}#fuseFx.merge .fzB{transform:translateX(-70px) scale(.7);opacity:0}
 #fuseFx.flash .fzA{box-shadow:0 0 40px 10px rgba(111,247,232,.8);animation:pop .45s}.fzT{font-size:20px;font-weight:900;color:#e9dcff}.fzR{text-align:center;line-height:1.9;font-weight:700;color:#e9dcff}#fuseFx .ok{height:38px;padding:0 28px;font-weight:900}
-#resetMenu{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);display:none;flex-direction:column;gap:6px;padding:8px;z-index:3;min-width:190px}
-#resetMenu.open{display:flex}#resetMenu .btn{height:36px;padding:0 12px;font-size:13px;font-weight:800;justify-content:flex-start}#resetMenu .btn.danger{background:linear-gradient(180deg,#5a2430,#33141c)}
+#setMenu{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);display:none;flex-direction:column;gap:6px;padding:10px 12px;z-index:3;min-width:220px}
+#setMenu.open{display:flex}#resetMenu{display:flex;flex-direction:column;gap:6px}
+.smT{font-weight:900;font-size:15px;color:#e9dcff}.smL{font-size:11px;font-weight:800;color:#a898c4;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}.smRow{display:flex;gap:6px}.smRow .btn{height:34px;padding:0 14px;font-weight:800;font-size:13px}
+.smRow .lg.cur{background:linear-gradient(180deg,#2f5a58,#1c3433);border-color:rgba(63,224,208,.6)}#resetMenu .btn{height:36px;padding:0 12px;font-size:13px;font-weight:800;justify-content:flex-start}#resetMenu .btn.danger{background:linear-gradient(180deg,#5a2430,#33141c)}
 #resetMenu .btn.arm{background:linear-gradient(180deg,#a33a3a,#6a1d1d);border-color:rgba(255,140,140,.6)}.rmT{font-size:10px;color:#8f82aa;text-align:center}
-@media (max-width:520px){#resetMenu{top:calc(max(10px,env(safe-area-inset-top)) + 92px)}}
+@media (max-width:520px){#setMenu{top:calc(max(10px,env(safe-area-inset-top)) + 92px)}}
 .ftabs{display:flex;gap:6px;margin-top:4px}.ftabs .btn{height:34px;padding:0 16px;font-size:14px;font-weight:900;background:rgba(40,28,60,.6);box-shadow:none}.ftabs .btn.cur{background:linear-gradient(180deg,#5a3f86,#35234f);border-color:rgba(220,190,255,.6)}
 .ftabs b{font-size:11px;color:#e6c35a;margin-left:2px}.ftD{font-size:11px;color:#a898c4;margin:-2px 0 2px}
+/* ---- English layout ---- */
+body.en .gTitle,body.en .gLab,body.en .gfT{font-family:Georgia,"Palatino Linotype","Book Antiqua",serif;letter-spacing:1px}
+body.en #start h1{font-family:Georgia,"Palatino Linotype",serif;letter-spacing:4px}body.en #start .en{letter-spacing:3px}
+body.en .gSlot span{font-family:Georgia,serif;font-size:12px;text-align:center;padding:0 3px;line-height:1.2}
+body.en .sk .nm{font-size:8.5px;letter-spacing:-.1px}body.en #sAtk .nm{font-size:9.5px}
+body.en .pc .pn{font-size:10.5px}body.en .card .nm{font-size:14px;line-height:1.25}body.en #cryptHead{font-size:19px}
+body.en .ftabs .btn{padding:0 12px;font-size:13px}body.en .dHead .nm{font-size:16px;line-height:1.2}
+body.en #floorTag{letter-spacing:1px}body.en .gsL{gap:2px 10px}body.en #help{max-width:640px}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <canvas id="ov"></canvas>
 <div id="hud">
-  <div id="me" class="panel"><div id="lvl">Lv 1 召唤师</div>
+  <div id="me" class="panel"><div id="lvl">Lv 1</div>
     <div class="bar"><i id="hpB"></i><span id="hpT"></span></div><div class="bar"><i id="mpB"></i><span id="mpT"></span></div><div class="bar xp"><i id="xpB"></i></div></div>
   <div id="party"></div>
   <div id="floorTag"></div>
-  <div id="tr"><span id="fps">60</span><button class="btn" id="bReset" title="重置（测试用）">↺</button><button class="btn" id="bSfx">🔊</button><button class="btn" id="bGear">🎒<span class="lb"> 背包</span> <b id="gearN">0</b></button><button class="btn" id="bCrypt">📜<span class="lb"> 墓典</span> <b id="cryptN">0</b></button></div>
-  <div id="resetMenu" class="panel"><button class="btn" data-r="dungeon" data-c="确认：回营地、刷新怪物">↺ 重置副本</button><button class="btn danger" data-r="all" data-c="确认：清空存档从头开始">⚠ 全部重置</button><div class="rmT">测试用 · 点两次生效</div></div>
+  <div id="tr"><span id="fps">60</span><button class="btn" id="bSet" title="设置" data-en-title="Settings">⚙</button><button class="btn" id="bGear">🎒<span class="lb" data-en=" Bag"> 背包</span> <b id="gearN">0</b></button><button class="btn" id="bCrypt">📜<span class="lb" data-en=" Crypt"> 墓典</span> <b id="cryptN">0</b></button></div>
+  <div id="setMenu" class="panel"><div class="smT" data-en="Settings">设置</div>
+    <div class="smL" data-en="Language">语言</div><div class="smRow"><button class="btn lg" data-l="en">English</button><button class="btn lg" data-l="zh">中文</button></div>
+    <div class="smL" data-en="Sound">音效</div><div class="smRow"><button class="btn" id="bSfx">🔊</button></div>
+    <div class="smL" data-en="Testing">测试用</div><div id="resetMenu"><button class="btn" data-r="dungeon" data-c="确认：回营地、刷新怪物" data-en="↺ Reset dungeon" data-en-c="Confirm: back to camp, fresh monsters">↺ 重置副本</button><button class="btn danger" data-r="all" data-c="确认：清空存档从头开始" data-en="⚠ Reset everything" data-en-c="Confirm: wipe the save and start over">⚠ 全部重置</button><div class="rmT" data-en="tap twice to confirm">点两次生效</div></div></div>
   <div id="msg"></div>
   <div id="skills">
-    <button class="btn sk" id="sRaise"><span class="nm">唤魂</span>👻<span class="k">Q</span><b id="raiseN"></b></button>
-    <button class="btn sk" id="sMend"><span class="nm">愈合</span>💚<span class="k">W</span></button>
-    <button class="btn sk" id="sAtk"><span class="nm">骨矛</span>🦴<span class="k">左/右键</span></button>
+    <button class="btn sk" id="sRaise"><span class="nm" data-en="Raise">唤魂</span>👻<span class="k">Q</span><b id="raiseN"></b></button>
+    <button class="btn sk" id="sMend"><span class="nm" data-en="Mend">愈合</span>💚<span class="k">W</span></button>
+    <button class="btn sk" id="sAtk"><span class="nm" data-en="Spear">骨矛</span>🦴<span class="k" data-en="R-click">左/右键</span></button>
   </div>
-  <button class="btn" id="bStairs">⬇ 下楼</button>
+  <button class="btn" id="bStairs">⬇</button>
 </div>
 <div id="joy"><div id="joyK"></div></div>
-<div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead">墓典</div><div id="cryptList"></div></div></div>
-<div id="start"><h1>唤魂墓穴</h1><div class="en">GRAVE TAMER · 样片</div><div id="startMsg"></div><button class="btn" id="bStart">进入墓穴</button><div id="help"></div><button class="btn" id="bNew">清除存档</button></div>
+<div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead"></div><div id="cryptList"></div></div></div>
+<div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="help"></div><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
 <script src="game.js"></script>
 <script>try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}</script>
 </body>

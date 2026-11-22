@@ -4,6 +4,7 @@ import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixNam
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
 import { A, loadAll, propGeo } from './assets.js';
 import { makeIcons } from './icons.js';
+import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
 import { Floor, setNavTime } from './world.js';
 import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot } from './units.js';
@@ -65,7 +66,7 @@ function makeFloor(depth) {
       if (!easy && R() < 0.1 + 0.05 * depth) { const cand = units.filter(u => u.kind !== 'imp'), u0 = cand.length ? cand[Math.floor(R() * cand.length)] : units[0], keys = Object.keys(MODS);
         u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: depth + 1, packId: pid, champ: true, mods: [keys[Math.floor(R() * keys.length)]] }); units[units.indexOf(u0)] = ch; }
       G.units.push(...units); } }
-  placeCamera(true); message(depth === 0 ? '墓园营地' : `墓穴 · 第 ${depth} 层`, true); if (depth === 0 && G.deep > 1) message(`穿过墓穴大门可回到第 ${G.deep} 层`); save();
+  placeCamera(true); message(depth === 0 ? tr('墓园营地', 'Graveyard Camp') : tr(`墓穴 · 第 ${depth} 层`, `Crypt · Floor ${depth}`), true); if (depth === 0 && G.deep > 1) message(tr(`穿过墓穴大门可回到第 ${G.deep} 层`, `The crypt door leads back to floor ${G.deep}`)); save();
 }
 
 // test helper: back to the camp with everyone revived; the crypt floor is generated anew (fresh monsters) on the next entry
@@ -73,7 +74,7 @@ function resetDungeon() {
   const P = G.player; closeCrypt(); IN.moveTo = IN.attack = IN.castAt = IN.raise = null; IN.stairs = false;
   if (P.dead) { P.dead = false; P.state = 'idle'; P.mesh.u.uFade.value = 1; } playerAnim(P, 'revive');
   for (const en of G.crypt) en.reviveT = 0;
-  S.stairs(); makeFloor(0); message('副本已重置');
+  S.stairs(); makeFloor(0); message(tr('副本已重置', 'Dungeon reset'));
 }
 
 // test helper: wipe the save and start over from scratch
@@ -91,7 +92,7 @@ function updatePlayer(dt) {
   const P = G.player, F = G.floor; P.flash = Math.max(0, P.flash - dt * 5);
   if (P.dead) { if (P.chanFx) { for (const c of P.chanList) c.claim = null; P.chanList = []; P.chanFx.dispose(); P.chanFx = null; } P.wantX = P.wantZ = 0; P.respawnT -= dt; P.mesh.mixer.update(dt); P.mesh.u.uFade.value = Math.min(1, Math.max(0, (P.respawnT - 0.3) / 0.8));
     if (P.respawnT <= 0) { P.dead = false; P.chillT = 0; P.poison = null; P.state = 'idle'; P.hp = P.maxHp; P.mp = P.maxMp; P.x = F.start.cx; P.z = F.start.cy; P.mesh.u.uFade.value = 1; playerAnim(P, 'revive');
-      for (const en of G.crypt) if (en.unit && !en.unit.dead) { en.unit.x = P.x + 1; en.unit.z = P.z; } message('你在入口处重新站了起来'); } return; }
+      for (const en of G.crypt) if (en.unit && !en.unit.dead) { en.unit.x = P.x + 1; en.unit.z = P.z; } message(tr('你在入口处重新站了起来', 'You rise again at the entrance')); } return; }
   const fighting = G.enemies.some(e => e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 12);
   P.mp = Math.min(P.maxMp, P.mp + (fighting ? 4 : 8) * dt); P.hp = Math.min(P.maxHp, P.hp + P.maxHp * (fighting ? 0.004 : 0.03) * dt);
   P.spearCD = (P.spearCD || 0) - dt * slowK(P); P.mendCD = (P.mendCD || 0) - dt; P.atkT = (P.atkT || 0) - dt;
@@ -109,14 +110,14 @@ function updatePlayer(dt) {
     if (tgt && (!G.corpses.includes(tgt) || tgt.claim)) IN.raise = null;
     else if (tgt && Math.hypot(tgt.x - P.x, tgt.z - P.z) > R) { F.dirTo(P.x, P.z, tgt.x, tgt.z, tmp); P.wantX = tmp.x * P.speed; P.wantZ = tmp.z * P.speed; if (moving) IN.raise = null; else return; }
     else { IN.raise = null; let list = G.corpses.filter(c => !c.claim && Math.hypot(c.x - P.x, c.z - P.z) <= R).sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z));
-      if (!list.length) message('附近没有可以唤魂的尸体');
-      else if (P.mp < SKILLS.raise.mana) message('法力不足');
-      else { const n = Math.min(list.length, 1 + Math.floor((P.mp - SKILLS.raise.mana) / SKILLS.raise.extra)); if (n < list.length) message(`法力只够唤 ${n} 具`); list = list.slice(0, n);
+      if (!list.length) message(tr('附近没有可以唤魂的尸体', 'No corpses nearby to raise'));
+      else if (P.mp < SKILLS.raise.mana) message(tr('法力不足', 'Not enough mana'));
+      else { const n = Math.min(list.length, 1 + Math.floor((P.mp - SKILLS.raise.mana) / SKILLS.raise.extra)); if (n < list.length) message(tr(`法力只够唤 ${n} 具`, `Mana for only ${n}`)); list = list.slice(0, n);
         P.mp -= SKILLS.raise.mana + SKILLS.raise.extra * (n - 1); P.state = 'channel'; P.st = 0; P.chanList = list; for (const c of list) c.claim = P;
         const cx = list.reduce((a, c) => a + c.x, 0) / n, cz = list.reduce((a, c) => a + c.z, 0) / n; P.faceT = Math.atan2(cx - P.x, cz - P.z);
         P.chanFx = new SoulChannel(scene, P, list, R); S.raise(); return; } } }
   // 愈合
-  if (IN.mend) { IN.mend = false; if (P.mendCD > 0) message('愈合冷却中'); else if (P.mp < SKILLS.mend.mana) message('法力不足'); else { P.mp -= SKILLS.mend.mana; P.mendCD = SKILLS.mend.cd; S.heal(); playerAnim(P, 'mend');
+  if (IN.mend) { IN.mend = false; if (P.mendCD > 0) message(tr('愈合冷却中', 'Mend is cooling down')); else if (P.mp < SKILLS.mend.mana) message(tr('法力不足', 'Not enough mana')); else { P.mp -= SKILLS.mend.mana; P.mendCD = SKILLS.mend.cd; S.heal(); playerAnim(P, 'mend');
     const rg = ring(0.3, 0.6, 0x7dff9a, 0.9); rg.position.set(P.x, 0.05, P.z); scene.add(rg); G.fx.push({ t: 0.5, tick: k => { rg.scale.setScalar(1 + k * 14); rg.material.opacity = 0.9 * (1 - k); }, fn: () => scene.remove(rg) });
     for (const f of G.friends) { if (Math.hypot(f.x - P.x, f.z - P.z) > 9) continue; const h = f.maxHp * (f === P ? 0.12 : 0.3); f.hp = Math.min(f.maxHp, f.hp + h); say(f.x, f.z, '+' + Math.round(h), '#7dff9a', 15);
       parts.emit(f.x, 0.6, f.z, 10, { col: 0x7dff9a, spd: 0.8, up: 2.5, life: 0.8, grav: -1 }); } } }
@@ -141,14 +142,14 @@ function updatePlayer(dt) {
 // ---------- start screen ----------
 let started = false;
 const hasSave = load();
-$('#startMsg').textContent = hasSave ? `继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层` : '第一次进入墓穴';
-$('#help').innerHTML = touchUI ? '左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服身边所有尸体　·　「墓典」编辑出战' :
-  '左键：移动 / 点怪攻击　·　右键：朝鼠标方向放骨矛（Shift+左键同效）<br>Q：唤魂（收服身边一圈内的所有尸体）　·　W：愈合　·　Tab：墓典　·　I：背包　·　走到楼梯点击或按 Enter 下楼';
+$('#startMsg').textContent = hasSave ? tr(`继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · ${G.crypt.length} in the Crypt · floor ${G.deep}`) : tr('第一次进入墓穴', 'A new descent');
+$('#help').innerHTML = touchUI ? tr('左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服身边所有尸体　·　「墓典」编辑出战', 'Drag on the left half to move · hold Bone Spear to fire (auto-aim)<br>After a fight, tap Raise to capture every corpse around you · Crypt: pick your party') :
+  tr('左键：移动 / 点怪攻击　·　右键：朝鼠标方向放骨矛（Shift+左键同效）<br>Q：唤魂（收服身边一圈内的所有尸体）　·　W：愈合　·　Tab：墓典　·　I：背包　·　走到楼梯点击或按 Enter 下楼', 'Left click: move / attack · Right click: Bone Spear toward the cursor (or Shift + left)<br>Q: Raise (capture every corpse around you) · W: Mend · Tab: Crypt · I: Bag · Enter on the stairs to go down');
 $('#bStart').addEventListener('click', () => { if (!A.ready) return; unlock(); $('#start').classList.add('hide'); started = true; });
-$('#bNew').addEventListener('click', () => { if (!confirm('清除存档重新开始？')) return; wipe(); location.reload(); });
+$('#bNew').addEventListener('click', () => { if (!confirm(tr('清除存档重新开始？', 'Delete the save and start over?'))) return; wipe(); location.reload(); });
 const bS = $('#bStart'), label = bS.textContent; bS.disabled = true;
-loadAll(k => { bS.textContent = `载入中 ${Math.round(k * 100)}%`; }).then(() => { makeIcons(); bS.disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
-  .catch(e => { console.error(e); bS.textContent = '资源载入失败，请刷新'; });
+loadAll(k => { bS.textContent = tr(`载入中 ${Math.round(k * 100)}%`, `Loading ${Math.round(k * 100)}%`); }).then(() => { makeIcons(); bS.disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
+  .catch(e => { console.error(e); bS.textContent = tr('资源载入失败，请刷新', 'Loading failed — please refresh'); });
 
 // the shader takes a handful of torch lights: upload the ones nearest the summoner
 const tSort = [];
@@ -177,7 +178,7 @@ function loop(now) {
     G.units = G.units.filter(u => !u.dead || u === P);
     // revive timers (a shaman in the party speeds them up)
     let rvs = 1; for (const f of G.friends) if (f.side === 'ally' && f.kind === 'shaman') rvs = Math.max(rvs, 1.4 * (1 + 0.2 * rk(f, 'soul')));
-    for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(`${affixName(en.mods, en.champ)}${TYPES[en.type].name} 复原了`); } } }
+    for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(tr(`${affixName(en.mods, en.champ)}${TYPES[en.type].name} 复原了`, `${affixName(en.mods, en.champ)}${TYPES[en.type].name} is back`)); } } }
     G.floor.stairsGlow.material.opacity = 0.55 + 0.25 * Math.sin(G.t * 2.5);
   }
   const P = G.player;

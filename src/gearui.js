@@ -11,6 +11,7 @@ import { makeUnitMesh, play } from './assets.js';
 import { initR, lit, itemIconURL as iconOf, portrait } from './icons.js';
 import { S } from './audio.js';
 import { message, closeCrypt, touchUI } from './ui.js';
+import { tr } from './i18n.js';
 
 const $ = s => document.querySelector(s), FURN_N = 12;
 export let gearOpen = false;
@@ -54,7 +55,7 @@ function returnHeld() {
   else if (!bagPut(it, f === 'bag' ? held.pos : null)) { const fp = furnFree(); if (fp >= 0) { it.fpos = fp; G.furn.push(it); } }
   held = null;
 }
-function cantUse(it) { S.fail(); message(it.slot === 'w' ? `${TYPES[selEn.type].name}用不了${WEAPONS[it.type].cat}，这是${TYPES[it.type].name}的武器` : '这里放不下'); }
+function cantUse(it) { S.fail(); message(it.slot === 'w' ? tr(`${TYPES[selEn.type].name}用不了${WEAPONS[it.type].cat}，这是${TYPES[it.type].name}的武器`, `A ${TYPES[selEn.type].name} can't use this — it's a ${TYPES[it.type].name}'s ${WEAPONS[it.type].cat.toLowerCase()}`) : tr('这里放不下', "Doesn't fit here")); }
 let lastPick = null;
 function clickCell(c, p) {
   if ((c === 'w' || c === 'a') && !selEn) return;
@@ -71,8 +72,8 @@ function quick(c, p) {
   if (held) return; const it = at(c, p); if (!it) return;
   if (c === 'bag' && mode === 'doll') { const s = it.slot === 'w' ? 'w' : 'a'; if (!fitsSlot(it, s)) { cantUse(it); return; }
     take('bag', p); const o = setGear(selEn, s, it); if (o) { o.pos = p; G.bag.push(o); } S.clank(); }
-  else if (c === 'bag') { const fp = furnFree(); if (fp < 0) { message('熔炉放满了'); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.clank(); }
-  else { if (bagFree() < 0) { message('背包满了'); return; } bagPut(take(c, p)); S.clank(); }
+  else if (c === 'bag') { const fp = furnFree(); if (fp < 0) { message(tr('熔炉放满了', 'The forge is full')); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.clank(); }
+  else { if (bagFree() < 0) { message(tr('背包满了', 'Bag is full')); return; } bagPut(take(c, p)); S.clank(); }
   infoIt = null; save(); render();
 }
 // auto-fill: plain items first, then 精良 ones nobody would wear; never 稀有
@@ -80,7 +81,7 @@ function autoFill() {
   const upgrade = it => G.crypt.some(en => (it.slot === 'a' || it.type === en.type) && itemScore(it) > itemScore(en.gear?.[it.slot === 'w' ? 'w' : 'a']) + 0.5);
   const cand = G.bag.filter(it => it.q === 0 || (it.q === 1 && !upgrade(it))).sort((a, b) => a.q - b.q || itemScore(a) - itemScore(b));
   let n = 0; for (const it of cand) { const fp = furnFree(); if (fp < 0) break; G.bag.splice(G.bag.indexOf(it), 1); it.fpos = fp; G.furn.push(it); n++; }
-  if (n) S.clank(); else message('背包里没有适合丢进熔炉的（稀有和用得上的精良不会自动放）'); save(); render();
+  if (n) S.clank(); else message(tr('背包里没有适合丢进熔炉的（稀有和用得上的精良不会自动放）', 'Nothing to add (rares and useful magic items are never added automatically)')); save(); render();
 }
 function emptyFurn() { for (const it of G.furn.slice()) { if (bagFree() < 0) break; G.furn.splice(G.furn.indexOf(it), 1); bagPut(it); } S.clank(); save(); render(); }
 
@@ -89,7 +90,7 @@ function build() {
   if (built) return; built = true; R = initR(); dollScene = new THREE.Scene(); dollCam = new THREE.PerspectiveCamera(28, 0.8, 0.1, 60);
   const d = document.createElement('div'); d.id = 'gearP';
   d.innerHTML = `<div id="gearBox" class="panel"><button class="btn" id="gearX">✖</button><div class="gTitle"><span id="gT"></span> <span class="sub" id="gSub"></span></div>
-    <div class="gMain"><div class="gLeft" id="gLeft"></div><div class="gRight"><div class="gLab">背包</div><div class="gGrid gBag" id="gBag"></div></div><div class="gSide" id="gSide"></div></div>
+    <div class="gMain"><div class="gLeft" id="gLeft"></div><div class="gRight"><div class="gLab">${tr('背包', 'Bag')}</div><div class="gGrid gBag" id="gBag"></div></div><div class="gSide" id="gSide"></div></div>
     <div class="gInfo" id="gInfo"></div><div id="gHeld"></div></div>`;
   document.body.appendChild(d);
   d.addEventListener('pointerdown', e => { if (e.target.id === 'gearP' || e.target.id === 'gearX') closeGear(); });
@@ -102,24 +103,24 @@ const cellHTML = (it, c, p, extra = '') => `<div class="cell${it ? ' q' + it.q :
 export function render() {
   if (!gearOpen) return; const en = selEn, doll = mode === 'doll' && en;
   $('#gearBox').className = 'panel ' + (doll ? 'mDoll' : 'mBag');
-  $('#gT').textContent = doll ? '装备' : '背包'; $('#gSub').textContent = `背包 ${G.bag.length} / ${BAG_MAX}`;
+  $('#gT').textContent = doll ? tr('装备', 'Equipment') : tr('背包', 'Bag'); $('#gSub').textContent = `${tr('背包', 'Bag')} ${G.bag.length} / ${BAG_MAX}`;
   if (doll) {
     const o = { kind: en.type, side: 'ally', level: en.level, mods: en.mods, champ: en.champ, entry: en, T: TYPES[en.type] }; Unit.prototype.stats.call(o);
     if (!$('#gDoll')) $('#gLeft').innerHTML = `<div class="gDollRow"><div class="gSlot" data-c="w" data-p="0"></div><div id="gDoll"></div><div class="gSlot" data-c="a" data-p="0"></div></div><div class="gStats" id="gStats"></div>`;
     for (const el of document.querySelectorAll('.gSlot')) { const c = el.dataset.c, it = en.gear ? en.gear[c] : null, ok = held && fitsSlot(held.it, c);
       el.className = 'gSlot' + (it ? ' q' + it.q : '') + (held ? ok ? ' can' : ' no' : '');
-      el.innerHTML = it ? `<img src="${iconOf(it)}" draggable="false">` : `<span>${c === 'w' ? WEAPONS[en.type].cat : '盾'}</span>`; }
-    $('#gStats').innerHTML = `<div class="gsN">${portrait(en.type, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${TYPES[en.type].name} <small>Lv ${en.level}${en.active ? ' · 出战中' : ''}</small></div>
-      <div class="gsL"><span>生命 <b>${Math.round(o.maxHp)}</b></span><span>伤害 <b>${o.dmg.toFixed(1)}</b></span><span>护甲 <b>${Math.round(o.armor)}</b></span><span>攻击间隔 <b>${o.cd.toFixed(2)}s</b></span></div>`;
+      el.innerHTML = it ? `<img src="${iconOf(it)}" draggable="false">` : `<span>${c === 'w' ? WEAPONS[en.type].cat : tr('盾', 'Shield')}</span>`; }
+    $('#gStats').innerHTML = `<div class="gsN">${portrait(en.type, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${TYPES[en.type].name} <small style="white-space:nowrap">Lv ${en.level}${en.active ? tr(' · 出战中', ' · in party') : ''}</small></div>
+      <div class="gsL"><span>${tr('生命', 'Life')} <b>${Math.round(o.maxHp)}</b></span><span>${tr('伤害', 'Damage')} <b>${o.dmg.toFixed(1)}</b></span><span>${tr('护甲', 'Armour')} <b>${Math.round(o.armor)}</b></span><span>${tr('攻击间隔', 'Interval')} <b>${o.cd.toFixed(2)}s</b></span></div>`;
     $('#gSide').innerHTML = '';
   } else {
     $('#gLeft').innerHTML = '';
-    if (!$('#gF')) $('#gSide').innerHTML = `<div class="gFurn"><div class="gfT">🔥 熔炉</div><div class="gfD">丢进 2 件以上，熔出 1 件随机装备。丢得越多、品质越好，出好东西的几率越大。</div>
-      <div class="gGrid gF" id="gF"></div><div class="gfOdds" id="gfOdds"></div><div class="gfB"><button class="btn gAuto" id="gAuto">自动放入</button><button class="btn" id="gEmpty">全部取出</button></div><button class="btn gGo" id="gGo">熔炼</button></div>`;
+    if (!$('#gF')) $('#gSide').innerHTML = `<div class="gFurn"><div class="gfT">🔥 ${tr('熔炉', 'Forge')}</div><div class="gfD">${tr('丢进 2 件以上，熔出 1 件随机装备。丢得越多、品质越好，出好东西的几率越大。', 'Put in 2 or more items to smelt them into one random item. More and better input, better odds.')}</div>
+      <div class="gGrid gF" id="gF"></div><div class="gfOdds" id="gfOdds"></div><div class="gfB"><button class="btn gAuto" id="gAuto">${tr('自动放入', 'Auto-fill')}</button><button class="btn" id="gEmpty">${tr('全部取出', 'Take all')}</button></div><button class="btn gGo" id="gGo">${tr('熔炼', 'Smelt')}</button></div>`;
     $('#gAuto').onclick = e => { e.stopPropagation(); autoFill(); }; $('#gEmpty').onclick = e => { e.stopPropagation(); emptyFurn(); }; $('#gGo').onclick = e => { e.stopPropagation(); smelt(); };
     let h = ''; for (let p = 0; p < FURN_N; p++) h += cellHTML(at('furn', p), 'furn', p); $('#gF').innerHTML = h;
     const od = furnaceOdds(G.furn), pc = v => Math.round(v * 100) + '%';
-    $('#gfOdds').innerHTML = G.furn.length ? `<span style="color:${QUAL[2].col}">稀有 ${pc(od.gold)}</span><span style="color:${QUAL[1].col}">精良 ${pc(od.blue)}</span><span style="color:${QUAL[0].col}">普通 ${pc(od.white)}</span>` : '<span class="dim">放进装备后显示几率</span>';
+    $('#gfOdds').innerHTML = G.furn.length ? `<span style="color:${QUAL[2].col}">${QUAL[2].name} ${pc(od.gold)}</span><span style="color:${QUAL[1].col}">${QUAL[1].name} ${pc(od.blue)}</span><span style="color:${QUAL[0].col}">${QUAL[0].name} ${pc(od.white)}</span>` : `<span class="dim">${tr('放进装备后显示几率', 'Odds show once items are in')}</span>`;
     $('#gGo').disabled = G.furn.length < 2; $('#gEmpty').disabled = !G.furn.length;
   }
   setDoll();
@@ -130,27 +131,27 @@ export function render() {
 // the fixed info box: held item, else hovered item, else a hint
 function renderInfo() {
   const it = held ? held.it : infoIt, box = $('#gInfo'); if (!box) return;
-  const hint = mode === 'doll' ? (touchUI ? '点装备拿起，再点武器框 / 盾框或格子放下　·　双击：一键穿上' : '点装备拿起，再点武器框 / 盾框或格子放下　·　右键或双击：一键穿上 / 卸下')
-    : (touchUI ? '点装备拿起，再点格子或熔炉放下　·　双击：放进熔炉 / 拿回背包' : '点装备拿起，再点格子或熔炉放下　·　右键或双击：放进熔炉 / 拿回背包');
-  box.innerHTML = it ? `<div class="gi"><div class="giIc q${it.q}"><img src="${iconOf(it)}"></div>${tipHTML(it)}${held ? '<div class="giH">拿在手上</div>' : ''}</div>` : `<div class="gi empty"><div class="hint">${hint}</div></div>`;
+  const hint = mode === 'doll' ? (touchUI ? tr('点装备拿起，再点武器框 / 盾框或格子放下　·　双击：一键穿上', 'Tap an item to pick it up, tap a frame or cell to put it down · double-tap: equip') : tr('点装备拿起，再点武器框 / 盾框或格子放下　·　右键或双击：一键穿上 / 卸下', 'Click an item to pick it up, click a frame or cell to put it down · right-click or double-click: equip / take off'))
+    : (touchUI ? tr('点装备拿起，再点格子或熔炉放下　·　双击：放进熔炉 / 拿回背包', 'Tap an item to pick it up, tap a cell or the forge to put it down · double-tap: into / out of the forge') : tr('点装备拿起，再点格子或熔炉放下　·　右键或双击：放进熔炉 / 拿回背包', 'Click an item to pick it up, click a cell or the forge to put it down · right-click or double-click: into / out of the forge'));
+  box.innerHTML = it ? `<div class="gi"><div class="giIc q${it.q}"><img src="${iconOf(it)}"></div>${tipHTML(it)}${held ? `<div class="giH">${tr('拿在手上', 'Holding')}</div>` : ''}</div>` : `<div class="gi empty"><div class="hint">${hint}</div></div>`;
 }
 // Diablo-style item text
 function tipHTML(it) {
   const B = itemBase(it), en = mode === 'doll' ? selEn : null, fit = !en || (it.slot === 'w' ? itemFits(it, en.type) : true), cur = en && en.gear ? en.gear[it.slot === 'w' ? 'w' : 'a'] : null;
   const isCur = cur === it, sc = itemScore(it), cs = itemScore(cur);
-  const cmp = !en || isCur || !fit ? '' : !cur ? `<span class="tC up">${TYPES[en.type].name}现在没穿</span>` : sc > cs + 0.5 ? `<span class="tC up">▲ 比现在的强</span>` : sc < cs - 0.5 ? `<span class="tC dn">▼ 不如现在的</span>` : `<span class="tC">与现在的差不多</span>`;
-  return `<div class="tip"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)} <span class="tI">物品等级 ${it.il}</span></div>
-    <div class="tB">${it.slot === 'w' ? `${WEAPONS[it.type].cat} · ${B.name}` : `护甲 · ${B.name}`}　${it.slot === 'w' ? `<span class="tR${fit ? '' : ' bad'}">${TYPES[it.type].name}专用</span>` : '<span class="tR">所有召唤物</span>'}　${isCur ? '<span class="tC">正在穿着</span>' : cmp}</div>
+  const cmp = !en || isCur || !fit ? '' : !cur ? `<span class="tC up">${tr(`${TYPES[en.type].name}现在没穿`, 'Slot is empty')}</span>` : sc > cs + 0.5 ? `<span class="tC up">${tr('▲ 比现在的强', '▲ Better than current')}</span>` : sc < cs - 0.5 ? `<span class="tC dn">${tr('▼ 不如现在的', '▼ Worse than current')}</span>` : `<span class="tC">${tr('与现在的差不多', 'About the same')}</span>`;
+  return `<div class="tip"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)} <span class="tI">${tr('物品等级', 'Item Level')} ${it.il}</span></div>
+    <div class="tB">${it.slot === 'w' ? `${WEAPONS[it.type].cat} · ${B.name}` : `${tr('护甲', 'Armour')} · ${B.name}`}　${it.slot === 'w' ? `<span class="tR${fit ? '' : ' bad'}">${tr(`${TYPES[it.type].name}专用`, `${TYPES[it.type].name} only`)}</span>` : `<span class="tR">${tr('所有召唤物', 'Any summon')}</span>`}　${isCur ? `<span class="tC">${tr('正在穿着', 'Equipped')}</span>` : cmp}</div>
     <div class="tLs">${itemLines(it).map(l => `<span class="tL">${l}</span>`).join('')}</div></div>`;
 }
 
 // ---------- furnace ----------
 function smelt() {
   if (G.furn.length < 2 || held) return; const odds = furnaceOdds(G.furn), res = furnaceRoll(G.furn, G.uid++); G.furn = [res]; res.fpos = 0; save(); S.fire();
-  const box = document.createElement('div'); box.className = 'gReel'; box.innerHTML = '<div class="lt">炉火翻滚……</div><div class="reel"></div><button class="btn ok" style="visibility:hidden">收下</button>';
+  const box = document.createElement('div'); box.className = 'gReel'; box.innerHTML = `<div class="lt">${tr('炉火翻滚……', 'The forge roars…')}</div><div class="reel"></div><button class="btn ok" style="visibility:hidden">${tr('收下', 'Take it')}</button>`;
   $('.gFurn').appendChild(box); const reel = box.querySelector('.reel'); let dly = 45;
   const show = it => { reel.innerHTML = `<div class="ri q${it.q}"><img src="${iconOf(it)}"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)}</div></div>`; };
-  const tick = () => { if (!gearOpen || !box.isConnected) return; if (dly > 300) { show(res); reel.classList.add('done', 'q' + res.q); box.querySelector('.lt').textContent = res.q === 2 ? '✨ 熔出了稀有装备！' : res.q === 1 ? '熔出了精良装备' : '熔出了一件普通装备';
+  const tick = () => { if (!gearOpen || !box.isConnected) return; if (dly > 300) { show(res); reel.classList.add('done', 'q' + res.q); box.querySelector('.lt').textContent = res.q === 2 ? tr('✨ 熔出了稀有装备！', '✨ A rare item!') : res.q === 1 ? tr('熔出了精良装备', 'A magic item') : tr('熔出了一件普通装备', 'A normal item');
       box.querySelector('.ok').style.visibility = 'visible'; infoIt = res; renderInfo(); if (res.q === 2) S.level(); else if (res.q === 1) S.caught(); else S.pick(); return; }
     const r = Math.random(); show(rollItem(0, res.il, r < odds.gold ? 2 : r < odds.gold + odds.blue ? 1 : 0)); S.pick(); dly *= 1.13; setTimeout(tick, dly); };
   tick(); box.querySelector('.ok').addEventListener('click', e => { e.stopPropagation(); box.remove(); render(); });

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { G, save, bagPut } from './state.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase } from './data.js';
 import { glowSprite, ring, toonMat, part, merge } from './gfx.js';
+import { tr } from './i18n.js';
 import { makeUnitMesh, play, clipLen, CHARS, propMesh } from './assets.js';
 import { S } from './audio.js';
 
@@ -38,7 +39,7 @@ export class Unit {
     if (ally) { const rg = ring(0.45, 0.5, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
     if (champ && mod0) { const rg = ring(0.56, 0.685, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
-  get name() { return affixName(this.mods, this.champ) + (this.T ? this.T.name : '召唤师'); }
+  get name() { return affixName(this.mods, this.champ) + (this.T ? this.T.name : tr('召唤师', 'Summoner')); }
   stats() { Unit.prototype._stats.call(this); this.speed *= PACE.move; if (this.cd) this.cd /= PACE.act; }
   _stats() {
     const L = this.level;
@@ -82,7 +83,7 @@ export function damage(src, dst, amt, o = {}) {
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
   if (dst.kind === 'player') S.hurt(); else if (!o.dot) S.hit(Math.min(1, d / 20));
   if (src && src.champ && !o.noFx) for (const mod of src.mods) { const el = ELEM[mod]; if (!el) continue; C.parts.emit(dst.x, 0.7, dst.z, src.mods.length > 1 ? 6 : 11, el.hit); elemHit(mod, src, dst, d, o); }
-  if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? '暴击 ' : '') + Math.round(d), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4);
+  if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? tr('暴击 ', 'CRIT ') : '') + Math.round(d), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4);
   if (dst.hp <= 0) kill(dst, src);
   return d;
 }
@@ -102,9 +103,9 @@ function kill(u, src) {
   } else if (u.side === 'ally') {
     S.die(); const en = u.entry; if (en) { en.unit = null; en.reviveT = en.reviveMax = 10 + 1.5 * en.level; }
     deathBlast(u, 0.5);
-    C.say(`${u.name} 倒下了，${Math.round(en ? en.reviveT : 10)} 秒后复原`); fadeOut(u);
+    C.say(tr(`${u.name} 倒下了，${Math.round(en ? en.reviveT : 10)} 秒后复原`, `${u.name} fell — back in ${Math.round(en ? en.reviveT : 10)}s`)); fadeOut(u);
   } else { // player
-    u.respawnT = 2.8; u.state = 'dead'; C.say('你倒下了……', true); play(u.mesh, ANIM.player.die, { once: true, fade: 0.1 });
+    u.respawnT = 2.8; u.state = 'dead'; C.say(tr('你倒下了……', 'You have fallen…'), true); play(u.mesh, ANIM.player.die, { once: true, fade: 0.1 });
   }
 }
 function fadeOut(u) { const m = u.mesh; play(m, ANIM[u.kind].die, { once: true, speed: 1.3, fade: 0.08 }); if (u.ringMesh) m.root.remove(u.ringMesh); let lk = 0;
@@ -129,8 +130,8 @@ export function updateLoot(dt) {
   for (const L of G.loot) { L.t += dt; const k = Math.min(1, L.t / 0.45), x = L.x0 + (L.x - L.x0) * k, z = L.z0 + (L.z - L.z0) * k, y = k < 1 ? 1 * (1 - k) + Math.sin(Math.PI * k) * 0.8 : 0.12 + Math.sin(G.t * 2.5 + L.ph) * 0.04;
     L.root.position.set(x, y, z); L.m.rotation.z += dt * 0.8;
     if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 1.5) {
-      if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say('背包满了，打开装备界面（I）把多余的丢进熔炉吧'); } }
-      else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(`拾取：${itemName(L.it)}`); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0); save(); continue; } }
+      if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say(tr('背包满了，打开背包（I）把多余的丢进熔炉吧', 'Bag is full — open the bag (I) and feed the spares to the forge')); } }
+      else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0); save(); continue; } }
     G.loot[j++] = L; }
   G.loot.length = j;
 }
@@ -143,7 +144,7 @@ function gearChanged(en) { const u = en.unit; if (u && !u.dead) { const f = u.hp
 const CHILL = 2.2;
 function elemHit(mod, src, dst, d, o) {
   const lv = mlv(src, mod);
-  if (mod === 'cold') { if (!dst.dead) { if (!(dst.chillT > 0)) say(dst.x, dst.z, '冻结', '#bfe8ff', 13, 2.0); dst.chillT = Math.max(dst.chillT || 0, CHILL * (1 + 0.3 * (lv - 1))); } }
+  if (mod === 'cold') { if (!dst.dead) { if (!(dst.chillT > 0)) say(dst.x, dst.z, tr('冻结', 'Chilled'), '#bfe8ff', 13, 2.0); dst.chillT = Math.max(dst.chillT || 0, CHILL * (1 + 0.3 * (lv - 1))); } }
   else if (mod === 'poison' && !o.dot) { if (!dst.dead) { const tot = d * 0.6 * (1 + 0.4 * (lv - 1)), p = dst.poison; if (!p || p.left * p.dps < tot) dst.poison = { dps: tot / 3, left: 3, tick: 0.5, src }; } }
   else if (mod === 'lightning' && !o.noChain && Math.random() < (src.kind === 'archer' || src.kind === 'shaman' ? 0.5 : 0.35) + 0.1 * (lv - 1)) {
     let from = dst, n = 0; const hit = new Set([dst]);
@@ -210,8 +211,8 @@ export function finishRaise(c) {
     G.crypt.push(en); const room = activeCount() < partySize(G.level);
     if (room) { en.active = true; spawnAlly(en, c.rx ?? c.x, c.rz ?? c.z, 'reassemble'); } else soulToSummoner(c);
     S.caught(); C.parts.emit(c.x, 0.5, c.z, 30, { col: 0x6ff7e8, spd: 1.5, up: 3, life: 1.0, size: 0.3, grav: -1 });
-    C.say(`收服了 ${affixName(c.mods, c.champ) + TYPES[c.kind].name}！` + (room ? '' : '（灵魂收入墓典）')); save();
-  } else { S.fail(); C.parts.emit(c.x, 0.3, c.z, 24, { col: 0x8a8090, spd: 1.2, up: 1.2, life: 0.9, size: 0.3 }); say(c.x, c.z, '唤魂失败', '#b9a8c8', 16); }
+    C.say(tr(`收服了 ${affixName(c.mods, c.champ) + TYPES[c.kind].name}！`, `Captured ${affixName(c.mods, c.champ) + TYPES[c.kind].name}!`) + (room ? '' : tr('（灵魂收入墓典）', ' (soul stored in the Crypt)'))); save();
+  } else { S.fail(); C.parts.emit(c.x, 0.3, c.z, 24, { col: 0x8a8090, spd: 1.2, up: 1.2, life: 0.9, size: 0.3 }); say(c.x, c.z, tr('唤魂失败', 'Raise failed'), '#b9a8c8', 16); }
 }
 // party full: the captured monster still stands up, then turns into a soul that flies into the summoner
 function soulToSummoner(c) {
@@ -250,7 +251,7 @@ export function absorb(to, f) {
   const u = to.unit && !to.unit.dead ? to.unit : null, before = to.level;
   if (u) allyXP(u, xp); else { to.xp += xp; while (to.xp >= xpNeed(to.level) * 0.8) { to.xp -= xpNeed(to.level) * 0.8; to.level++; } }
   const P = G.player;
-  if (u && P && !P.dead) soulOrb(P.x, 1.1, P.z, () => u, () => { S.heal(); C.parts.emit(u.x, 0.8, u.z, 24, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1 }); say(u.x, u.z, `+${pts} 魂能`, '#8ff7ea', 15, 1.9); });
+  if (u && P && !P.dead) soulOrb(P.x, 1.1, P.z, () => u, () => { S.heal(); C.parts.emit(u.x, 0.8, u.z, 24, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1 }); say(u.x, u.z, tr(`+${pts} 魂能`, `+${pts} soul`), '#8ff7ea', 15, 1.9); });
   else S.heal();
   save(); return { pts, xp, up: to.level - before };
 }
@@ -270,7 +271,7 @@ export function fusionOdds(to, f) {
 export function fuse(to, f) {
   if (!canFuse(f, to)) return null; const odds = fusionOdds(to, f), r = { elite: false, added: [], upped: [], xp: odds.xp, before: to.level };
   // the partner's gear goes back to the bag first
-  for (const s of ['w', 'a']) { const it = f.gear && f.gear[s]; if (it && !bagPut(it)) { C.say('背包放不下它的装备，先清一下背包'); return null; } if (it) delete f.gear[s]; }
+  for (const s of ['w', 'a']) { const it = f.gear && f.gear[s]; if (it && !bagPut(it)) { C.say(tr('背包放不下它的装备，先清一下背包', 'No room in the bag for its gear — clear some space first')); return null; } if (it) delete f.gear[s]; }
   G.crypt.splice(G.crypt.indexOf(f), 1); to.modLv = to.modLv || {};
   if (odds.elite && Math.random() < odds.elite) { r.elite = true; const m = ALL_MODS[Math.floor(Math.random() * ALL_MODS.length)]; to.champ = true; to.mods = [m]; to.modLv = { [m]: 1 }; r.added.push(m); }
   if (!to.champ && odds.add.length) { const roll = Math.random(); let acc = 0; for (const a of odds.add) { acc += a.p; if (roll < acc) { to.champ = true; to.mods = [a.m]; to.modLv = { [a.m]: 1 }; r.elite = true; r.added.push(a.m); break; } } }
@@ -298,13 +299,13 @@ export function spawnAlly(en, x, z, how = 'ground') {
 export function dismissAlly(en) { if (en.unit && !en.unit.dead) { const u = en.unit; u.dead = true; C.parts.emit(u.x, 0.5, u.z, 14, { col: 0x6ff7e8, spd: 1.2, up: 2, life: 0.6 }); u.remove(); } en.unit = null; }
 function allyXP(a, xp) { const en = a.entry; if (!en) return; en.xp += xp;
   while (en.xp >= xpNeed(en.level) * 0.8) { en.xp -= xpNeed(en.level) * 0.8; en.level++; const f = a.hp / a.maxHp; a.level = en.level; a.stats(); a.hp = a.maxHp * Math.max(f, 0.5);
-    C.parts.emit(a.x, 0.8, a.z, 20, { col: 0xffe58a, spd: 1.2, up: 3, life: 0.9, size: 0.25, grav: -1 }); C.say(`${a.name} 升到 Lv ${en.level}`); save(); } }
+    C.parts.emit(a.x, 0.8, a.z, 20, { col: 0xffe58a, spd: 1.2, up: 3, life: 0.9, size: 0.25, grav: -1 }); C.say(tr(`${a.name} 升到 Lv ${en.level}`, `${a.name} reached Lv ${en.level}`)); save(); } }
 export function addXP(xp) {
   G.xp += xp; let up = false; while (G.xp >= xpNeed(G.level)) { G.xp -= xpNeed(G.level); G.level++; up = true; }
   if (!up) return; const P = G.player, before = P.level; P.level = G.level; P.stats(); P.hp = P.maxHp; P.mp = P.maxMp; S.level();
   C.parts.emit(P.x, 1, P.z, 40, { col: 0xffe58a, spd: 2, up: 4, life: 1.1, size: 0.3, grav: -1 });
-  C.say(`升级！Lv ${G.level}`, true);
-  if (partySize(G.level) > partySize(before)) { C.say(`可出战召唤物 +1（${partySize(G.level)} 只）`, true);
+  C.say(tr(`升级！Lv ${G.level}`, `Level up! Lv ${G.level}`), true);
+  if (partySize(G.level) > partySize(before)) { C.say(tr(`可出战召唤物 +1（${partySize(G.level)} 只）`, `Party size +1 (${partySize(G.level)})`), true);
     const rest = G.crypt.filter(e => !e.active).sort((a, b) => b.level - a.level)[0]; if (rest && P && !P.dead) { rest.active = true; if (rest.reviveT <= 0) spawnAlly(rest); } }
   save();
 }
@@ -411,7 +412,7 @@ function enemyThink(u, dt) {
     u.resCD -= dt;
     if (u.resCD <= 0) { let best = null, bd = 9; for (const c of G.corpses) if ((c.kind === 'imp' || c.kind === 'archer') && !c.claim && Math.hypot(c.x - u.x, c.z - u.z) < bd) { bd = Math.hypot(c.x - u.x, c.z - u.z); best = c; }
       if (best) { if (bd > 3.2) { seek(u, best.x, best.z, u.speed); return; } u.state = 'cast'; u.st = 0; u.castC = best; best.claim = u; u.wantX = u.wantZ = 0; faceTo(u, best);
-        C.say && say(u.x, u.z, '复活术…', '#c88cff', 14, 2.1); return; } }
+        C.say && say(u.x, u.z, tr('复活术…', 'Raising…'), '#c88cff', 14, 2.1); return; } }
     const close = nearestHostile(u, 2.6, false); if (close) { flee(u, close.x, close.z, u.speed); return; }
     rangedLogic(u, t, dt, 4.5, 7.5);
   }
@@ -460,7 +461,7 @@ function startLeap(u, t) {
   u.state = 'leap'; u.st = 0; u.lx0 = u.x; u.lz0 = u.z; u.lx1 = u.x + (t.x - u.x) * k; u.lz1 = u.z + (t.z - u.z) * k; u.lh = 0.35 + d * 0.07; u.tgt = t;
   u.t0 = LEAP.up / LEAP.sp; u.t1 = LEAP.land / LEAP.sp; u.wantX = u.wantZ = u.vx = u.vz = u.kx = u.kz = 0; faceTo(u, t); u.face = u.faceT;
   play(u.mesh, LEAP.clip, { once: true, restart: true, speed: LEAP.sp, fade: 0.06 }); u.animLock = clipLen(LEAP.clip) / LEAP.sp * 0.8;
-  u.moveCD = 6.5 - 0.6 * rk(u, 'leap'); say(u.x, u.z, '跳劈！', '#8ff5ea', 14, 1.9);
+  u.moveCD = 6.5 - 0.6 * rk(u, 'leap'); say(u.x, u.z, tr('跳劈！', 'Leap Slam!'), '#8ff5ea', 14, 1.9);
 }
 function updateLeap(u, dt) {
   u.st += dt; u.wantX = u.wantZ = 0; u.vx = u.vz = u.kx = u.kz = 0;
@@ -479,7 +480,7 @@ function spinSkill(u) {
   const r = rk(u, 'spin'); if (u.kind !== 'brute' || !r || (u.spinCD || 0) > G.t || u.stun > 0) return false;
   let n = 0; for (const h of hostilesOf(u)) if (!h.dead && dist(u, h) < 1.9 + h.r) n++; if (n < 2) return false;
   u.state = 'spin'; u.st = 0; u.hits = 0; u.spinCD = G.t + 7 - r; u.wantX = u.wantZ = 0;
-  play(u.mesh, '2H_Melee_Attack_Spin', { once: true, restart: true, speed: 2.1, fade: 0.06 }); u.animLock = clipLen('2H_Melee_Attack_Spin') / 2.1 * 0.9; say(u.x, u.z, '旋风斩！', '#8ff5ea', 14, 1.9); return true;
+  play(u.mesh, '2H_Melee_Attack_Spin', { once: true, restart: true, speed: 2.1, fade: 0.06 }); u.animLock = clipLen('2H_Melee_Attack_Spin') / 2.1 * 0.9; say(u.x, u.z, tr('旋风斩！', 'Whirlwind!'), '#8ff5ea', 14, 1.9); return true;
 }
 function updateSpin(u, dt) {
   u.st += dt; u.wantX = u.wantZ = 0; const r = rk(u, 'spin');
@@ -490,7 +491,7 @@ function updateSpin(u, dt) {
 // 突刺: a fast lunge into a stab that always crits
 function startLunge(u, t, chained) {
   u.state = 'lunge'; u.st = 0; u.tgt = t; faceTo(u, t); u.face = u.faceT; u.wantX = u.wantZ = 0;
-  if (!chained) { u.moveCD = 4 - 0.4 * rk(u, 'lunge'); u.chainLeft = rk(u, 'chain'); } else say(u.x, u.z, '连刺！', '#8ff5ea', 13, 1.6);
+  if (!chained) { u.moveCD = 4 - 0.4 * rk(u, 'lunge'); u.chainLeft = rk(u, 'chain'); } else say(u.x, u.z, tr('连刺！', 'Chain!'), '#8ff5ea', 13, 1.6);
   play(u.mesh, 'Dodge_Forward', { once: true, restart: true, speed: 0.9, fade: 0.05 }); u.animLock = 0.3;
 }
 function updateLunge(u, dt) {
@@ -529,7 +530,7 @@ function resurrect(by, c) {
   if (!G.corpses.includes(c)) return; removeCorpse(c);
   const n = new Unit(c.kind, 'enemy', c.rx ?? c.x, c.rz ?? c.z, { level: c.level, mods: c.mods, champ: c.champ, packId: c.packId, hpFrac: 0.6 }); n.aggro = true; n.target = by.target; G.units.push(n);
   n.face = c.mesh.root.rotation.y; rise(n, 'Death_C_Skeletons_Resurrect', 1.4);
-  S.raise(); C.parts.emit(c.x, 0.5, c.z, 24, { col: 0xc070ff, spd: 1.4, up: 2.5, life: 0.8 }); say(c.x, c.z, '复活了！', '#c88cff', 16);
+  S.raise(); C.parts.emit(c.x, 0.5, c.z, 24, { col: 0xc070ff, spd: 1.4, up: 2.5, life: 0.8 }); say(c.x, c.z, tr('复活了！', 'Risen!'), '#c88cff', 16);
 }
 // movement, separation, walls, visuals
 let frame = 0, camX = 0, camZ = 0; const WP = new THREE.Vector3(), TMPC = new THREE.Color();
