@@ -56,7 +56,11 @@ finding — roofless ruins with a chest, fenced old graveyards, candle-lit shrin
 denser than in the crypt, none close to the camp; they get tougher (and more often champion-led) the farther they wait from the
 camp, and every one of the places is guarded by a champion pack (two affixes once you are some way out). Monster level follows
 the deepest crypt floor you have reached, loot follows the monster's level. Packs are only created when you come near them.
-Trees standing between the camera and open ground are bare dead ones, so they hide less of the fight. The minimap maps the wilds as you walk them
+The ground is grass (with dry patches and darker forest floor under the trees); bare dirt and pebbles only along the trails, around
+the places and at the gates. The woods come in three moods by region — dead (bare trunks), autumn (orange, red and gold) and dark
+green — with bushes along their edges, grass tufts in the open and big rock crags to fight around (KayKit Forest Nature Pack; its
+palette is repainted at load time so every tree's leaves get their own shade).
+Trees standing between the camera and open ground are bare ones, so they hide less of the fight. The minimap maps the wilds as you walk them
 (trees dark green, paths brown).
 Inside the crypt, standing on the glowing grate only shows the **⬇ Descend** button: you go down only when you press it (or Enter), so you never drop a floor by accident with loot still lying around.
 Each crypt floor is generated: rooms and corridors, torch-lit far walls, props, and a grate down to the next floor.
@@ -72,4 +76,4 @@ Assets: `node tools/build-assets.mjs <path to the KayKit packs>` rebuilds `asset
 
 ## Credits
 3D models and animations: **KayKit** by Kay Lousberg (www.kaylousberg.com) — Character Pack: Skeletons, Character Pack: Adventurers,
-Dungeon Remastered and Halloween Bits. Licensed CC0 1.0; thank you, Kay!
+Dungeon Remastered, Halloween Bits and Forest Nature Pack. Licensed CC0 1.0; thank you, Kay!

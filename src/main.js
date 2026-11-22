@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { G, save, load, wipe } from './state.js';
 import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
-import { A, loadAll, propGeo } from './assets.js';
+import { A, loadAll, propGeo, PropBatch } from './assets.js';
 import './gun.js';
+import './forest.js';
 import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
@@ -225,4 +226,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, PropBatch, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

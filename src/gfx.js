@@ -67,7 +67,11 @@ void main(){
     float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f;
     lit += uTC * f * band(N, t.xyz - vW) * 0.75; }
   lit = min(lit, vec3(1.12));
+  #ifdef LEAFTINT
+  vec3 base = uTint * (vUv.y < 0.25 ? vC : vec3(1.0)); // per-instance colour paints only the foliage rows of the palette
+  #else
   vec3 base = vC * uTint;
+  #endif
   #ifdef HAS_MAP
   base *= texture2D(uMap, vUv).rgb;
   #endif
@@ -84,10 +88,10 @@ export function charUniforms(o = {}) { return { uTint: { value: new THREE.Color(
 export function toonMat(o = {}) {
   const u = o.u || charUniforms(o);
   const m = new THREE.ShaderMaterial({
-    vertexShader: TOON_V, fragmentShader: TOON_F, vertexColors: o.vc !== false && !o.map,
+    vertexShader: TOON_V, fragmentShader: TOON_F, vertexColors: o.vc !== false && !o.map, side: o.ds ? THREE.DoubleSide : THREE.FrontSide,
     uniforms: { ...SH, ...u, uCut: { value: o.cut ? 1 : 0 }, uMap: { value: o.map || null } },
   });
-  if (o.map) m.defines = { HAS_MAP: '' };
+  m.defines = {}; if (o.map) m.defines.HAS_MAP = ''; if (o.leaf) m.defines.LEAFTINT = '';
   return m;
 }
 const OUT_V = `

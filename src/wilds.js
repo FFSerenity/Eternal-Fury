@@ -1,3 +1,8 @@
+import * as THREE from 'three';
+import { PropBatch } from './assets.js';
+import { toonMat } from './gfx.js';
+import { LEAF, tint } from './forest.js';
+
 // ---------- the wilds: an open, generated stretch of haunted country around the graveyard camp ----------
 // genWilds lays it out (the grid, what stands where, where monsters wait); buildWilds turns that into props.
 // The camp clearing keeps its old place (cells 8..31); the wilds wrap around it to the east and south (toward the camera),
@@ -13,7 +18,7 @@ export function valueNoise(R, W, H, cell) {
 export const WILD = { W: 120, M: 4, camp: 33, cx: 20, cz: 20 }; // map size, border margin, the camp quadrant (x < 33 && z < 33), the camp's middle
 export const inCamp = (x, z) => x < 32.5 && z < 32.5;
 // what stands on a blocked wild cell
-export const K = { GROVE: 1, TREE: 2, ROCK: 3, RUIN: 4, GRAVE: 5, POI: 6 };
+export const K = { GROVE: 1, TREE: 2, ROCK: 3, RUIN: 4, GRAVE: 5, POI: 6, CRAG: 7 };
 
 export function genWilds(F, R) {
   const W = F.W, H = F.H, g = F.g, M = WILD.M, kd = F.kd = new Uint8Array(W * H), pathM = F.pathM = new Uint8Array(W * H);
@@ -101,6 +106,13 @@ export function genWilds(F, R) {
     const X = x + side[0], Z = z + side[1], r = Math.atan2(-side[0], -side[1]); block(X, Z, K.POI); lamps.push({ x, z });
     put('post_lantern', X + 0.5, Z + 0.5, r, 0.5); L.push({ x: X + 0.5 + Math.sin(r) * 0.6, y: 1.45, z: Z + 0.5 + Math.cos(r) * 0.6, col: 0xffb050, size: 1.2, op: 0.9, torch: 5.2 }); }
 
+  // ---- crags: big rock outcrops standing alone in the open, something to fight around
+  const crags = F.crags = [], CR = [['Rock_1_J', 1.6], ['Rock_1_K', 1.6], ['Rock_2_E', 1.5], ['Rock_2_G', 1.5], ['Rock_3_M', 1.6]];
+  const nearPath = (x, z, d) => { for (let dz = -d; dz <= d; dz++) for (let dx = -d; dx <= d; dx++) { const X = x + dx, Z = z + dz; if (X >= 0 && Z >= 0 && X < W && Z < H && pathM[Z * W + X]) return true; } return false; };
+  for (let t = 0; t < 400 && crags.length < 12; t++) { const x = M + 4 + Math.floor(R() * (W - 2 * M - 8)), z = M + 4 + Math.floor(R() * (H - 2 * M - 8));
+    if (!isWild(x, z) || fromCamp(x, z) < 26 || inPoi(x, z, 4) || nearPath(x, z, 3) || crags.some(c => Math.hypot(c.x - x, c.z - z) < 14)) continue;
+    const [n, rr] = CR[Math.floor(R() * CR.length)], s = 0.5 * (0.8 + R() * 0.4), rad = rr * s / 0.5, c = { n, x: x + 0.5, z: z + 0.5, r: R() * 6.28, s }; crags.push(c);
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (Math.hypot(dx, dz) <= rad - 0.35) block(x + dx, z + dz, K.CRAG); }
   // ---- trees: groves where the noise is high (thicker toward the map edge and along the camp fence), lone trees and rocks elsewhere
   const tn = valueNoise(R, W, H, 11), tn2 = valueNoise(R, W, H, 4.5);
   const nearGate = (x, z) => F.gates.some(gt => Math.hypot(gt.x - x, gt.z - z) < 6);
@@ -139,44 +151,85 @@ export function genWilds(F, R) {
     spots.push({ x, z, d: fromCamp(x, z) }); }
 }
 
-// ---------- props for the wilds (added to the camp's prop batch) ----------
-export function buildWilds(F, B) {
-  const W = F.W, H = F.H, g = F.g, kd = F.kd, R = F.R, M = WILD.M;
+// ---------- props for the wilds (KayKit Forest Nature Pack + Halloween Bits), and the ground they stand on ----------
+const GRASS = ['Grass_1_B_Singlesided', 'Grass_1_C_Singlesided', 'Grass_2_B_Singlesided', 'Grass_2_C_Singlesided'], TUFTS = ['Grass_1_B_Singlesided', 'Grass_2_B_Singlesided', 'Grass_1_B_Singlesided', 'Grass_2_B_Singlesided', 'Grass_1_C_Singlesided'];
+const pick = (R, a) => a[Math.floor(R() * a.length)];
+export function buildWilds(F, B, grp) {
+  const W = F.W, H = F.H, g = F.g, kd = F.kd, R = F.R, M = WILD.M, pathM = F.pathM;
+  const fo = { tex: 'forest', leaf: true, cut: true }, FO = { all: fo }; for (const n of GRASS) FO[n] = { tex: 'forest', leaf: true, ds: true };
+  const FB = new PropBatch(FO);
   // distance (cells, 8-way) from ground anyone can walk on: trees beyond the edge only where they can be seen
   const dw = new Uint8Array(W * H).fill(255), q = []; for (let i = 0; i < W * H; i++) if (g[i] === 1) { dw[i] = 0; q.push(i); }
   for (let h = 0; h < q.length; h++) { const i = q[h], x = i % W, z = (i / W) | 0; if (dw[i] >= 9) continue;
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Z = z + dz; if (X < 0 || Z < 0 || X >= W || Z >= H) continue; const j = Z * W + X; if (dw[j] > dw[i] + 1) { dw[j] = dw[i] + 1; q.push(j); } } }
   const dwAt = (x, z) => { const X = Math.min(W - 1, Math.max(0, Math.floor(x))), Z = Math.min(H - 1, Math.max(0, Math.floor(z))); return dw[Z * W + X] + Math.max(0, -x, -z, x - W + 1, z - H + 1); };
-  const bn = valueNoise(R, W, H, 17);
-  const DEAD = ['tree_dead_large', 'tree_dead_large', 'tree_dead_medium', 'tree_dead_medium', 'tree_dead_small'], PINE = ['tree_pine_orange_large', 'tree_pine_orange_medium', 'tree_pine_yellow_large', 'tree_pine_yellow_medium', 'tree_pine_orange_small', 'tree_pine_yellow_small'];
-  const treeType = (x, z, low) => { if (low) return R() < 0.6 ? 'tree_dead_small' : 'tree_dead_medium'; const b = bn(x, z) + (R() - 0.5) * 0.25;
-    return b < 0.42 ? DEAD[Math.floor(R() * DEAD.length)] : b < 0.6 ? (R() < 0.5 ? DEAD : PINE)[Math.floor(R() * 4)] : PINE[Math.floor(R() * PINE.length)]; };
+  // bare ground: the paths, around the places and the gates, the camp (distance in cells from those, for the ground colour and what grows)
+  const dd = new Float32Array(W * H).fill(9), dq = [];
+  const src = (x, z) => { if (x < 0 || z < 0 || x >= W || z >= H) return; const i = z * W + x; if (dd[i]) { dd[i] = 0; dq.push(i); } };
+  for (let i = 0; i < W * H; i++) if (pathM[i]) src(i % W, (i / W) | 0);
+  for (const p of F.pois) { const r = p.type === 'shrine' ? 3.5 : p.r + (p.type === 'pumpkins' ? 0 : 0.5); for (let dz = -7; dz <= 7; dz++) for (let dx = -7; dx <= 7; dx++) if (Math.hypot(dx, dz) <= r) src(Math.floor(p.x) + dx, Math.floor(p.z) + dz); }
+  for (const gt of F.gates) for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) src(gt.x + dx, gt.z + dz);
+  for (let z = 6; z < 34; z++) for (let x = 6; x < 34; x++) src(x, z);
+  for (let h = 0; h < dq.length; h++) { const i = dq[h], x = i % W, z = (i / W) | 0;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Z = z + dz; if (X < 0 || Z < 0 || X >= W || Z >= H) continue; const j = Z * W + X, nd = dd[i] + (dx && dz ? 1.41 : 1); if (nd < dd[j] && nd < 6) { dd[j] = nd; dq.push(j); } } }
+  const n1 = valueNoise(R, W + 20, H + 20, 7), n2 = valueNoise(R, W + 20, H + 20, 13), n3 = valueNoise(R, W + 20, H + 20, 3);
+  const ddAt = (x, z) => { const X = Math.min(W - 1, Math.max(0, Math.floor(x))), Z = Math.min(H - 1, Math.max(0, Math.floor(z))); return dd[Z * W + X]; };
+  const bare = (x, z) => 1 - Math.min(1, Math.max(0, (ddAt(x, z) + (n3(x + 10, z + 10) - 0.5) * 1.6 - 0.4) / 1.8)); // 1 on bare dirt, 0 on grass
+  const dryAt = (x, z) => Math.min(1, Math.max(0, (n2(x + 10, z + 10) - 0.55) * 3));
+  // the ground: one vertex-coloured sheet (grass, darker under the trees, dry patches, dirt where people walk) — no more gravel everywhere
+  { const G1 = [0.40, 0.52, 0.31], G2 = [0.33, 0.47, 0.34], DRY = [0.56, 0.54, 0.33], FLOOR = [0.29, 0.37, 0.27], DIRT = [0.47, 0.39, 0.31];
+    const x0 = -8, n = W + 17, pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), idx = [];
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const x = x0 + i, z = x0 + j, v = j * n + i, a = n1(x + 10, z + 10), d = dryAt(x, z), b = bare(x, z);
+      let c = G1.map((c1, k) => c1 + (G2[k] - c1) * a); c = c.map((c1, k) => c1 + (DRY[k] - c1) * d * 0.8);
+      const X = Math.floor(x), Z = Math.floor(z), tr = X >= 0 && Z >= 0 && X < W && Z < H ? (g[Z * W + X] !== 1 && (kd[Z * W + X] === K.GROVE || !g[Z * W + X]) ? 1 : 0) : 1; c = c.map((c1, k) => c1 + (FLOOR[k] - c1) * tr * 0.55);
+      c = c.map((c1, k) => c1 + (DIRT[k] - c1) * b); const jt = 1 + (R() - 0.5) * 0.09;
+      pos.set([x, 0.035, z], v * 3); nor.set([0, 1, 0], v * 3); col.set([c[0] * jt, c[1] * jt, c[2] * jt], v * 3);
+      if (i < n - 1 && j < n - 1) idx.push(v, v + n, v + 1, v + 1, v + n, v + n + 1); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setIndex(idx); geo.computeBoundingSphere(); const m = new THREE.Mesh(geo, toonMat({ vc: true })); m.frustumCulled = false; grp.add(m); }
+  // what grows where: three kinds of woods by a slow noise (dead / autumn / dark green), each tree's leaves tinted a little differently
+  const bn = valueNoise(R, W, H, 17), biome = (x, z) => { const b = bn(x, z) + (R() - 0.5) * 0.12; return b < 0.34 ? 0 : b < 0.58 ? 1 : 2; };
+  const LEAVES = [[LEAF.moss, LEAF.dry], [LEAF.orange, LEAF.red, LEAF.gold, LEAF.orange], [LEAF.green, LEAF.teal, LEAF.green, LEAF.moss]];
+  const TREES = [['Tree_Bare_2_B', 'Tree_Bare_2_C', 'Tree_Bare_1_B', 'tree_dead_large', 'tree_dead_medium', 'Tree_Bare_2_A'], ['Tree_2_B', 'Tree_2_C', 'Tree_1_B', 'tree_pine_orange_large', 'tree_pine_yellow_medium', 'Tree_2_B'],
+    ['Tree_4_A', 'Tree_4_B', 'Tree_1_A', 'Tree_4_B', 'Tree_2_B']];
+  const BARE = ['Tree_Bare_1_B', 'Tree_Bare_2_A', 'Tree_Bare_2_B', 'Tree_Bare_2_B', 'tree_dead_large', 'tree_dead_medium', 'tree_dead_small'], BUSH = ['Bush_1_C', 'Bush_2_D', 'Bush_3_B', 'Bush_4_B'];
+  const isF = n => /^(Tree|Bush|Grass|Rock)_/.test(n);
+  const plant = (n, x, z, s, leaves) => { if (!isF(n)) return B.add(n, x, 0, z, R() * 6.28, s); FB.add(n, x, 0, z, R() * 6.28, s * (n.startsWith('Tree_') && !n.startsWith('Tree_Bare') ? 1.3 : n.startsWith('Tree_Bare') ? 1.15 : 1), null, null, leaves ? tint(leaves, R) : null); };
+  const tree = (x, z, s, front) => { const b = biome(x, z), lv = pick(R, LEAVES[b]); plant(front ? pick(R, BARE) : pick(R, TREES[b]), x, z, s, lv); return b; };
   const nearCampFront = (x, z) => (x < 38 && z < 38) && !(x < 31 && z < 31); // just outside the camp fence (in front of the camera when inside)
-  // a tree that stands between the camera and open ground (the camera looks from +x+z) gets a bare dead one, so it hides less of the fight behind it
+  // a tree that stands between the camera and open ground (the camera looks from +x+z) gets a bare one, so it hides less of the fight behind it
   const hides = (x, z) => { for (let k = 1; k <= 3; k++) for (const [a, b] of [[k, k], [k, k - 1], [k - 1, k]]) { const X = x - a, Z = z - b; if (X >= 0 && Z >= 0 && g[Z * W + X] === 1) return true; } return false; };
-  // trees on grove cells (thick on the rim, thinner inside), lone trees, rocks
   for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { const i = z * W + x, k = kd[i]; if (g[i] !== 2 || !k || k > 3) continue;
-    const cx = x + 0.5, cz = z + 0.5;
-    if (k === 1) { const front = hides(x, z); if (R() > (front ? 0.6 : dw[i] <= 1 ? 0.78 : 0.5)) continue; const low = nearCampFront(cx, cz);
-      B.add(low ? treeType(cx, cz, true) : front ? DEAD[Math.floor(R() * DEAD.length)] : treeType(cx, cz, false), cx + (R() - 0.5) * 0.5, 0, cz + (R() - 0.5) * 0.5, R() * 6.28, 0.5 * (0.78 + R() * 0.45)); }
-    else if (k === 2) B.add(R() < 0.04 ? 'tree_dead_large_decorated' : hides(x, z) ? DEAD[Math.floor(R() * DEAD.length)] : treeType(cx, cz, nearCampFront(cx, cz)), cx, 0, cz, R() * 6.28, 0.5 * (0.85 + R() * 0.35));
-    else { const r = R() * 6.28, n = R(); if (n < 0.5) B.add('rubble_half', cx - Math.cos(r) * 0.5, 0, cz + Math.sin(r) * 0.5, r, 0.25); else B.add(n < 0.8 ? 'grave_A_destroyed' : 'fence_pillar_broken', cx, 0, cz, r, 0.5); } }
-  // the forest beyond the edges (the camp's back side keeps its pines; the front edges get sparse dead trees so they never wall off the view)
+    const cx = x + 0.5, cz = z + 0.5, front = hides(x, z) || nearCampFront(cx, cz);
+    if (k === 1) { // grove: thick on the rim, thinner inside; bushes along the rim
+      if (R() < (front ? 0.6 : dw[i] <= 1 ? 0.78 : 0.5)) tree(cx + (R() - 0.5) * 0.5, cz + (R() - 0.5) * 0.5, 0.5 * (0.78 + R() * 0.45), front);
+      if (dw[i] <= 1 && R() < 0.45) { const b = biome(cx, cz); FB.add(pick(R, BUSH), cx + (R() - 0.5) * 0.6, 0, cz + (R() - 0.5) * 0.6, R() * 6.28, 0.5 * (1.1 + R() * 0.6), null, null, tint(pick(R, LEAVES[b]).map(v => v * 0.78), R)); } }
+    else if (k === 2) { if (R() < 0.04 && !front) B.add('tree_dead_large_decorated', cx, 0, cz, R() * 6.28, 0.55); else tree(cx, cz, 0.5 * (0.85 + R() * 0.35), front); }
+    else FB.add(pick(R, ['Rock_1_D', 'Rock_1_F', 'Rock_3_G', 'Rock_3_I']), cx, 0, cz, R() * 6.28, 0.5 * (0.8 + R() * 0.4)); }
+  for (const c of F.crags) FB.add(c.n, c.x, 0, c.z, c.r, c.s);
+  // the woods beyond the edges (the camp's back side keeps its pines; the front edges get sparse bare trees so they never wall off the view)
   for (let z = -3; z < H + 3; z += 2.3) for (let x = -3; x < W + 3; x += 2.3) { const jx = x + (R() - 0.5) * 1.6, jz = z + (R() - 0.5) * 1.6, X = Math.floor(jx), Z = Math.floor(jz);
     if (X >= 0 && Z >= 0 && X < W && Z < H && g[Z * W + X]) continue; const d = dwAt(jx, jz); if (d < (jx < 33 && jz < 33 ? 2 : 1) || d > 8) continue;
     if ((jx > 30.5 && jx < 34.5 && jz < 34.5) || (jz > 30.5 && jz < 34.5 && jx < 34.5)) continue; // the strip the camp fence stands on
     if (Math.abs(jx - 26) < 2.5 && jz < 8 && jz > 2) continue; // the camp's north gate looks out on a way into the woods
     const front = jz > H - M - 0.5 || jx > W - M - 0.5; if (R() < (front ? 0.5 : 0.15)) continue;
-    B.add(front ? (R() < 0.6 ? 'tree_dead_small' : 'tree_dead_medium') : treeType(jx, jz, false), jx, 0, jz, R() * 6.28, 0.5 * (0.85 + R() * 0.35)); }
-  // dirt paths
-  for (let i = 0; i < W * H; i++) if (F.pathM[i]) B.add('path_' + 'ABCD'[Math.floor(R() * 4)], i % W + 0.5, 0.005, ((i / W) | 0) + 0.5, Math.floor(R() * 4) * Math.PI / 2, 0.5);
-  // odds and ends lying about
-  const BITS = ['bone_A', 'bone_B', 'bone_C', 'skull', 'pumpkin_yellow_small', 'floor_dirt_small_weeds', 'floor_dirt_small_weeds', 'candle_melted'];
-  for (let z = M; z < H - M; z++) for (let x = M; x < W - M; x++) { const i = z * W + x; if (g[i] !== 1 || F.pathM[i] || inCamp(x + 0.5, z + 0.5) || R() > 0.022) continue;
-    const n = BITS[Math.floor(R() * BITS.length)]; B.add(n, x + 0.2 + R() * 0.6, n.startsWith('floor') ? 0.004 : 0.03, z + 0.2 + R() * 0.6, R() * 6.28, n === 'skull' ? 0.35 : 0.5); }
+    if (jx < 33 && jz < 33) B.add(R() < 0.6 ? pick(R, ['tree_pine_orange_large', 'tree_pine_orange_medium', 'tree_pine_yellow_medium']) : pick(R, ['tree_dead_large', 'tree_dead_medium']), jx, 0, jz, R() * 6.28, 0.5 * (0.85 + R() * 0.35));
+    else tree(jx, jz, 0.5 * (0.85 + R() * 0.35), front); }
+  // dirt trails: worn stones here and there; pebbles along the trails and around the places
+  for (let i = 0; i < W * H; i++) if (pathM[i] && R() < 0.55) B.add('path_' + 'ABCD'[Math.floor(R() * 4)], i % W + 0.5, 0.005, ((i / W) | 0) + 0.5, Math.floor(R() * 4) * Math.PI / 2, 0.5);
+  // grass tufts on the grass, a few small bushes in the open, odds and ends lying about
+  const BITS = ['bone_A', 'bone_B', 'bone_C', 'skull', 'pumpkin_yellow_small', 'candle_melted'];
+  for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { const i = z * W + x, cx = x + 0.5, cz = z + 0.5; if (inCamp(cx, cz) && !(x > 31 || z > 31)) continue;
+    const open = g[i] === 1, grove = g[i] === 2 && kd[i] === K.GROVE; if (!open && !grove) continue; const b = bare(cx, cz), dry = dryAt(cx, cz);
+    if (b > 0.55) { if (open && R() < 0.1 * b) FB.add(pick(R, ['Rock_3_A', 'Rock_3_E', 'Rock_1_A', 'Rock_1_C']), x + R(), 0, z + R(), R() * 6.28, 0.18 + R() * 0.14); }
+    else { const p = (grove ? 0.35 : dw[i] === 0 && x > 0 && (g[i - 1] === 2 || g[i + 1] === 2 || g[i - W] === 2 || g[i + W] === 2) ? 0.5 : 0.22) * (1 - b);
+      for (let k = 0; k < 2; k++) if (R() < p) FB.add(pick(R, TUFTS), x + 0.15 + R() * 0.7, 0, z + 0.15 + R() * 0.7, R() * 6.28, 0.5 * (0.9 + R() * 0.6), null, null, tint(dry > 0.4 ? LEAF.dry : LEAF.grass, R, 0.1)); }
+    if (open && b < 0.3 && R() < 0.008) FB.add(pick(R, ['Bush_1_C', 'Bush_4_B']), cx, 0, cz, R() * 6.28, 0.5 * (0.8 + R() * 0.4), null, null, tint(pick(R, LEAVES[biome(cx, cz)]).map(v => v * 0.78), R));
+    if (open && !pathM[i] && R() < 0.01) { const n = pick(R, BITS); B.add(n, x + 0.2 + R() * 0.6, 0.03, z + 0.2 + R() * 0.6, R() * 6.28, n === 'skull' ? 0.35 : 0.5); } }
   // the places
   for (const p of F.wprops) B.add(p.n, p.x, p.y, p.z, p.r, p.s, p.ys);
   for (const l of F.wlights) { F.glow(l.x, l.y, l.z, l.col, l.size, l.op); if (l.torch) F.torch(l.x, l.y + 0.2, l.z, l.torch); }
   // the gates in the camp fence
   for (const gt of F.gates) B.add('arch_gate_open', gt.rot ? 31.95 : gt.x, 0, gt.rot ? gt.z : 31.95, gt.rot, 0.9);
+  FB.build(grp, 12);
 }

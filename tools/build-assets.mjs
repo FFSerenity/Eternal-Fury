@@ -1,5 +1,5 @@
 // Build the game's asset bundles from the KayKit packs (CC0, Kay Lousberg).
-// Usage: node tools/build-assets.mjs <kaykit-dir>
+// Usage: node tools/build-assets.mjs <kaykit-dir> [bundle ...]   (no bundle names: build everything)
 // - characters: animations stripped, parts joined into one skinned mesh, quantized
 // - anims.glb: one shared set of clips (all KayKit characters use the same rig)
 // - props_*.glb: selected static models, one named node each, sharing the pack's atlas texture
@@ -10,7 +10,7 @@ import { MeshoptEncoder } from 'meshoptimizer';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const K = process.argv[2] || '/home/claude/kaykit';
+const K = process.argv[2] || '/home/claude/kaykit', ONLY = process.argv.slice(3), want = n => !ONLY.length || ONLY.includes(n);
 const OUT = path.resolve('assets'); fs.mkdirSync(OUT, { recursive: true });
 await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
@@ -37,6 +37,7 @@ const HB = `${K}/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/g
 const kb = f => (fs.statSync(f).size / 1024).toFixed(0) + ' KB';
 
 async function character(src, name) {
+  if (!want(name)) return;
   const doc = await io.read(src);
   dropAnims(doc); await doc.transform(prune(), flatten()); mergeSkinned(doc);
   await doc.transform(weld(), dedup(), prune(), COMPRESS, unpartition());
@@ -45,6 +46,7 @@ async function character(src, name) {
   console.log(name.padEnd(16), kb(out), 'primitives', prims);
 }
 async function anims(src, keep) {
+  if (!want('anims')) return;
   const doc = await io.read(src), root = doc.getRoot();
   for (const a of root.listAnimations()) { if (!keep.includes(a.getName())) { for (const s of a.listSamplers()) s.dispose(); for (const c of a.listChannels()) c.dispose(); a.dispose(); continue; }
     for (const c of a.listChannels()) { const n = c.getTargetNode(); if (!n || HELPER.test(n.getName()) || c.getTargetPath() === 'scale') { c.getSampler().dispose(); c.dispose(); } } }
@@ -53,7 +55,8 @@ async function anims(src, keep) {
   const out = `${OUT}/anims.glb`; await io.write(out, doc);
   console.log('anims'.padEnd(16), kb(out), root.listAnimations().map(a => a.getName()).join(' '));
 }
-async function props(name, files) {
+async function props(name, files, noTex = false) {
+  if (!want(name)) return;
   const doc = new Document(); doc.createBuffer();
   for (const [key, f] of files) {
     const d = await io.read(f); const map = mergeDocuments(doc, d);
@@ -66,8 +69,9 @@ async function props(name, files) {
   }
   const scenes = doc.getRoot().listScenes(); for (let i = 1; i < scenes.length; i++) { for (const n of scenes[i].listChildren()) { scenes[i].removeChild(n); scenes[0].addChild(n); } scenes[i].dispose(); }
   for (const b of doc.getRoot().listBuffers().slice(1)) b.dispose();
+  if (noTex) for (const t of doc.getRoot().listTextures()) t.dispose(); // the game paints its own palette for these
   const buf = doc.getRoot().listBuffers()[0]; for (const a of doc.getRoot().listAccessors()) a.setBuffer(buf);
-  await doc.transform(dedup(), prune(), COMPRESS, unpartition());
+  await doc.transform(dedup(), prune({ keepAttributes: noTex }), COMPRESS, unpartition()); // (no texture: keep the UVs anyway)
   const out = `${OUT}/${name}.glb`; await io.write(out, doc);
   console.log(name.padEnd(16), kb(out), files.length, 'models,', doc.getRoot().listTextures().length, 'texture(s)');
 }
@@ -96,3 +100,11 @@ await props('graveyard', ['crypt', 'fence', 'fence_broken', 'fence_pillar', 'fen
   'lantern_standing', 'post_lantern', 'arch_gate', 'shrine_candles', 'coffin', 'bench', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small', 'skull_candle', 'bone_A', 'bone_B', 'ribcage',
   'candle_triple', 'post_skull', 'tree_pine_yellow_large', 'tree_dead_large_decorated', 'grave_A_destroyed', 'lantern_hanging', 'pumpkin_yellow_jackolantern', 'candle_melted',
   'shrine', 'skull', 'bone_C', 'plaque_candles', 'floor_dirt_small', 'fence_pillar_broken', 'bench_decorated', 'coffin_decorated', 'tree_pine_orange_small', 'tree_pine_yellow_small'].map(hb));
+// Forest Nature Pack (CC0): trees, bushes, grass and rocks for the wilds; the game repaints its palette texture at load time
+const FN = `${K}/KayKit-Forest-Nature-Pack-1.0/gltf`, fn = n => [n, `${FN}/${n}_Color1.gltf`];
+await props('forest', ['Tree_1_A', 'Tree_1_B', 'Tree_2_A', 'Tree_2_B', 'Tree_2_C', 'Tree_3_A', 'Tree_3_B', 'Tree_4_A', 'Tree_4_B',
+  'Tree_Bare_1_A', 'Tree_Bare_1_B', 'Tree_Bare_1_C', 'Tree_Bare_2_A', 'Tree_Bare_2_B', 'Tree_Bare_2_C',
+  'Bush_1_B', 'Bush_1_C', 'Bush_1_E', 'Bush_2_B', 'Bush_2_D', 'Bush_3_A', 'Bush_3_B', 'Bush_4_B', 'Bush_4_D',
+  'Grass_1_A_Singlesided', 'Grass_1_B_Singlesided', 'Grass_1_C_Singlesided', 'Grass_2_A_Singlesided', 'Grass_2_B_Singlesided', 'Grass_2_C_Singlesided',
+  'Rock_1_A', 'Rock_1_C', 'Rock_1_D', 'Rock_1_F', 'Rock_1_H', 'Rock_1_J', 'Rock_1_K', 'Rock_2_B', 'Rock_2_C', 'Rock_2_E', 'Rock_2_G',
+  'Rock_3_A', 'Rock_3_C', 'Rock_3_E', 'Rock_3_G', 'Rock_3_I', 'Rock_3_K', 'Rock_3_M'].map(fn), true);

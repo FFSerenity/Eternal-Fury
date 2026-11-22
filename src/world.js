@@ -207,7 +207,7 @@ export class Floor {
       tree_pine_yellow_large: CUT, tree_pine_orange_small: CUT, tree_pine_yellow_small: CUT, tree_dead_large_decorated: CUT, wall_half: CUT, pillar: CUT, column: CUT, shrine: CUT, rubble_half: CUT });
     const inC = (x, z) => x >= 8 && x < 32 && z >= 8 && z < 32;
     // ground
-    for (let z = -1; z < H + 2; z += 2) for (let x = -1; x < W + 2; x += 2) B.add(R() < 0.3 ? 'floor_dirt_large_rocky' : 'floor_dirt_large', x + 1, 0, z + 1, Math.floor(R() * 4) * Math.PI / 2, 0.5);
+    for (let z = 7; z < 33; z += 2) for (let x = 7; x < 33; x += 2) B.add(R() < 0.3 ? 'floor_dirt_large_rocky' : 'floor_dirt_large', x + 1, 0, z + 1, Math.floor(R() * 4) * Math.PI / 2, 0.5); // the camp; the wilds have their own ground
     // paths
     const pathCells = new Set(), path = (ax, az, bx, bz) => { let x = ax, z = az; const put = () => { const k = z * W + x; if (pathCells.has(k)) return; pathCells.add(k);
       B.add('path_' + 'ABCD'[Math.floor(R() * 4)], x + 0.5, 0.005, z + 0.5, Math.floor(R() * 4) * Math.PI / 2, 0.5); };
@@ -243,7 +243,7 @@ export class Floor {
     for (const [x, z] of [[8.05, 8.05], [31.95, 8.05], [8.05, 31.95], [31.95, 31.95]]) B.add('fence_pillar', x, 0, z, 0, 0.5);
     B.add('arch_gate', 26, 0, 8.05, 0, 0.6);
     // the wilds outside (and the forest all around)
-    buildWilds(this, B);
+    buildWilds(this, B, grp);
     B.build(grp);
   }
   dispose(scene) { scene.remove(this.group); this.group.traverse(o => { if (o.isSprite && o.material) o.material.dispose(); if (o.isInstancedMesh) o.dispose(); }); }
