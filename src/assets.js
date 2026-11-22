@@ -78,6 +78,10 @@ export class PropBatch {
 export function propMesh(name, o = {}) { const pg = propGeo(name); return new THREE.Mesh(pg.geo, propMat(pg.map, o)); }
 
 // ---------- characters ----------
+// two-handed tech weapons: how the right-hand slot holds them (turned to line up with the 2H aiming pose) and how big
+const HOLD = { gatling: { ry: 1.55, s: 1.2 }, mortar: { ry: 1.55, s: 1.1 } };
+const TECH_LOOK = { mg: { kind: 'imp', scale: 1.12, kit: [['gunner_helmet', 'head'], ['gunner_kit', 'chest']] },
+  mortar: { kind: 'archer', scale: 1.08, kit: [['bomber_goggles', 'head'], ['bomber_pack', 'chest']] } };
 export const CHARS = {
   player: { file: 'mage', scale: 0.5, hide: ['Spellbook', 'Spellbook_open', '1H_Wand', 'Mage_Hat'] },
   imp:    { file: 'sk_minion', scale: 0.44, weapons: [['sk_blade', 'handslot.r']] },
@@ -112,36 +116,38 @@ export function makeUnitMesh(kind, o = {}) {
   const gear = o.gear || {}, wl = (def.weapons || []).map(([w, bone]) => [bone === 'handslot.r' && gear.w ? WEAPONS[gear.w.type].bases[gear.w.b].model : bone === 'handslot.l' && gear.a ? ARMORS[gear.a.b].model : w, bone,
     bone === 'handslot.r' ? gear.w : bone === 'handslot.l' ? gear.a : null]);
   let gun = null, blade = null, aura = null;
-  for (const [w, bone, it] of wl) { const gat = w === 'gatling', pg = propGeo(gat ? 'gatling_body' : w), b = findBone(model, bone); if (!pg || !b) continue; const shield = bone === 'handslot.l';
+  let muz = null;
+  for (const [w, bone, it] of wl) { const gat = w === 'gatling', hold = HOLD[w], pg = propGeo(gat ? 'gatling_body' : w), b = findBone(model, bone); if (!pg || !b) continue; const shield = bone === 'handslot.l';
     const wm = new THREE.Mesh(pg.geo, matW(pg.map)); b.add(wm); adds.push([wm, new THREE.Mesh(pg.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
     if (gat) { // the barrel cluster is its own mesh so it can spin while firing; the muzzle marks where tracers start
-      wm.rotation.set(0, 1.55, 0); wm.scale.setScalar(1.2); // the shooting poses hold the right-hand slot turned ~90°: this lines the barrels up with the aim
+      wm.rotation.set(0, hold.ry, 0); wm.scale.setScalar(hold.s); // the shooting poses hold the right-hand slot turned ~90°: this lines the barrels up with the aim
       const bp = propGeo('gatling_barrel'), bm = new THREE.Mesh(bp.geo, matW(bp.map)); bm.position.copy(bp.pivot); wm.add(bm); adds.push([bm, new THREE.Mesh(bp.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
       const mz = new THREE.Object3D(); mz.position.set(bp.pivot.x, bp.pivot.y, bp.pivot.z + bp.muzzle + 0.04); wm.add(mz); gun = { barrel: bm, muzzle: mz, spin: 0 }; }
     // the blade's edge, for swing trails: from a third of the way up to the tip (melee weapons only), coloured by gear quality / affix / side
     if (!gat && !shield && (kind === 'imp' || kind === 'brute')) { const zm = (pg.box.max.z + pg.box.min.z) / 2, a = new THREE.Object3D(), b2 = new THREE.Object3D();
       a.position.set(0, pg.box.max.y * 0.32, zm); b2.position.set(0, pg.box.max.y * 1.02, zm); wm.add(a, b2);
       blade = { a, b: b2, col: it && it.q ? QUAL[it.q].hex : el ? el.col : o.soul ? 0x9ff8ee : 0xffe2c8 }; }
-    if (it && it.q && !shield) { const t = new THREE.Object3D(); t.position.set(0, gat ? 0.13 : pg.box.max.y * 0.8, gat ? 0.2 : (pg.box.max.z + pg.box.min.z) / 2); wm.add(t);
+    if (hold && !gat) { wm.rotation.set(0, hold.ry, 0); wm.scale.setScalar(hold.s); if (pg.muzzle) { muz = new THREE.Object3D(); muz.position.copy(pg.muzzle); wm.add(muz); } } // the mortar: held like the gatling
+    if (it && it.q && !shield) { const t = new THREE.Object3D(); t.position.set(0, hold ? 0.15 : pg.box.max.y * 0.8, hold ? (gat ? 0.2 : 0.45) : (pg.box.max.z + pg.box.min.z) / 2); wm.add(t);
       if (it.q >= 2) { // rare and up: energy flowing over the weapon (the gatling: over the body and the spinning barrels), sparks drifting off it
-        const len = gat ? pg.box.max.z - pg.box.min.z : pg.box.max.y, sh = new THREE.Mesh(pg.geo, auraMat(QUAL[it.q].hex, len, u.uFade, gat ? 0.025 : 0.05, it.q === 3 ? 1.7 : 1.45, gat ? new THREE.Vector3(0, 0, 1) : undefined)); sh.scale.setScalar(1.04); sh.renderOrder = 3; wm.add(sh);
+        const len = hold ? pg.box.max.z - pg.box.min.z : pg.box.max.y, sh = new THREE.Mesh(pg.geo, auraMat(QUAL[it.q].hex, len, u.uFade, hold ? 0.025 : 0.05, it.q === 3 ? 1.7 : 1.45, hold ? new THREE.Vector3(0, 0, 1) : undefined)); sh.scale.setScalar(1.04); sh.renderOrder = 3; wm.add(sh);
         if (gat && gun) { const bp = propGeo('gatling_barrel'), bs = new THREE.Mesh(bp.geo, auraMat(QUAL[it.q].hex, len, u.uFade, 0.025, 1.7, new THREE.Vector3(0, 0, 1))); bs.renderOrder = 3; gun.barrel.add(bs); }
         aura = { tip: t, col: QUAL[it.q].hex }; }
       else { const gs = glowSprite(QUAL[it.q].hex, 0.8, 0.6); t.add(gs); glows.push(gs); } }
   }
 
-  // 机枪骷髅: a minion holding the gatling gets its own look — a gunmetal helmet with purple goggles, a bandolier and an ammo pack
-  // (built in gun.js in the rig's rest-pose space, then hung on the head / chest bones so they follow the animation); it stands a little taller
-  const gunner = kind === 'imp' && gear.w && gear.w.uniq === 'mg';
+  // 科技流 units get their own look — the gunner a gunmetal helmet, bandolier and ammo pack; the bombardier goggles, a shell rack and a pauldron
+  // (built in gun.js / tech.js in the rig's rest-pose space, then hung on the head / chest bones so they follow the animation); they stand a little taller
+  const look = gear.w && gear.w.uniq && TECH_LOOK[gear.w.uniq], gunner = !!look && look.kind === kind;
   if (gunner) { model.updateMatrixWorld(true);
-    for (const [name, bone] of [['gunner_helmet', 'head'], ['gunner_kit', 'chest']]) { const kp = propGeo(name), b = findBone(model, bone); if (!kp || !b) continue;
+    for (const [name, bone] of look.kit) { const kp = propGeo(name), b = findBone(model, bone); if (!kp || !b) continue;
       const m = new THREE.Mesh(kp.geo, matW(kp.map)); new THREE.Matrix4().copy(b.matrixWorld).invert().multiply(model.matrixWorld).decompose(m.position, m.quaternion, m.scale); b.add(m);
       adds.push([m, new THREE.Mesh(kp.geo, outlineMat(o.outline ?? 0x120a10, olW / (m.scale.x || 1), u.uFade))]); } }
   for (const [parent, ol] of adds) parent.add(ol);
-  model.scale.setScalar(def.scale * (o.scale ?? 1) * (gunner ? 1.12 : 1));
+  model.scale.setScalar(def.scale * (o.scale ?? 1) * (gunner ? look.scale : 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
-  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, blade, aura, elem: el ? elems[0] : null, elems };
+  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, muz, blade, aura, elem: el ? elems[0] : null, elems };
 }
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current

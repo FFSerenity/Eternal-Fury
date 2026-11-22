@@ -1,7 +1,7 @@
 // A small second renderer: item icons and summon portraits rendered from the 3D models (same look on every device,
 // unlike emoji), plus the live paperdoll view used by the equipment panel.
 import * as THREE from 'three';
-import { WEAPONS, itemBase, TYPES, makeGun, isGunner } from './data.js';
+import { WEAPONS, itemBase, TYPES, TECH, makeTech, techOf } from './data.js';
 import { makeUnitMesh, propGeo, propMat, play } from './assets.js';
 import { SH } from './gfx.js';
 
@@ -33,12 +33,13 @@ export function makeIcons() {
     const span = Math.max(sz.x, sz.y, sz.z) * (shield ? 1.05 : 0.95); iconCam.position.set(0, 0, span / (2 * Math.tan(13 * Math.PI / 180))); iconCam.lookAt(0, 0, 0);
     ICON[m] = shot(g, 112); }
   // summon portraits: head and shoulders, turned a little toward the light
-  for (const k of [...Object.keys(TYPES), 'gunner']) { const g = k === 'gunner', m = makeUnitMesh(g ? 'imp' : k, g ? { gear: { w: makeGun(0) } } : {});
-    play(m, k === 'shaman' ? 'Idle' : 'Idle_Combat', {}); m.mixer.update(0.3); m.root.rotation.y = 0.45; m.root.updateMatrixWorld(true);
+  const techs = Object.keys(TECH).map(u => [TECH[u].key, TECH[u].type, u]);
+  for (const k of [...Object.keys(TYPES), ...techs.map(t => t[0])]) { const tk = techs.find(t => t[0] === k), m = makeUnitMesh(tk ? tk[1] : k, tk ? { gear: { w: makeTech(tk[2], 0) } } : {});
+    play(m, m.gun || m.muz ? '2H_Ranged_Aiming' : k === 'shaman' ? 'Idle' : 'Idle_Combat', {}); m.mixer.update(0.3); m.root.rotation.y = 0.45; m.root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(m.root), h = box.max.y - box.min.y, top = box.max.y, fy = top - h * 0.29;
     iconCam.position.set(0, fy + h * 0.06, h * 1.38); iconCam.lookAt(0, fy, 0); POR[k] = shot(m.root, 128); }
 }
 export const itemIconURL = it => ICON[itemBase(it).model] || '';
 export const portraitURL = type => POR[type] || '';
 // pass a crypt entry instead of a type to get the gunner's own portrait when it holds the gatling
-export const portrait = (type, cls = '') => { if (type && typeof type === 'object') type = isGunner(type) ? 'gunner' : type.type; return POR[type] ? `<img class="por ${cls}" src="${POR[type]}" draggable="false">` : TYPES[type].icon; };
+export const portrait = (type, cls = '') => { if (type && typeof type === 'object') type = techOf(type) ? techOf(type).key : type.type; return POR[type] ? `<img class="por ${cls}" src="${POR[type]}" draggable="false">` : TYPES[type].icon; };

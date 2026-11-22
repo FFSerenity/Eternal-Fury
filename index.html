@@ -148,6 +148,7 @@ body.touch .sk .k{display:none}
 .pc .ic,.card .ic,.dHead .ic,.fr .ic{overflow:hidden;padding:0}.fr .ic{height:28px;border-radius:6px}
 .gfD{font-size:11px;color:#d8a88a;margin:3px 0 8px;line-height:1.4}.gF{width:100%}.gfB{display:flex;gap:6px;margin:8px 0}.gfB .btn{height:30px;padding:0 10px;font-size:12px;font-weight:800}.gAuto{background:linear-gradient(180deg,#6a4a1e,#3e2a10)}
 .gfOdds{flex-direction:row!important;gap:10px!important;min-height:20px;margin-top:6px}.gGo{width:100%}
+.gfOdds{flex-wrap:wrap}.gfPity{flex-basis:100%;position:relative;height:15px;border-radius:8px;background:rgba(0,0,0,.45);overflow:hidden;font-size:10.5px;font-weight:800;color:#efe4ff;margin-top:2px}.gfPity i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#5a2f96,#c77dff);box-shadow:0 0 8px #b46cff}.gfPity span{position:relative;padding-left:7px;line-height:15px;text-shadow:0 1px 2px #000}
 .gDollRow{display:flex;align-items:center;justify-content:center;gap:10px}
 #gDoll{width:170px;height:230px;border-radius:8px;background:radial-gradient(ellipse at 50% 70%,rgba(90,70,50,.45),rgba(0,0,0,.2) 70%);border:1px solid #3a2e20}
 #gDoll canvas{width:100%;height:100%;display:block}
@@ -282,7 +283,7 @@ body.touch:has(#mmap.small) #floorTag{top:calc(max(10px,env(safe-area-inset-top)
     <div class="smL" data-en="Minimap">小地图</div><div class="smRow"><button class="btn" id="bMapSet">🗺</button></div>
     <div class="smL" data-en="Sound">音效</div><div class="smRow"><button class="btn" id="bSfx">🔊</button></div>
     <div class="smL" data-en="Screen shake">震屏</div><div class="smRow"><button class="btn" id="bShake">📳</button></div>
-    <div class="smL" data-en="Testing">测试用</div><div id="resetMenu"><button class="btn" data-r="dungeon" data-c="确认：回营地、刷新怪物" data-en="↺ Reset dungeon" data-en-c="Confirm: back to camp, fresh monsters">↺ 重置副本</button><button class="btn danger" data-r="all" data-c="确认：清空存档从头开始" data-en="⚠ Reset everything" data-en-c="Confirm: wipe the save and start over">⚠ 全部重置</button><div class="rmT" data-en="tap twice to confirm">点两次生效</div></div></div>
+    <div class="smL" data-en="Testing">测试用</div><div id="resetMenu"><button class="btn" data-r="tech" data-c="确认：把全部科技武器放进背包" data-en="🛠 Get all tech weapons" data-en-c="Confirm: put every tech weapon in the bag">🛠 领取全部科技武器</button><button class="btn" data-r="dungeon" data-c="确认：回营地、刷新怪物" data-en="↺ Reset dungeon" data-en-c="Confirm: back to camp, fresh monsters">↺ 重置副本</button><button class="btn danger" data-r="all" data-c="确认：清空存档从头开始" data-en="⚠ Reset everything" data-en-c="Confirm: wipe the save and start over">⚠ 全部重置</button><div class="rmT" data-en="tap twice to confirm">点两次生效</div></div></div>
   <div id="msg"></div>
   <div id="skills">
     <button class="btn sk" id="sRaise"><span class="nm" data-en="Raise">唤魂</span>👻<span class="k">Q</span><b id="raiseN"></b></button>

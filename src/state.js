@@ -8,13 +8,13 @@ const KEY = 'graveTamerSave';
 export function save() {
   if (G.noSave) return;
   try {
-    localStorage.setItem(KEY, JSON.stringify({ v: 1, level: G.level, xp: G.xp, depth: G.deep, uid: G.uid, egg: G.egg || 0,
+    localStorage.setItem(KEY, JSON.stringify({ v: 1, level: G.level, xp: G.xp, depth: G.deep, uid: G.uid, egg: G.egg || 0, pity: G.techPity || 0,
       crypt: G.crypt.map(c => ({ id: c.id, type: c.type, level: c.level, xp: c.xp, mods: c.mods, modLv: c.modLv || {}, champ: c.champ, active: c.active, sp: c.sp || 0, skills: c.skills || {}, gear: c.gear || {} })), bag: G.bag, furn: G.furn }));
   } catch (e) {}
 }
 export function load() {
   try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!d) return false;
-    G.level = d.level || 1; G.xp = d.xp || 0; G.deep = d.depth || 1; G.depth = 0; G.uid = d.uid || 1; G.egg = d.egg || 0;
+    G.level = d.level || 1; G.xp = d.xp || 0; G.deep = d.depth || 1; G.depth = 0; G.uid = d.uid || 1; G.egg = d.egg || 0; G.techPity = d.pity || 0;
     G.crypt = (d.crypt || []).map(c => Object.assign({ reviveT: 0, unit: null, sp: 0, skills: {}, gear: {} }, c)); G.bag = []; for (const it of d.bag || []) bagPut(it, it.pos); G.furn = d.furn || [];
     // a save from before the party-size change may have more summons out than allowed now: the extras rest
     let n = 0; for (const en of G.crypt) if (en.active && ++n > partySize(G.level)) en.active = false; return true; } catch (e) { return false; }

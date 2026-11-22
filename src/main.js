@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { G, save, load, wipe } from './state.js';
-import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName } from './data.js';
+import { G, save, load, wipe, bagPut } from './state.js';
+import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch } from './assets.js';
 import './gun.js';
+import './tech.js';
 import './forest.js';
 import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
@@ -50,7 +51,7 @@ function placeCamera(snap) {
 }
 const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 function groundAt(cx, cy) { ndc.set(cx / VW * 2 - 1, -(cy / VH) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(plane, hit) ? { x: hit.x, z: hit.z } : null; }
-initUI({ camera, groundAt, canvas, reset: what => what === 'all' ? resetAll() : resetDungeon() }); initMap();
+initUI({ camera, groundAt, canvas, reset: what => what === 'all' ? resetAll() : what === 'tech' ? grantTech() : resetDungeon() }); initMap();
 
 // ---------- floors ----------
 let packId = 1;
@@ -107,6 +108,10 @@ function resetDungeon() {
   for (const en of G.crypt) en.reviveT = 0;
   S.stairs(); makeFloor(0); message(tr('副本已重置', 'Dungeon reset'));
 }
+
+// test helper: one of every 科技流 epic weapon into the bag (item level by the deepest floor reached)
+function grantTech() { let n = 0; for (const u of Object.keys(TECH)) { const it = makeTech(u, G.uid++, Math.max(5, G.deep + 1)); if (bagPut(it)) n++; } save();
+  message(n ? tr(`${n} 把科技武器已放进背包`, `${n} tech weapons put in the bag`) : tr('背包满了', 'The bag is full'), true); }
 
 // test helper: wipe the save and start over from scratch
 function resetAll() { wipe(); location.reload(); }

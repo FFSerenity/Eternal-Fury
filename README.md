@@ -39,6 +39,15 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
   right-click or double-click = quick equip (or into the furnace). Diablo-style tooltips; items a summon can't use are tinted red.
 - **Furnace (熔炉):** put 2+ pieces into its 12 cells and smelt them into one random item; more and better input raises the odds. The result goes straight into the bag (it glows there until you close the panel).
   Auto-fill puts normal items in first, then magic ones (those that would be an upgrade for a summon last); rares are never added automatically.
+- **科技流 (tech line)**: epic weapons that turn a summon into an advanced tech unit with its own look, stance and skill tree (take the
+  weapon off and it is its old self again; both skill sets are kept). They come out of the forge: every rare weapon smelted gives +3%
+  (at most 15%), and **魂钢能量 / soul steel** builds up by one per rare weapon smelted without an epic — at 15 the next smelt with a
+  rare weapon is a guaranteed epic. Which one is weighted by the weapon types put in (more crossbows → likelier the mortar). Duplicates allowed.
+  Settings → Testing → "Get all tech weapons" puts one of each in the bag.
+  - **噬魂机枪 → 机枪骷髅** (Minion): sustained fire, grenades, armour-piercing rounds, brace to fire on the move. Also the camp coffin's easter egg.
+  - **裂魂臼炮 → 炮手骷髅** (Archer): lobs shells 9 m that blow up groups and knock them back; backs off from anyone in its face;
+    skills: Heavy Shells, Cluster Shells, Incendiary (fire on the ground), Barrage (a quick volley at a pack). Goggles, a shell rack, a bronze pauldron.
+  - Planned: 机甲骷髅 (Warrior, a drill; rocket dash, shield field, overload EMP shockwave) and 机械师骷髅 (Mage, drones; repair drone, orbital strike).
 
 ## Monsters
 Skeleton Warrior (telegraphed smash, knock-back), Skeleton Minion packs (panic and flee when a packmate falls apart),

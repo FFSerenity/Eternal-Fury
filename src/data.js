@@ -34,7 +34,7 @@ export const MODS = {
 export const ROMAN = ['', 'Ⅱ', 'Ⅲ'];
 export const affixName = (mods, champ = true) => !champ || !mods || !mods.length ? '' : (mods.length === 1 ? MODS[mods[0]].name : mods.map(m => MODS[m].short).join(tr('', '-'))) + SP;
 // a unit's full name: affixes + type (no gap in Chinese, a space in English)
-export const fullName = (type, mods, champ, en) => affixName(mods, champ) + (isGunner(en) ? GUNNER.name : TYPES[type].name);
+export const fullName = (type, mods, champ, en) => affixName(mods, champ) + (en && techOf(en) ? techOf(en).name : TYPES[type].name);
 export const MAX_AFFIX = 3, MAX_AFFIX_LV = 3;
 // elemental look of champion affixes: weapon glow, particles off the weapon, hit sparks, projectile trails
 export const ELEM = {
@@ -115,7 +115,8 @@ export const WEAPONS = {
   brute:  { cat: tr('斧', 'Axe'), bases: [{ name: tr('骨斧', 'Bone Axe'), model: 'sk_axe', dm: 1, cd: 1 }, { name: tr('战斧', 'Hand Axe'), model: 'axe_1handed', dm: 0.82, cd: 0.82 }, { name: tr('巨斧', 'Great Axe'), model: 'axe_2handed', dm: 1.32, cd: 1.16 }] },
   imp:    { cat: tr('刃', 'Blade'), bases: [{ name: tr('骨刃', 'Bone Blade'), model: 'sk_blade', dm: 1, cd: 1 }, { name: tr('匕首', 'Dagger'), model: 'dagger', dm: 0.8, cd: 0.8 }, { name: tr('长剑', 'Long Sword'), model: 'sword_1handed', dm: 1.25, cd: 1.12 },
     { name: tr('噬魂机枪', 'Soul Reaper Gatling'), cat: tr('机枪', 'Gatling'), model: 'gatling', dm: 1, cd: 1, epic: true }] }, // [3]: the easter egg (never rolled)
-  archer: { cat: tr('弩', 'Crossbow'), bases: [{ name: tr('骨弩', 'Bone Crossbow'), model: 'sk_crossbow', dm: 1, cd: 1 }, { name: tr('轻弩', 'Light Crossbow'), model: 'crossbow_1handed', dm: 0.82, cd: 0.82 }, { name: tr('重弩', 'Heavy Crossbow'), model: 'crossbow_2handed', dm: 1.3, cd: 1.15 }] },
+  archer: { cat: tr('弩', 'Crossbow'), bases: [{ name: tr('骨弩', 'Bone Crossbow'), model: 'sk_crossbow', dm: 1, cd: 1 }, { name: tr('轻弩', 'Light Crossbow'), model: 'crossbow_1handed', dm: 0.82, cd: 0.82 }, { name: tr('重弩', 'Heavy Crossbow'), model: 'crossbow_2handed', dm: 1.3, cd: 1.15 },
+    { name: tr('裂魂臼炮', 'Soulsplitter Mortar'), cat: tr('臼炮', 'Mortar'), model: 'mortar', dm: 1, cd: 1, epic: true }] }, // [3]: tech line (forge only)
   shaman: { cat: tr('杖', 'Staff'), bases: [{ name: tr('骨杖', 'Bone Staff'), model: 'sk_staff', dm: 1, cd: 1 }, { name: tr('魔杖', 'Wand'), model: 'wand', dm: 0.82, cd: 0.82 }, { name: tr('法师长杖', 'Mage Staff'), model: 'mage_staff', dm: 1.3, cd: 1.15 }] },
 };
 export const ARMORS = [{ name: tr('骨盾', 'Bone Shield'), model: 'sk_shield_large', hm: 1.3, am: 0.7 }, { name: tr('圆盾', 'Round Shield'), model: 'shield_round', hm: 1, am: 1 }, { name: tr('方盾', 'Tower Shield'), model: 'shield_square', hm: 0.7, am: 1.4 }];
@@ -132,26 +133,46 @@ export function rollItem(id, il, q, slot = Math.random() < 0.62 ? 'w' : 'a', typ
 }
 export const itemBase = it => it.slot === 'w' ? WEAPONS[it.type].bases[it.b] : ARMORS[it.b];
 export const itemName = it => (it.q && it.q < 3 ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
-// the easter egg: hidden in the camp coffin; a Skeleton Minion holding it becomes a Gunner Skeleton (ranged bursts)
-export const makeGun = id => ({ id, slot: 'w', type: 'imp', b: 3, q: 3, il: 5, uniq: 'mg', v: { dmg: 40, spd: 15 } });
-export const isGunner = en => !!(en && en.type === 'imp' && en.gear && en.gear.w && en.gear.w.uniq === 'mg');
-export const GUNNER = { name: tr('机枪骷髅', 'Gunner Skeleton'), short: tr('机枪骷髅', 'Gunner'), role: tr('重火力', 'Heavy gunner'),
-  ally: tr('远程持续扫射；会往敌群里扔手雷，破甲弹越打越疼，敌人多时就地架起变成炮台。', 'Sustained fire from range; lobs grenades into packs, armour-piercing rounds that hurt more the longer it fires, and digs in as a turret when the fight gets big.') };
-// 机枪骷髅 has its own tree (no attack speed in it): grenade (innate), armour-piercing rounds, dig in (turret), cluster grenades
+// ---------- 科技流: epic weapons that turn a summon into a tech unit (own look, own skill tree; take it off and it's back) ----------
+// the gatling is also the coffin easter egg; all of them come out of the forge when rare weapons are smelted
+export const TECH = {
+  mg: { type: 'imp', key: 'gunner', name: tr('机枪骷髅', 'Gunner Skeleton'), short: tr('机枪骷髅', 'Gunner'), role: tr('重火力', 'Heavy gunner'),
+    ally: tr('远程持续扫射；会往敌群里扔手雷，破甲弹越打越疼，敌人多时架稳机枪边走边扫射。', 'Sustained fire from range; lobs grenades into packs, armour-piercing rounds that hurt more the longer it fires, and braces the gun to fire on the move when the fight gets big.'),
+    lines: [tr('骷髅小兵装备后变成机枪骷髅', 'A Skeleton Minion holding it becomes a Gunner Skeleton'), tr('远程连射：每轮 6 发子弹', 'Ranged bursts: 6 rounds a volley')] },
+  mortar: { type: 'archer', key: 'bomber', name: tr('炮手骷髅', 'Bombardier Skeleton'), short: tr('炮手骷髅', 'Bombardier'), role: tr('远程轰炸', 'Artillery'),
+    ally: tr('远远地抛射炮弹，落点范围爆炸并击退；敌人贴脸会后撤。能打集束弹、燃烧弹，敌人扎堆时连轰齐射。', 'Lobs shells from far away that blow up whole groups and knock them back; backs off from anyone in its face. Cluster shells, incendiary shells, and a barrage when enemies bunch up.'),
+    lines: [tr('骷髅弩手装备后变成炮手骷髅', 'A Skeleton Archer holding it becomes a Bombardier Skeleton'), tr('抛射炮弹：范围爆炸 + 击退，射程 9 米', 'Lobbed shells: area blast + knock-back, 9 m range')] },
+};
+export const techOf = en => { const w = en && en.gear && en.gear.w, T = w && w.uniq && TECH[w.uniq]; return T && T.type === en.type ? T : null; };
+export const techName = en => { const T = techOf(en); return T ? T.name : TYPES[en.type].name; };
+// the coffin gatling is a fixed early piece; forge epics scale with what went in
+export function makeTech(uniq, id, il) { const T = TECH[uniq], it = { id, slot: 'w', type: T.type, b: 3, q: 3, il: il || 5, uniq, v: {} };
+  if (!il && uniq === 'mg') it.v = { dmg: 40, spd: 15 }; else { it.v.dmg = Math.round((10 + 4 * it.il) * QUAL[3].k * jit()); it.v.spd = 6 + it.il; } return it; }
+export const makeGun = id => makeTech('mg', id);
+export const isGunner = en => !!(techOf(en) && techOf(en).key === 'gunner');
+export const GUNNER = TECH.mg;
+// 机枪骷髅 has its own tree (no attack speed in it): grenade (innate), armour-piercing rounds, brace, cluster grenades
 TREE.gunner = [
   { id: 'nade', name: tr('手雷', 'Grenade'), icon: '💣', max: 5, desc: r => tr(`往敌群扔手雷：${pct(1.6 + 0.35 * r)} 伤害，爆炸半径 ${(1.7 + 0.12 * r).toFixed(1)} 米，冷却 ${(9 - 0.8 * r).toFixed(1)} 秒`, `Lobs a grenade into a pack: ${pct(1.6 + 0.35 * r)} damage within ${(1.7 + 0.12 * r).toFixed(1)} m, cooldown ${(9 - 0.8 * r).toFixed(1)}s`) },
   { id: 'shred', name: tr('破甲弹', 'AP Rounds'), icon: '🔩', max: 5, desc: r => tr(`每发子弹给目标叠 1 层破甲，最多 ${8 * r} 层：每层护甲 -1、受到的所有伤害 +0.6%（满层 +${(4.8 * r).toFixed(0)}%）。停火 3 秒后消退`, `Every round adds a stack of shred, up to ${8 * r}: each stack −1 armour and +0.6% damage taken from everyone (+${(4.8 * r).toFixed(0)}% at full stacks). Fades 3 s after the shooting stops`) },
   { id: 'deploy', name: tr('架起', 'Dig In'), icon: '🛡️', max: 3, unlock: true, desc: r => r ? tr(`敌人多（3 个以上）或有精英时架稳机枪 ${(4 + 1.5 * r).toFixed(1)} 秒：边走边扫射（移动速度 -50%），不会被击退，射速 +60%，伤害 +${pct(0.2 * r)}，射程 +2.5 米，受到伤害 -35%；冷却 ${20 - 2 * r} 秒`, `With 3+ enemies close or an elite, braces the gatling for ${(4 + 1.5 * r).toFixed(1)} s: fires on the move at half speed, can't be knocked back, +60% fire rate, +${pct(0.2 * r)} damage, +2.5 m range, −35% damage taken; cooldown ${20 - 2 * r}s`) : tr('解锁：架稳机枪，边走边扫射', 'Unlock: brace the gatling and fire on the move') },
   { id: 'cluster', name: tr('集束手雷', 'Cluster Grenade'), icon: '🎆', max: 3, unlock: true, desc: r => r ? tr(`手雷炸开后再散出 ${r + 1} 颗小炸弹，每颗 ${pct(0.45)} 手雷伤害`, `Grenades burst into ${r + 1} bomblets, each dealing ${pct(0.45)} of the grenade's damage`) : tr('解锁：手雷炸开后散出小炸弹', 'Unlock: grenades scatter bomblets') },
 ];
-export const treeKey = en => isGunner(en) ? 'gunner' : en.type;
+// 炮手骷髅: heavier shells (innate), cluster shells, incendiary shells, barrage
+TREE.bomber = [
+  { id: 'shell', name: tr('重炮', 'Heavy Shells'), icon: '💥', max: 5, desc: r => tr(`炮弹伤害 ${pct(2 + 0.15 * r)}，爆炸半径 ${(1.6 + 0.1 * r).toFixed(1)} 米`, `Shells deal ${pct(2 + 0.15 * r)} damage within ${(1.6 + 0.1 * r).toFixed(1)} m`) },
+  { id: 'mcluster', name: tr('集束弹', 'Cluster Shells'), icon: '🎆', max: 3, unlock: true, desc: r => r ? tr(`炮弹落地后再弹出 ${r + 1} 颗子弹，每颗 ${pct(0.4)} 炮弹伤害`, `Shells burst into ${r + 1} bomblets, each dealing ${pct(0.4)} of the shell's damage`) : tr('解锁：炮弹炸开后弹出子弹', 'Unlock: shells scatter bomblets') },
+  { id: 'incend', name: tr('燃烧弹', 'Incendiary'), icon: '🔥', max: 3, unlock: true, desc: r => r ? tr(`每 3 发里有 1 发燃烧弹：落点烧起 ${(1.4 + 0.15 * r).toFixed(1)} 米的火圈，持续 ${(2.5 + 0.5 * r).toFixed(1)} 秒，每秒 ${pct(0.45 + 0.15 * r)} 伤害`, `Every 3rd shell is incendiary: a ${(1.4 + 0.15 * r).toFixed(1)} m fire burns for ${(2.5 + 0.5 * r).toFixed(1)} s, ${pct(0.45 + 0.15 * r)} damage a second`) : tr('解锁：燃烧弹留下火圈', 'Unlock: incendiary shells leave fires') },
+  { id: 'barrage', name: tr('齐射', 'Barrage'), icon: '🎯', max: 3, unlock: true, desc: r => r ? tr(`敌人扎堆（3 个以上）或有精英时，朝最密集处连轰 ${r + 2} 发；冷却 ${(14 - 1.5 * r).toFixed(1)} 秒`, `When 3+ enemies bunch up or an elite shows up, fires ${r + 2} shells in quick succession at the thickest spot; cooldown ${(14 - 1.5 * r).toFixed(1)}s`) : tr('解锁：敌人扎堆时连轰齐射', 'Unlock: a quick barrage at packs') },
+];
+export const treeKey = en => { const T = techOf(en); return T ? T.key : en.type; };
 export const itemIcon = it => it.slot === 'w' ? TYPES[it.type].icon : '🛡️';
 export function itemLines(it) {
   const v = it.v, B = itemBase(it), L = [];
   const W = { dmg: tr('伤害', 'Damage'), cd: tr('攻击间隔', 'Attack interval'), spd: tr('攻击速度', 'Attack speed'), hp: tr('生命', 'Life'), arm: tr('护甲', 'Armour'), move: tr('移动速度', 'Move speed') };
   if (it.slot === 'w') { L.push(`${W.dmg} +${v.dmg}%`); if (B.cd !== 1) L.push(`${W.cd} ${B.cd < 1 ? '-' : '+'}${Math.round(Math.abs(1 - B.cd) * 100)}%`); if (v.spd) L.push(`${W.spd} +${v.spd}%`); if (v.hp) L.push(`${W.hp} +${v.hp}%`); }
   else { L.push(`${W.hp} +${v.hp}%`, `${W.arm} +${v.arm}`); if (v.dmg) L.push(`${W.dmg} +${v.dmg}%`); if (v.move) L.push(`${W.move} +${v.move}%`); }
-  if (it.uniq === 'mg') L.push('✦ ' + tr('骷髅小兵装备后变成机枪骷髅', 'A Skeleton Minion holding it becomes a Gunner Skeleton'), '✦ ' + tr('远程连射：每轮 6 发子弹', 'Ranged bursts: 6 rounds a volley'));
+  if (it.uniq && TECH[it.uniq]) L.push(...TECH[it.uniq].lines.map(l => '✦ ' + l));
   return L;
 }
 // rough power, for the ▲ / ▼ comparison
@@ -160,8 +181,16 @@ export function itemScore(it) { if (!it) return 0; const v = it.v, B = itemBase(
 export const itemFits = (it, type) => it.slot === 'a' || it.type === type;
 // furnace: everything thrown in turns into one random item; more (and better) input, better odds
 export const itemPts = it => [1, 3, 8, 20][it.q] * (1 + it.il / 10);
-export function furnaceOdds(items) { const p = items.reduce((a, it) => a + itemPts(it), 0), gold = Math.min(0.7, 0.01 + p * 0.022), blue = Math.min(1 - gold, 0.15 + p * 0.07); return { gold, blue, white: Math.max(0, 1 - gold - blue), pts: p }; }
-export function furnaceRoll(items, id) { const o = furnaceOdds(items), r = Math.random(), q = r < o.gold ? 2 : r < o.gold + o.blue ? 1 : 0, il = Math.max(...items.map(it => it.il)) + (q === 2 ? 1 : 0); return rollItem(id, il, q); }
+// 科技流 epics: every rare weapon in the forge gives +3% (at most 15%); 魂钢能量 (soul steel) builds up by one per rare weapon smelted
+// without an epic and guarantees one at TECH_PITY. Which one: weighted by the weapon types put in (more crossbows → likelier the mortar)
+export const TECH_PITY = 15;
+export const rareWeapons = items => items.filter(it => it.slot === 'w' && it.q === 2).length;
+export function furnaceOdds(items, pity = 0) { const p = items.reduce((a, it) => a + itemPts(it), 0), nr = rareWeapons(items), epic = !nr ? 0 : pity + nr >= TECH_PITY ? 1 : Math.min(0.15, 0.03 * nr), k = 1 - epic;
+  const gold = Math.min(0.7, 0.01 + p * 0.022), blue = Math.min(1 - gold, 0.15 + p * 0.07); return { epic, gold: gold * k, blue: blue * k, white: Math.max(0, 1 - gold - blue) * k, pts: p, nr }; }
+export function furnaceRoll(items, id, pity = 0) { const o = furnaceOdds(items, pity), r = Math.random(), il = Math.max(...items.map(it => it.il));
+  if (r < o.epic) { const keys = Object.keys(TECH), w = keys.map(k => items.filter(it => it.slot === 'w' && it.type === TECH[k].type).length), tot = w.reduce((a, b) => a + b, 0);
+    let x = Math.random() * (tot || keys.length), i = 0; for (; i < keys.length - 1; i++) { x -= tot ? w[i] : 1; if (x < 0) break; } return makeTech(keys[i], id, il + 1); }
+  const q = r < o.epic + o.gold ? 2 : r < o.epic + o.gold + o.blue ? 1 : 0; return rollItem(id, il + (q === 2 ? 1 : 0), q); }
 // drops: champions always drop something decent, normal monsters sometimes
 export function rollDrop(id, depth, champ) {
   if (!champ && Math.random() > 0.09) return null; const r = Math.random(), q = champ ? (r < 0.3 ? 2 : 1) : (r < 0.05 ? 2 : r < 0.3 ? 1 : 0);
