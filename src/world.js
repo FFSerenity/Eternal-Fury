@@ -149,8 +149,6 @@ export class Floor {
       while (z !== bz) { put(); z += Math.sign(bz - z); } while (x !== bx) { put(); x += Math.sign(bx - x); } put(); };
     path(23, 25, 14, 16); path(23, 20, 26, 8); path(14, 16, 13, 16); path(14, 16, 15, 17);
     const C = this.crypt; B.add('crypt', C.x, 0, C.z, 0, C.s);
-    B.add('lantern_standing', 12.2, 0, 16.0, 0, 0.6); B.add('lantern_standing', 15.8, 0, 16.0, 0, 0.6); this.block(12, 15); this.block(15, 15);
-    for (const [x, z] of [[12.2, 16.0], [15.8, 16.0]]) { this.glow(x, 0.45, z, 0xffb050, 1.1, 0.9); this.torch(x, 0.8, z + 0.3, 3.6); }
     this.stairsGlow = this.glow(14, 0.9, 15.3, 0x6fb6ff, 2.6, 0.5);
     this.torches.push({ x: 14, y: 0.6, z: 15.6, r: 2.8, ph: 0 });
     // lantern posts along the paths

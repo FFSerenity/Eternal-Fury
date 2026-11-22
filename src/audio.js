@@ -32,5 +32,7 @@ export const S = {
   revive() { if (!ok()) return; tone('sine', 300, 900, 0.4, 0.1); },
   stairs() { if (!ok()) return; tone('sine', 400, 120, 0.9, 0.2); hiss(400, 0.5, 0.8, 0.15); },
   hurt() { if (!ok() || !gate('hu', 120)) return; tone('square', 220, 140, 0.12, 0.08); },
+  zap() { if (!ok() || !gate('zap', 70)) return; hiss(4200, 0.8, 0.12, 0.22); tone('square', 1800, 200, 0.12, 0.05); tone('sawtooth', 90, 60, 0.15, 0.08); },
+  frost() { if (!ok()) return; hiss(5200, 1.5, 0.5, 0.25); [1568, 2093, 2637].forEach((f, i) => tone('sine', f, f * 0.98, 0.35, 0.05, i * 0.04)); },
   rally() { if (!ok() || !gate('ra', 300)) return; tone('square', 500, 800, 0.1, 0.04); },
 };

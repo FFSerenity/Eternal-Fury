@@ -65,11 +65,11 @@ export function damage(src, dst, amt, o = {}) {
   let d = Math.max(1, amt * (1 - dst.armor / (dst.armor + 60)) * (1 - 0.08 * rk(dst, 'taunt'))); if (o.crit) d *= o.critX || 2;
   dst.hp -= d; dst.flash = 1; dst.barT = 3; dst.lastHit = G.t;
   if (o.knock) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
-  if (dst.kind !== 'player' && !dst.noStun && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
+  if (dst.kind !== 'player' && !dst.noStun && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
-  if (dst.kind === 'player') S.hurt(); else S.hit(Math.min(1, d / 20));
-  const el = src && src.champ && src.mods[0] && ELEM[src.mods[0]]; if (el && !o.noFx) C.parts.emit(dst.x, 0.7, dst.z, 11, el.hit);
-  say(dst.x, dst.z, (o.crit ? '暴击 ' : '') + Math.round(d), dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : 14, 1.4 + Math.random() * 0.4);
+  if (dst.kind === 'player') S.hurt(); else if (!o.dot) S.hit(Math.min(1, d / 20));
+  const mod = src && src.champ && src.mods[0], el = mod && ELEM[mod]; if (el && !o.noFx) { C.parts.emit(dst.x, 0.7, dst.z, 11, el.hit); elemHit(mod, src, dst, d, o); }
+  if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? '暴击 ' : '') + Math.round(d), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4);
   if (dst.hp <= 0) kill(dst, src);
   return d;
 }
@@ -78,17 +78,17 @@ export function alertPack(u, t) {
   S.rally();
 }
 function kill(u, src) {
-  u.dead = true; u.hp = 0;
+  u.dead = true; u.hp = 0; u.poison = null; u.chillT = 0; u.mesh.u.uStat.value.w = 0;
   if (u.side === 'enemy') {
     S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 });
     const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(xp);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
-    if (u.mods.includes('fire')) G.fx.push({ t: 0.7, fn: () => fireBlast(u) });
+    deathBlast(u, 0.7);
     if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5) panic(e, src || u);
     makeCorpse(u);
   } else if (u.side === 'ally') {
     S.die(); const en = u.entry; if (en) { en.unit = null; en.reviveT = en.reviveMax = 10 + 1.5 * en.level; }
-    if (u.mods.includes('fire')) G.fx.push({ t: 0.5, fn: () => fireBlast(u) });
+    deathBlast(u, 0.5);
     C.say(`${u.name} 倒下了，${Math.round(en ? en.reviveT : 10)} 秒后复原`); fadeOut(u);
   } else { // player
     u.respawnT = 2.8; u.state = 'dead'; C.say('你倒下了……', true); play(u.mesh, ANIM.player.die, { once: true, fade: 0.1 });
@@ -101,6 +101,57 @@ function fireBlast(u) {
   const rg = ring(0.2, 0.5, 0xff7a20, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
   G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * 5); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
   for (const h of (u.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && dist(h, u) < 2.4) damage(u, h, u.dmg * 1.6, { knock: 3, fx: u.x, fz: u.z });
+}
+// ---------- elemental affixes: what champion hits do, and what champions leave behind when they fall ----------
+const CHILL = 2.2;
+function elemHit(mod, src, dst, d, o) {
+  if (mod === 'cold') { if (!dst.dead) { if (!(dst.chillT > 0)) say(dst.x, dst.z, '冻结', '#bfe8ff', 13, 2.0); dst.chillT = Math.max(dst.chillT || 0, CHILL); } }
+  else if (mod === 'poison' && !o.dot) { if (!dst.dead) { const tot = d * 0.6, p = dst.poison; if (!p || p.left * p.dps < tot) dst.poison = { dps: tot / 3, left: 3, tick: 0.5, src }; } }
+  else if (mod === 'lightning' && !o.noChain && Math.random() < (src.kind === 'archer' || src.kind === 'shaman' ? 0.5 : 0.35)) {
+    let from = dst, n = 0; const hit = new Set([dst]);
+    while (n < 2) { let nx = null, nd = 3.8; for (const h of (dst.side === 'enemy' ? G.enemies : G.friends)) { if (h.dead || hit.has(h)) continue; const dd = dist(h, from); if (dd < nd) { nd = dd; nx = h; } }
+      if (!nx) break; bolt(from, nx); hit.add(nx); damage(src, nx, d * 0.55, { noChain: true, noFx: true }); C.parts.emit(nx.x, 0.8, nx.z, 8, ELEM.lightning.hit); from = nx; n++; }
+    if (n) S.zap(); }
+}
+export function bolt(a, b, life = 0.22) { G.bolts.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, until: G.t + life, seed: Math.random() * 100 }); }
+function deathBlast(u, delay) {
+  const m = u.mods[0]; if (!u.champ && m !== 'fire') return;
+  if (m === 'fire') G.fx.push({ t: delay, fn: () => fireBlast(u) });
+  else if (m === 'cold') G.fx.push({ t: delay * 0.6, fn: () => frostNova(u) });
+  else if (m === 'poison') G.fx.push({ t: delay * 0.6, fn: () => poisonCloud(u) });
+  else if (m === 'lightning') G.fx.push({ t: delay * 0.6, fn: () => thunder(u) });
+}
+function shock(u, col, r) { const rg = ring(0.2, 0.5, col, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg); G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * r * 2); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) }); }
+function frostNova(u) {
+  S.frost(); C.parts.emit(u.x, 0.4, u.z, 36, { col: 0xcfeeff, spd: 5, up: 1.5, grav: 3, life: 0.6, size: 0.28 }); shock(u, 0x7cc8ff, 3);
+  for (const h of hostilesOf(u)) if (!h.dead && dist(h, u) < 3.2) { damage(u, h, u.dmg * 0.9, { noFx: true }); h.chillT = Math.max(h.chillT || 0, 3.5); }
+}
+function poisonCloud(u) {
+  S.fire(); const disc = new THREE.Mesh(new THREE.CircleGeometry(2.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3fbf2a, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  disc.position.set(u.x, 0.04, u.z); disc.renderOrder = 2; C.scene.add(disc);
+  G.clouds.push({ x: u.x, z: u.z, r: 2.3, t: 0, max: 4.5, tick: 0, dps: u.dmg * 0.55, side: u.side, src: u, disc });
+}
+function thunder(u) {
+  S.zap(); S.boom(); C.parts.emit(u.x, 1.0, u.z, 30, { col: 0xfffbd0, spd: 5, up: 2, grav: 0, life: 0.3, size: 0.22 }); shock(u, 0xfff07a, 2.5);
+  const list = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 4.8).sort((a, b) => dist(a, u) - dist(b, u)).slice(0, 4);
+  for (const h of list) { bolt(u, h, 0.3); damage(u, h, u.dmg * 1.1, { noChain: true, noFx: true }); C.parts.emit(h.x, 0.8, h.z, 8, ELEM.lightning.hit); }
+}
+// chill / poison ticking, poison clouds; chilled units move, attack and animate slower
+export const slowK = u => u.chillT > 0 ? 0.55 : 1;
+export function updateStatus(u, dt) {
+  if (u.chillT > 0) { u.chillT -= dt; if (Math.random() < dt * 6) C.parts.emit(u.x, 1.1, u.z, 1, { col: 0xdff4ff, spd: 0.3, up: 0, grav: 1.2, life: 0.6, size: 0.16, spread: 0.6 }); }
+  const p = u.poison; if (p) { p.left -= dt; p.tick -= dt; if (Math.random() < dt * 5) C.parts.emit(u.x, 0.9, u.z, 1, { col: 0x8aff5a, spd: 0.2, up: 0.8, grav: -0.5, life: 0.6, size: 0.18, spread: 0.5 });
+    if (p.tick <= 0) { p.tick = 0.5; damage(p.src, u, p.dps * 0.5, { dot: 'poison', noFx: true }); } if (p.left <= 0) u.poison = null; }
+  const st = u.mesh.u.uStat.value; if (u.chillT > 0) st.set(0.55, 0.82, 1.0, 0.5); else if (u.poison) st.set(0.5, 1.0, 0.35, 0.38); else st.w = 0;
+}
+export function updateHazards(dt) {
+  let j = 0;
+  for (const c of G.clouds) { c.t += dt; c.tick -= dt; const k = c.t / c.max; c.disc.material.opacity = 0.32 * Math.min(1, c.t * 3) * Math.min(1, (1 - k) * 3);
+    if (Math.random() < dt * 22) { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * c.r; C.parts.emit(c.x + Math.cos(a) * r, 0.2, c.z + Math.sin(a) * r, 1, { col: 0x6fe04a, spd: 0.1, up: 0.7, grav: -0.3, life: 0.9, size: 0.4, spread: 0 }); }
+    if (c.tick <= 0) { c.tick = 0.5; for (const h of (c.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && Math.hypot(h.x - c.x, h.z - c.z) < c.r + h.r * 0.5) damage(c.src, h, c.dps * 0.5, { dot: 'poison', noFx: true }); }
+    if (c.t >= c.max) { C.scene.remove(c.disc); c.disc.geometry.dispose(); continue; } G.clouds[j++] = c; }
+  G.clouds.length = j;
+  let b = 0; for (const x of G.bolts) if (x.until > G.t) G.bolts[b++] = x; G.bolts.length = b;
 }
 function panic(e, from) { if (e.state === 'panic') return; e.state = 'panic'; e.st = 0; e.panicDur = rand(1.3, 2.4); e.panicX = from.x; e.panicZ = from.z; S.squeal(); say(e.x, e.z, '!!', '#ffd34d', 18, 1.5); }
 
@@ -386,7 +437,7 @@ function updateLunge(u, dt) {
 // ---------- per-frame unit update ----------
 export function updateUnit(u, dt) {
   if (u.dead) return;
-  u.flash = Math.max(0, u.flash - dt * 5); u.barT -= dt; u.cdT -= dt;
+  u.flash = Math.max(0, u.flash - dt * 5); u.barT -= dt; u.cdT -= dt * slowK(u); dt *= slowK(u) < 1 ? 0.75 : 1;
   if (u.spawnT > 0) { u.spawnT -= dt; u.wantX = u.wantZ = 0; return; }
   if (u.stun > 0 && u.state !== 'leap') { u.stun -= dt; u.wantX = u.wantZ = 0; if (u.tele) { C.scene.remove(u.tele); u.tele = null; } }
   else if (u.state === 'windup') { u.st += dt; u.wantX = u.wantZ = 0; if (u.tgt && !u.tgt.dead && u.kind !== 'brute') faceTo(u, u.tgt);
@@ -418,7 +469,7 @@ function resurrect(by, c) {
 let frame = 0, camX = 0, camZ = 0; const WP = new THREE.Vector3();
 export function integrate(units, dt) {
   const F = C.floor; frame++; if (G.player) { camX = G.player.x; camZ = G.player.z; }
-  for (const u of units) { if (u.dead) continue; const a = Math.min(1, dt * 10); u.vx += (u.wantX - u.vx) * a; u.vz += (u.wantZ - u.vz) * a; }
+  for (const u of units) { if (u.dead) continue; updateStatus(u, dt); if (u.dead) continue; const a = Math.min(1, dt * 10), sk = slowK(u); u.vx += (u.wantX * sk - u.vx) * a; u.vz += (u.wantZ * sk - u.vz) * a; }
   for (let i = 0; i < units.length; i++) { const a = units[i]; if (a.dead || a.state === 'leap') continue;
     for (let j = i + 1; j < units.length; j++) { const b = units[j]; if (b.dead || b.state === 'leap') continue; const dx = b.x - a.x, dz = b.z - a.z, rr = (a.r + b.r) * (a.side !== 'enemy' && b.side !== 'enemy' ? 0.45 : 1); if (Math.abs(dx) > rr || Math.abs(dz) > rr) continue;
       const d = Math.hypot(dx, dz); if (d >= rr || d < 1e-5) continue; const push = (rr - d) * 0.5, nx = dx / d, nz = dz / d;
@@ -435,7 +486,7 @@ export function integrate(units, dt) {
       for (const t of m.tips) { t.getWorldPosition(WP); C.parts.emit(WP.x, WP.y, WP.z, 1, el.part); }
       if (m.elem === 'fast' && sp > 1.5) C.parts.emit(u.x, 0.6, u.z, 1, { col: 0x8fe0ff, spd: 0.05, up: 0, grav: 0, life: 0.22, size: 0.42, spread: 0.3 }); }
     // animation level of detail: far units update their skeleton every other frame
-    u.mixAcc += dt; if (Math.hypot(u.x - camX, u.z - camZ) > 13 && (frame + u.id) % 2) continue; m.mixer.update(u.mixAcc); u.mixAcc = 0;
+    u.mixAcc += dt * (u.chillT > 0 ? 0.6 : 1); if (Math.hypot(u.x - camX, u.z - camZ) > 13 && (frame + u.id) % 2) continue; m.mixer.update(u.mixAcc); u.mixAcc = 0;
   }
 }
 export function updateCorpses(dt) {

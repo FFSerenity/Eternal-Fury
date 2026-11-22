@@ -127,7 +127,7 @@ function renderDetail(list, en) {
   d.innerHTML = `<div class="dHead"><button class="btn back">‹ 返回</button><div class="ic">${T.icon}</div><div class="info"><div class="nm">${enName(en)}</div>
       <div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div><div class="xp"><i style="width:${Math.min(100, en.xp / need * 100)}%"></i></div><div class="xpT">经验 ${Math.floor(en.xp)} / ${Math.round(need)}</div></div>
       <button class="btn tg">${en.active ? '休息' : '出战'}</button></div>
-    <div class="stats">${statLine}</div>
+    <div class="stats">${statLine}${en.champ && en.mods[0] ? `<div class="affix">${MODS[en.mods[0]].name}：${MODS[en.mods[0]].desc}</div>` : ''}</div>
     <div class="secT">技能 <span class="pts">魂能点 <b>${en.sp || 0}</b></span></div>
     <div class="skl">${tree.map(sk => { const r = (en.skills || {})[sk.id] || 0, mx = r >= sk.max;
       return `<div class="sr${r ? ' got' : ''}"><span class="si">${sk.icon}</span><div class="sd"><div class="sn">${sk.name}<span class="pips">${'●'.repeat(r)}${'○'.repeat(sk.max - r)}</span></div>
@@ -187,6 +187,13 @@ export function drawOverlay() {
   if (P.state === 'channel' && P.chanC) { const [ax, ay] = toScreen(P.x, 1.2, P.z), [bx, by] = toScreen(P.chanC.x, 0.3, P.chanC.z), k = P.st / SKILLS.raise.channel;
     g.strokeStyle = `rgba(120,255,235,${0.5 + 0.4 * Math.sin(G.t * 30)})`; g.lineWidth = 3 + 3 * k; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
     g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 6; g.beginPath(); g.arc(bx, by - 26, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.strokeStyle = '#8ff7ea'; g.lineWidth = 3; g.stroke(); }
+  // lightning bolts: jagged, flickering polylines between units
+  if (G.bolts.length) { g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
+    for (const b of G.bolts) { const [ax, ay, va] = toScreen(b.ax, 0.9, b.az), [bx, by, vb] = toScreen(b.bx, 0.9, b.bz); if (!va && !vb) continue;
+      const n = 7, pts = [[ax, ay]], len = Math.hypot(bx - ax, by - ay), nx = -(by - ay) / (len || 1), ny = (bx - ax) / (len || 1);
+      for (let i = 1; i < n; i++) { const k = i / n, j = (Math.random() - 0.5) * Math.min(26, len * 0.25); pts.push([ax + (bx - ax) * k + nx * j, ay + (by - ay) * k + ny * j]); } pts.push([bx, by]);
+      for (const [w, c] of [[7, 'rgba(255,230,90,.35)'], [3, 'rgba(255,248,190,.95)'], [1.2, '#ffffff']]) { g.lineWidth = w; g.strokeStyle = c; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); } }
+    g.restore(); }
   // floating numbers / words
   let j = 0; for (const m of G.msgs) { m.t += 1 / 60; if (m.t > m.max) continue; G.msgs[j++] = m; const [x, y, vis] = toScreen(m.x, m.y + m.t * 1.2, m.z); if (!vis) continue;
     g.globalAlpha = Math.min(1, (m.max - m.t) * 3); g.font = `800 ${m.size}px system-ui,sans-serif`; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(m.text, x, y); g.fillStyle = m.col; g.fillText(m.text, x, y); }

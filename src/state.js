@@ -1,7 +1,7 @@
 // Shared game state and the save file
 export const G = {
   units: [], corpses: [], shots: [], fx: [], enemies: [], friends: [], depth: 0, deep: 1, floor: null, player: null, t: 0,
-  crypt: [], ghosts: [], level: 1, xp: 0, uid: 1, msgs: [],
+  crypt: [], ghosts: [], bolts: [], clouds: [], level: 1, xp: 0, uid: 1, msgs: [],
 };
 const KEY = 'graveTamerSave';
 export function save() {

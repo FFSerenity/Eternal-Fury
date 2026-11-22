@@ -4,7 +4,7 @@ import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
 import { A, loadAll, propGeo } from './assets.js';
 import { Floor, setNavTime } from './world.js';
-import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk } from './units.js';
+import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt } from './ui.js';
 import { S, unlock } from './audio.js';
 
@@ -42,7 +42,7 @@ initUI({ camera, groundAt, canvas, reset: () => resetDungeon() });
 let packId = 1;
 function makeFloor(depth) {
   for (const u of G.units) if (u.side !== 'player') u.remove(); for (const c of G.corpses) scene.remove(c.mesh.root); for (const s of G.shots) scene.remove(s.root);
-  for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = [];
+  for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = []; for (const c of G.clouds) scene.remove(c.disc); G.clouds = []; G.bolts = [];
   G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
   if (G.floor) G.floor.dispose(scene);
   const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; if (depth > 0) G.deep = depth;
@@ -82,11 +82,11 @@ const tmp = { x: 0, z: 0 };
 function updatePlayer(dt) {
   const P = G.player, F = G.floor; P.flash = Math.max(0, P.flash - dt * 5);
   if (P.dead) { P.wantX = P.wantZ = 0; P.respawnT -= dt; P.mesh.mixer.update(dt); P.mesh.u.uFade.value = Math.min(1, Math.max(0, (P.respawnT - 0.3) / 0.8));
-    if (P.respawnT <= 0) { P.dead = false; P.state = 'idle'; P.hp = P.maxHp; P.mp = P.maxMp; P.x = F.start.cx; P.z = F.start.cy; P.mesh.u.uFade.value = 1; playerAnim(P, 'revive');
+    if (P.respawnT <= 0) { P.dead = false; P.chillT = 0; P.poison = null; P.state = 'idle'; P.hp = P.maxHp; P.mp = P.maxMp; P.x = F.start.cx; P.z = F.start.cy; P.mesh.u.uFade.value = 1; playerAnim(P, 'revive');
       for (const en of G.crypt) if (en.unit && !en.unit.dead) { en.unit.x = P.x + 1; en.unit.z = P.z; } message('你在入口处重新站了起来'); } return; }
   const fighting = G.enemies.some(e => e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 12);
   P.mp = Math.min(P.maxMp, P.mp + (fighting ? 4 : 8) * dt); P.hp = Math.min(P.maxHp, P.hp + P.maxHp * (fighting ? 0.004 : 0.03) * dt);
-  P.spearCD = (P.spearCD || 0) - dt; P.mendCD = (P.mendCD || 0) - dt; P.atkT = (P.atkT || 0) - dt;
+  P.spearCD = (P.spearCD || 0) - dt * slowK(P); P.mendCD = (P.mendCD || 0) - dt; P.atkT = (P.atkT || 0) - dt;
   const moving = IN.joy || (IN.hold && IN.moveTo);
   // channelling 唤魂 on a corpse
   if (P.state === 'channel') { P.wantX = P.wantZ = 0; P.st += dt;
@@ -158,7 +158,7 @@ function loop(now) {
     const active = [];
     for (const u of G.units) { if (u.dead || u === P) continue; if (u.side === 'enemy' && !u.aggro && Math.hypot(u.x - P.x, u.z - P.z) > 26) { u.mesh.root.visible = false; continue; } u.mesh.root.visible = true; updateUnit(u, dt); active.push(u); }
     if (!P.dead) active.push(P); integrate(active, dt);
-    updateShots(dt); updateCorpses(dt); updateGhosts(dt);
+    updateShots(dt); updateCorpses(dt); updateGhosts(dt); updateHazards(dt);
     let j = 0; for (const f of G.fx) { f.t -= dt; f.k = (f.k || 0) + dt; if (f.tick) f.tick(Math.min(1, f.k / (f.k + Math.max(0, f.t)))); if (f.t <= 0) { f.fn && f.fn(); continue; } G.fx[j++] = f; } G.fx.length = j;
     G.units = G.units.filter(u => !u.dead || u === P);
     // revive timers (a shaman in the party speeds them up)

@@ -18,16 +18,25 @@ export const TYPES = {
   },
 };
 export const MODS = {
-  fast:  { name: '迅捷', col: 0x7fd6ff },
-  fire:  { name: '火焰强化', col: 0xff8a2a },
-  stone: { name: '石肤', col: 0xb9b2a4 },
+  fast:      { name: '迅捷', col: 0xe6eef8, desc: '移动和攻击都更快，跑动时留下残影' },
+  fire:      { name: '火焰强化', col: 0xff8a2a, desc: '武器带火，倒下时爆炸，灼烧周围的敌人' },
+  stone:     { name: '石肤', col: 0xb9b2a4, desc: '护甲极高、生命更多，不会被打断' },
+  cold:      { name: '冰冻', col: 0x7cc8ff, desc: '攻击让敌人冻结减速，倒下时放出冰霜新星' },
+  poison:    { name: '剧毒', col: 0x7dff5a, desc: '攻击让敌人中毒持续掉血，倒下时留下一团毒云' },
+  lightning: { name: '闪电强化', col: 0xfff07a, desc: '攻击有几率连锁闪电打到旁边的敌人，倒下时放出雷暴' },
 };
 // elemental look of champion affixes: weapon glow, particles off the weapon, hit sparks, projectile trails
 export const ELEM = {
   fire:  { col: 0xff7a20, emis: 0x7a2a00, part: { col: 0xff8a2a, spd: 0.35, up: 1.3, grav: -1.4, life: 0.5, size: 0.24, spread: 0.08 },
            hit: { col: 0xff8a2a, spd: 2.2, up: 1.8, grav: -0.5, life: 0.45, size: 0.3 } },
-  fast:  { col: 0x8fe0ff, emis: 0x124a66, part: { col: 0xb8eeff, spd: 0.7, up: 0.3, grav: 0, life: 0.28, size: 0.16, spread: 0.08 },
-           hit: { col: 0xb8eeff, spd: 3.8, up: 0.8, grav: 0, life: 0.25, size: 0.16 } },
+  fast:  { col: 0xeef4ff, emis: 0x2a3444, part: { col: 0xf2f6ff, spd: 0.7, up: 0.3, grav: 0, life: 0.26, size: 0.15, spread: 0.08 },
+           hit: { col: 0xf2f6ff, spd: 3.8, up: 0.8, grav: 0, life: 0.25, size: 0.16 } },
+  cold:  { col: 0x7cc8ff, emis: 0x0c3a66, part: { col: 0xcfeeff, spd: 0.25, up: 0.1, grav: 1.6, life: 0.6, size: 0.17, spread: 0.1 },
+           hit: { col: 0xbfe8ff, spd: 2.6, up: 1.4, grav: 2.5, life: 0.5, size: 0.22 } },
+  poison: { col: 0x7dff5a, emis: 0x1f5a10, part: { col: 0x8aff5a, spd: 0.2, up: 0.8, grav: -0.6, life: 0.7, size: 0.2, spread: 0.08 },
+           hit: { col: 0x7dff5a, spd: 1.8, up: 1.6, grav: -0.3, life: 0.6, size: 0.26 } },
+  lightning: { col: 0xfff07a, emis: 0x5a4a08, part: { col: 0xfff6b0, spd: 1.6, up: 0.4, grav: 0, life: 0.16, size: 0.15, spread: 0.06 },
+           hit: { col: 0xfffbd0, spd: 4.5, up: 1, grav: 0, life: 0.2, size: 0.17 } },
   stone: { col: 0xd8c49a, emis: 0x2e2618, part: { col: 0xb4a284, spd: 0.4, up: 0.2, grav: 5, life: 0.45, size: 0.17, spread: 0.1 },
            hit: { col: 0xa8987a, spd: 2.6, up: 2.4, grav: 7, life: 0.5, size: 0.22 } },
 };
