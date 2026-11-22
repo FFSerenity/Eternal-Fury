@@ -547,7 +547,7 @@ export function integrate(units, dt) {
     u.x += (u.vx + u.kx) * dt; u.z += (u.vz + u.kz) * dt; const kd = Math.exp(-dt * 7); u.kx *= kd; u.kz *= kd; F.collide(u);
     const sp = Math.hypot(u.vx, u.vz); if (sp > 0.4 && u.state !== 'windup' && u.state !== 'leap') u.faceT = Math.atan2(u.vx, u.vz);
     if (u.faceT != null) { let d = u.faceT - u.face; d = ((d + Math.PI * 3) % TAU) - Math.PI; u.face += d * Math.min(1, dt * 14); }
-    const m = u.mesh; m.root.position.set(u.x, u.y || 0, u.z); m.root.rotation.y = u.face;
+    const m = u.mesh; m.root.position.set(u.x, (u.y || 0) + (F.lift ? F.lift(u.x, u.z) : 0), u.z); m.root.rotation.y = u.face;
     animate(u, dt, sp); m.u.uFlash.value = u.flash * 0.7; if (u.ringMesh) u.ringMesh.rotation.y += dt;
     if (m.soul) { const f = 1 + Math.sin(G.t * 9 + u.id) * 0.08 + Math.sin(G.t * 23 + u.id * 3) * 0.05; m.soul.scale.setScalar(f); m.soul.position.x = Math.sin(G.t * 2 + u.id) * 0.06;
       if (Math.random() < dt * 2.5) { m.soul.getWorldPosition(WP); C.parts.emit(WP.x, WP.y, WP.z, 1, { col: 0x5ff6e6, spd: 0.1, up: 0.5, grav: -0.4, life: 0.6, size: 0.12, spread: 0.08 }); } }

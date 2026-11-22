@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { glowSprite } from './gfx.js';
 import { PropBatch } from './assets.js';
+import { portalMesh } from './vfx.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -43,11 +44,15 @@ export class Floor {
     const W = 40, H = 40; this.W = W; this.H = H; this.R = R; this.amb = [0.40, 0.44, 0.64]; this.lightR = 9.5;
     const g = this.g = new Uint8Array(W * H);
     for (let z = 8; z < 32; z++) for (let x = 8; x < 32; x++) g[z * W + x] = 1;
-    const crypt = { x: 14, z: 12.4, s: 0.65 }; this.crypt = crypt;
-    for (let z = 9; z <= 14; z++) for (let x = 12; x <= 15; x++) g[z * W + x] = 2;
+    // the crypt sits with its door centred on cell column 14, so the doorway on its plinth is one walkable cell
+    const crypt = { x: 14.5, z: 12.4, s: 0.65 }; this.crypt = crypt;
+    for (let z = 9; z <= 14; z++) for (let x = 12; x <= 16; x++) g[z * W + x] = 2;
+    g[14 * W + 14] = 1;
     this.start = { x: 21, y: 22, w: 5, h: 5, cx: 23.5, cy: 24.5 }; this.rooms = [this.start]; this.end = this.start;
-    this.stairs = { x: 14, z: 16.1 };
+    this.stairs = { x: 14.5, z: 14.4 }; // the portal in the doorway
   }
+  // standing height: the crypt's plinth (0.26 high, front edge at z 15) under the doorway; 0 everywhere else
+  lift(x, z) { const c = this.crypt; if (!c || Math.abs(x - c.x) > 0.7 || z < c.z) return 0; return 0.26 * Math.min(1, Math.max(0, (15.08 - z) / 0.3)); }
   walk(x, z) { const X = Math.floor(x), Z = Math.floor(z); return X >= 0 && Z >= 0 && X < this.W && Z < this.H && this.g[Z * this.W + X] === 1; }
   block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); this.nw = null; return true; } return false; }
   // line of sight on the tile grid (also used for projectiles)
@@ -163,10 +168,12 @@ export class Floor {
     const pathCells = new Set(), path = (ax, az, bx, bz) => { let x = ax, z = az; const put = () => { const k = z * W + x; if (pathCells.has(k)) return; pathCells.add(k);
       B.add('path_' + 'ABCD'[Math.floor(R() * 4)], x + 0.5, 0.005, z + 0.5, Math.floor(R() * 4) * Math.PI / 2, 0.5); };
       while (z !== bz) { put(); z += Math.sign(bz - z); } while (x !== bx) { put(); x += Math.sign(bx - x); } put(); };
-    path(23, 25, 14, 16); path(23, 20, 26, 8); path(14, 16, 13, 16); path(14, 16, 15, 17);
+    path(23, 25, 14, 16); path(23, 20, 26, 8); path(14, 16, 13, 16); path(14, 16, 15, 17); path(14, 16, 14, 15);
     const C = this.crypt; B.add('crypt', C.x, 0, C.z, 0, C.s);
-    this.stairsGlow = this.glow(14, 0.9, 15.3, 0x6fb6ff, 2.6, 0.5);
-    this.torches.push({ x: 14, y: 0.6, z: 15.6, r: 2.8, ph: 0 });
+    // the crypt door is a portal: swirling light fills the doorway (door face 1.4 m in front of the centre, 1.04 m wide, top at ~2.05)
+    this.portal = portalMesh(1.04, 1.8); this.portal.position.set(C.x, 0.26, C.z + 1.42); this.group.add(this.portal);
+    this.stairsGlow = this.glow(C.x, 0.45, 14.7, 0x6fb6ff, 2.6, 0.5); this.glow(C.x, 1.2, C.z + 1.55, 0x5fd0ff, 2.6, 0.45);
+    this.torches.push({ x: C.x, y: 0.6, z: 15.6, r: 2.8, ph: 0 });
     // lantern posts along the paths
     for (const [x, z, r] of [[21.6, 21.2, 0], [17.2, 16.4, 0], [24.6, 15.0, Math.PI], [22.0, 26.4, 0]]) { const cx = Math.floor(x), cz = Math.floor(z); this.block(cx, cz);
       B.add('post_lantern', cx + 0.5, 0, cz + 0.5, r, 0.5); const lx = cx + 0.5 + Math.sin(r) * 0.6, lz = cz + 0.5 + Math.cos(r) * 0.6; this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
@@ -181,7 +188,7 @@ export class Floor {
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 20.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12);
-    B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 16.6, 0, 14.3, 0, 0.5); this.block(16, 14);
+    B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing
     for (const [x, z, t] of [[29.5, 10.5, 'tree_dead_large'], [10.5, 30.5, 'tree_dead_medium'], [30.5, 29.5, 'tree_dead_small'], [28.5, 17.5, 'tree_dead_medium'], [19.5, 30.5, 'tree_dead_small']]) {
       B.add(t, x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); }

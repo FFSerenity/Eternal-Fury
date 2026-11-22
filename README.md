@@ -43,7 +43,8 @@ movement, attacks and animation; frost nova on death), Poison (damage over time;
 Packs alert each other; hard hits stagger.
 
 ## World
-You start in a small graveyard camp; the crypt door leads down to the deepest floor you have reached.
+You start in a small graveyard camp; the crypt's door is a glowing portal — walk up its steps into it (or click anywhere on the building) to go down to the deepest floor you have reached.
+Inside the crypt, standing on the glowing grate only shows the **⬇ Descend** button: you go down only when you press it (or Enter), so you never drop a floor by accident with loot still lying around.
 Each crypt floor is generated: rooms and corridors, torch-lit far walls, props, and a grate down to the next floor.
 
 ## Tech

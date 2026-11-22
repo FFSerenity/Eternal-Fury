@@ -7,7 +7,7 @@ import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
 import { Floor, setNavTime } from './world.js';
-import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot } from './units.js';
+import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt } from './ui.js';
 import { S, unlock } from './audio.js';
 
@@ -136,7 +136,9 @@ function updatePlayer(dt) {
   if (shooting && !IN.joy) { P.wantX = P.wantZ = 0; }
   // stairs
   const ns = Math.hypot(P.x - F.stairs.x, P.z - F.stairs.z) < 1.3;
-  if (IN.stairs && ns) { IN.stairs = false; IN.moveTo = null; S.stairs(); closeCrypt(); makeFloor(G.depth === 0 ? G.deep : G.depth + 1); } else if (IN.stairs && !IN.moveTo) IN.stairs = false;
+  // going down needs the button (or Enter) — except the camp's portal, which you simply walk into
+  const intoPortal = G.depth === 0 && Math.hypot(P.x - F.stairs.x, P.z - F.stairs.z) < 0.3;
+  if ((IN.stairs && ns) || intoPortal) { IN.stairs = false; IN.moveTo = null; IN.hold = false; S.stairs(); closeCrypt(); makeFloor(G.depth === 0 ? G.deep : G.depth + 1); } else if (IN.stairs) IN.stairs = false;
 }
 
 // ---------- start screen ----------
@@ -180,6 +182,8 @@ function loop(now) {
     let rvs = 1; for (const f of G.friends) if (f.side === 'ally' && f.kind === 'shaman') rvs = Math.max(rvs, 1.4 * (1 + 0.2 * rk(f, 'soul')));
     for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(tr(`${affixName(en.mods, en.champ)}${TYPES[en.type].name} 复原了`, `${affixName(en.mods, en.champ)}${TYPES[en.type].name} is back`)); } } }
     G.floor.stairsGlow.material.opacity = 0.55 + 0.25 * Math.sin(G.t * 2.5);
+    const pt = G.floor.portal; if (pt) { pt.material.uniforms.uT.value = G.t;   // motes drifting up the portal and out over the plinth
+      if (Math.random() < dt * 16) parts.emit(pt.position.x + (Math.random() - 0.5) * 0.9, 0.35 + Math.random() * 1.4, pt.position.z + 0.08, 1, { col: Math.random() < 0.5 ? 0x8fe8ff : 0x5fa8ff, spd: 0.12, up: 0.5, grav: -0.35, life: 1.3, size: 0.13, spread: 0.05 }); }
   }
   const P = G.player;
   placeCamera(false);
@@ -192,4 +196,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps);
 }
-window.__gt = { dbg: { dropLoot, rollItem }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { dbg: { dropLoot, rollItem, fuse, fusionOdds }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

@@ -39,7 +39,11 @@ export function message(text, big = false) {
 function pickEnemy(p, r = 0.9) { let b = null, bd = r; for (const e of G.enemies) { if (e.dead) continue; const d = Math.hypot(e.x - p.x, e.z - p.z) - e.r; if (d < bd) { bd = d; b = e; } } return b; }
 export function pickCorpse(p, r = 1.0) { let b = null, bd = r; for (const c of G.corpses) { if (c.claim) continue; const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < bd) { bd = d; b = c; } } return b; }
 // clicks on walls, props or the dark outside keep the summoner walking toward them instead of stopping dead
-const snapMove = p => { const F = G.floor, P = G.player; if (!F || !P) return p; const s = F.snapToward(p.x, p.z, P.x, P.z);
+const snapMove = p => { const F = G.floor, P = G.player; if (!F || !P) return p;
+  // in the camp, pointing at the crypt building means "walk into its door" (not to the nearest free spot beside it)
+  // (the camera looks down along -x/-z, so a point h up on the building lands 0.69·h further back on the ground: sweep the box up its height)
+  const c = F.crypt; if (c) for (let h = 0; h <= 5.2; h += 0.25) { const k = 0.69 * h; if (Math.abs(p.x + k - c.x) < 2.0 && Math.abs(p.z + k - c.z) < 2.65) return { ...F.stairs }; }
+  const s = F.snapToward(p.x, p.z, P.x, P.z);
   return Math.hypot(s.x - P.x, s.z - P.z) < 0.6 ? F.nearestWalk(p.x, p.z) : s; };
 function bindInput(cv) {
   let joyId = null, joyO = null;
@@ -56,7 +60,6 @@ function bindInput(cv) {
     if (IN.shift) { IN.castAt = p; IN.castHold = true; return; }
     const en = pickEnemy(p); if (en) { IN.attack = en; G.focus = en; IN.hold = false; return; }
     const c = pickCorpse(p, 0.9); if (c) { IN.raise = c; return; }
-    if (G.floor && Math.hypot(p.x - G.floor.stairs.x, p.z - G.floor.stairs.z) < 0.9) { IN.moveTo = { ...G.floor.stairs }; IN.stairs = true; return; }
     IN.attack = null; IN.moveTo = snapMove(p); IN.hold = true;
   });
   cv.addEventListener('pointermove', e => {

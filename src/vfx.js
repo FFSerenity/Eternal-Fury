@@ -57,3 +57,28 @@ export class SoulChannel {
   drop(c) { const i = this.links.findIndex(L => L.c === c); if (i < 0) return; const L = this.links[i]; for (const o of [L.ring, L.core, ...L.wisps.map(w => w.s)]) this.g.remove(o); this.links.splice(i, 1); }
   dispose() { this.scene.remove(this.g); this.g.traverse(o => { if (o.isMesh) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
 }
+
+// ---------- the crypt door portal: a sheet of swirling blue light filling a doorway (w × h, bottom edge at y = 0) ----------
+export function portalMesh(w, h) {
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uT: { value: 0 }, uA: { value: w / h } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `varying vec2 vUv; uniform float uT, uA;
+      void main() {
+        vec2 p = vec2((vUv.x - 0.5) * uA, vUv.y - 0.45);                  // aspect-correct, centre a little below the middle
+        float r = length(p), a = atan(p.y, p.x);
+        float sw = sin(a * 3.0 + r * 16.0 - uT * 2.6) * 0.5 + sin(a * 5.0 - r * 22.0 + uT * 1.7) * 0.35 + sin(r * 30.0 - uT * 4.0) * 0.15;
+        float band = smoothstep(0.1, 0.9, sw * 0.5 + 0.5);
+        vec3 col = mix(vec3(0.03, 0.10, 0.30), vec3(0.25, 0.80, 1.0), band * 0.75);
+        col += vec3(0.55, 0.9, 1.0) * exp(-r * r * 9.0) * (0.55 + 0.15 * sin(uT * 3.3));  // bright core
+        float e = min(min(vUv.x, 1.0 - vUv.x) * uA, 1.0 - vUv.y);                      // distance to the frame
+        col += vec3(0.5, 0.95, 1.0) * smoothstep(0.12, 0.0, e) * 0.9;                    // bright rim along the frame
+        float rise = fract(vUv.y * 3.0 - uT * 0.6); col += vec3(0.3, 0.7, 1.0) * smoothstep(0.92, 1.0, rise) * 0.25 * (1.0 - vUv.y);
+        float fade = smoothstep(0.0, 0.06, vUv.y);                                        // softer where it meets the floor
+        gl_FragColor = vec4(col * fade * (0.85 + 0.15 * sin(uT * 2.0)), 1.0);
+      }`,
+  });
+  const g = new THREE.PlaneGeometry(w, h); g.translate(0, h / 2, 0);
+  const m = new THREE.Mesh(g, mat); m.renderOrder = 2; return m;
+}
