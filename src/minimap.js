@@ -35,16 +35,17 @@ function reveal(F, x, z, r) {
 function rebuild(F) {
   const W = F.W, H = F.H, d = ictx.createImageData(W, H), p = d.data;
   for (let i = 0; i < W * H; i++) { if (!F.seen[i]) continue; const v = F.g[i], o = i * 4;
-    if (v === 1) { p[o] = 92; p[o + 1] = 78; p[o + 2] = 132; p[o + 3] = 150; } else if (v === 2) { p[o] = 196; p[o + 1] = 178; p[o + 2] = 236; p[o + 3] = 255; } }
+    if (v === 1) { if (F.pathM && F.pathM[i]) { p[o] = 150; p[o + 1] = 120; p[o + 2] = 96; p[o + 3] = 190; } else { p[o] = 92; p[o + 1] = 78; p[o + 2] = 132; p[o + 3] = 150; } }
+    else if (v === 2) { if (F.kd && F.kd[i] && F.kd[i] <= 3) { p[o] = 52; p[o + 1] = 84; p[o + 2] = 62; p[o + 3] = 220; } else { p[o] = 196; p[o + 1] = 178; p[o + 2] = 236; p[o + 3] = 255; } } } // trees dark green, paths brown
   ictx.putImageData(d, 0, 0); dirty = false;
 }
 
 const QC = ['#d8d2c8', '#6f9bff', '#ffd36a'];
 export function updateMap(dt) {
   const F = G.floor, P = G.player; if (!cv || !F || !P) return;
-  if (F !== lastF) { lastF = F; if (!F.seen) F.seen = new Uint8Array(F.W * F.H); if (G.depth === 0) F.seen.fill(1); img.width = F.W; img.height = F.H; dirty = true; }
+  if (F !== lastF) { lastF = F; if (!F.seen) F.seen = new Uint8Array(F.W * F.H); if (G.depth === 0) { for (let i = 0; i < F.W * F.H; i++) if (i % F.W < 33 && i / F.W < 33) F.seen[i] = 1; } /* the camp is known; the wilds get mapped as they are walked */ img.width = F.W; img.height = F.H; dirty = true; }
   if (mode === 'off') return; acc += dt; if (acc < 0.1) return; acc = 0;
-  reveal(F, P.x, P.z, 9);
+  reveal(F, P.x, P.z, G.depth === 0 ? 13 : 9);
   for (const r of F.rooms || []) if (P.x >= r.x && P.x <= r.x + r.w && P.z >= r.y && P.z <= r.y + r.h && !r.seen) { r.seen = 1; // walking into a room maps all of it
     for (let Z = Math.max(0, r.y - 1); Z <= Math.min(F.H - 1, r.y + r.h); Z++) for (let X = Math.max(0, r.x - 1); X <= Math.min(F.W - 1, r.x + r.w); X++) if (F.g[Z * F.W + X]) F.seen[Z * F.W + X] = 1; dirty = true; }
   if (dirty) rebuild(F);

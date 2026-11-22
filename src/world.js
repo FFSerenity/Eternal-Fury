@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { glowSprite } from './gfx.js';
 import { PropBatch } from './assets.js';
 import { portalMesh } from './vfx.js';
+import { genWilds, buildWilds, WILD } from './wilds.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -39,9 +40,9 @@ export class Floor {
     this.end = far; this.stairs = { x: Math.floor(far.cx), z: Math.floor(far.cy) }; // a grid vertex: the grate covers the 4 cells around it
     this.R = R;
   }
-  // ---------- the graveyard camp (start area): an open clearing with a crypt that leads down ----------
+  // ---------- the graveyard camp (start area): an open clearing with a crypt that leads down, inside a big generated stretch of wilds ----------
   camp(R) {
-    const W = 40, H = 40; this.W = W; this.H = H; this.R = R; this.amb = [0.40, 0.44, 0.64]; this.lightR = 9.5;
+    const W = WILD.W, H = WILD.W; this.W = W; this.H = H; this.R = R; this.amb = [0.40, 0.44, 0.64]; this.lightR = 9.5;
     const g = this.g = new Uint8Array(W * H);
     for (let z = 8; z < 32; z++) for (let x = 8; x < 32; x++) g[z * W + x] = 1;
     // the crypt sits with its door centred on cell column 14, so the doorway on its plinth is one walkable cell
@@ -50,6 +51,7 @@ export class Floor {
     g[14 * W + 14] = 1;
     this.start = { x: 21, y: 22, w: 5, h: 5, cx: 23.5, cy: 24.5 }; this.rooms = [this.start]; this.end = this.start;
     this.stairs = { x: 14.5, z: 14.4 }; // the portal in the doorway
+    genWilds(this, R);
   }
   // standing height: the crypt's plinth (0.26 high, front edge at z 15) under the doorway; 0 everywhere else
   lift(x, z) { const c = this.crypt; if (!c || Math.abs(x - c.x) > 0.7 || z < c.z) return 0; return 0.26 * Math.min(1, Math.max(0, (15.08 - z) / 0.3)); }
@@ -200,8 +202,9 @@ export class Floor {
   }
   buildCamp(grp) {
     const W = this.W, H = this.H, g = this.g, R = this.R;
-    const CUT = { cut: true }, B = new PropBatch({ crypt: CUT, fence: CUT, fence_broken: CUT, fence_pillar: CUT, arch_gate: CUT, post_lantern: CUT, post_skull: CUT,
-      tree_dead_large: CUT, tree_dead_medium: CUT, tree_dead_small: CUT, tree_pine_orange_large: CUT, tree_pine_orange_medium: CUT, tree_pine_yellow_medium: CUT });
+    const CUT = { cut: true }, B = new PropBatch({ crypt: CUT, fence: CUT, fence_broken: CUT, fence_pillar: CUT, arch_gate: CUT, arch_gate_open: CUT, post_lantern: CUT, post_skull: CUT,
+      tree_dead_large: CUT, tree_dead_medium: CUT, tree_dead_small: CUT, tree_pine_orange_large: CUT, tree_pine_orange_medium: CUT, tree_pine_yellow_medium: CUT,
+      tree_pine_yellow_large: CUT, tree_pine_orange_small: CUT, tree_pine_yellow_small: CUT, tree_dead_large_decorated: CUT, wall_half: CUT, pillar: CUT, column: CUT, shrine: CUT, rubble_half: CUT });
     const inC = (x, z) => x >= 8 && x < 32 && z >= 8 && z < 32;
     // ground
     for (let z = -1; z < H + 2; z += 2) for (let x = -1; x < W + 2; x += 2) B.add(R() < 0.3 ? 'floor_dirt_large_rocky' : 'floor_dirt_large', x + 1, 0, z + 1, Math.floor(R() * 4) * Math.PI / 2, 0.5);
@@ -209,7 +212,7 @@ export class Floor {
     const pathCells = new Set(), path = (ax, az, bx, bz) => { let x = ax, z = az; const put = () => { const k = z * W + x; if (pathCells.has(k)) return; pathCells.add(k);
       B.add('path_' + 'ABCD'[Math.floor(R() * 4)], x + 0.5, 0.005, z + 0.5, Math.floor(R() * 4) * Math.PI / 2, 0.5); };
       while (z !== bz) { put(); z += Math.sign(bz - z); } while (x !== bx) { put(); x += Math.sign(bx - x); } put(); };
-    path(23, 25, 14, 16); path(23, 20, 26, 8); path(14, 16, 13, 16); path(14, 16, 15, 17); path(14, 16, 14, 15);
+    path(23, 25, 14, 16); path(23, 20, 26, 8); path(24, 21, 31, 20); path(23, 26, 24, 31); // to the crypt, the north gate, the east and south gates path(14, 16, 13, 16); path(14, 16, 15, 17); path(14, 16, 14, 15);
     const C = this.crypt; B.add('crypt', C.x, 0, C.z, 0, C.s);
     // the crypt door is a portal: swirling light fills the doorway (door face 1.4 m in front of the centre, 1.04 m wide, top at ~2.05)
     this.portal = portalMesh(1.04, 1.8); this.portal.position.set(C.x, 0.26, C.z + 1.42); this.group.add(this.portal);
@@ -227,24 +230,20 @@ export class Floor {
       const name = GR[Math.floor(R() * GR.length)]; B.add(name, cx + 0.5 + (R() - 0.5) * 0.2, 0, cz + 0.5 + (R() - 0.5) * 0.2, (R() - 0.5) * 0.25, 0.5); this.block(cx, cz);
       if (name.startsWith('grave_')) this.block(cx, cz + 1); }
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
-    for (const [x, z] of [[27.5, 13.5], [29.5, 20.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
+    for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing
     for (const [x, z, t] of [[29.5, 10.5, 'tree_dead_large'], [10.5, 30.5, 'tree_dead_medium'], [30.5, 29.5, 'tree_dead_small'], [28.5, 17.5, 'tree_dead_medium'], [19.5, 30.5, 'tree_dead_small']]) {
       B.add(t, x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); }
-    // fence around the clearing, with an arch gate on the far side
+    // fence around the clearing, with an arch gate on the far side (it only looks out on the woods) and the two gates out into the wilds (east and south)
     for (let t = 8; t < 32; t += 2) { const brk = () => R() < 0.2 ? 'fence_broken' : 'fence';
       if (!(t >= 24 && t <= 26)) B.add(brk(), t + 1, 0, 8.05, 0, 0.5);
-      B.add(brk(), 8.05, 0, t + 1, Math.PI / 2, 0.5); B.add(brk(), t + 1, 0, 31.95, 0, 0.5); B.add(brk(), 31.95, 0, t + 1, Math.PI / 2, 0.5); }
+      B.add(brk(), 8.05, 0, t + 1, Math.PI / 2, 0.5); if (t !== 22 && t !== 24) B.add(brk(), t + 1, 0, 31.95, 0, 0.5); if (t !== 18 && t !== 20) B.add(brk(), 31.95, 0, t + 1, Math.PI / 2, 0.5); }
     for (const [x, z] of [[8.05, 8.05], [31.95, 8.05], [8.05, 31.95], [31.95, 31.95]]) B.add('fence_pillar', x, 0, z, 0, 0.5);
     B.add('arch_gate', 26, 0, 8.05, 0, 0.6);
-    // forest around
-    for (let z = -3; z < H + 3; z += 2.3) for (let x = -3; x < W + 3; x += 2.3) { const jx = x + (R() - 0.5) * 1.6, jz = z + (R() - 0.5) * 1.6;
-      if (jx > 6.6 && jx < 33.4 && jz > 6.6 && jz < 33.4) continue; if (Math.abs(jx - 26) < 2.5 && jz < 8 && jz > 2) continue;
-      const front = jx > 33 || jz > 33; if (R() < (front ? 0.45 : 0.15)) continue;
-      const k = R(), t = front ? (k < 0.6 ? 'tree_dead_small' : 'tree_dead_medium') : k < 0.3 ? 'tree_pine_orange_large' : k < 0.5 ? 'tree_pine_orange_medium' : k < 0.65 ? 'tree_pine_yellow_medium' : k < 0.85 ? 'tree_dead_large' : 'tree_dead_medium';
-      B.add(t, jx, 0, jz, R() * 6.28, 0.5 * (0.85 + R() * 0.35)); }
+    // the wilds outside (and the forest all around)
+    buildWilds(this, B);
     B.build(grp);
   }
   dispose(scene) { scene.remove(this.group); this.group.traverse(o => { if (o.isSprite && o.material) o.material.dispose(); if (o.isInstancedMesh) o.dispose(); }); }

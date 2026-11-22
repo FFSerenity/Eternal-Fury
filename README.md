@@ -50,6 +50,14 @@ Packs alert each other; hard hits stagger.
 
 ## World
 You start in a small graveyard camp; the crypt's door is a glowing portal — walk up its steps into it (or click anywhere on the building) to go down to the deepest floor you have reached.
+**The Wilds**: two open gates in the camp fence (east and south) lead out into a big open map (120 × 120 m) that is generated anew
+every time you come back to the camp: groves of dead trees and autumn pines, winding paths with lantern posts, and places worth
+finding — roofless ruins with a chest, fenced old graveyards, candle-lit shrines, pumpkin patches. Monster packs wait all over it,
+denser than in the crypt, none close to the camp; they get tougher (and more often champion-led) the farther they wait from the
+camp, and every one of the places is guarded by a champion pack (two affixes once you are some way out). Monster level follows
+the deepest crypt floor you have reached, loot follows the monster's level. Packs are only created when you come near them.
+Trees standing between the camera and open ground are bare dead ones, so they hide less of the fight. The minimap maps the wilds as you walk them
+(trees dark green, paths brown).
 Inside the crypt, standing on the glowing grate only shows the **⬇ Descend** button: you go down only when you press it (or Enter), so you never drop a floor by accident with loot still lying around.
 Each crypt floor is generated: rooms and corridors, torch-lit far walls, props, and a grate down to the next floor.
 
