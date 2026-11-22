@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { G, save, load, wipe } from './state.js';
-import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem } from './data.js';
+import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
 import { A, loadAll, propGeo } from './assets.js';
 import { Floor, setNavTime } from './world.js';
@@ -74,7 +74,7 @@ function resetDungeon() {
 }
 
 // ---------- the summoner ----------
-function castSpear(P, tx, tz) { if (P.spearCD > 0 || P.mp < SKILLS.spear.mana) return false; P.mp -= SKILLS.spear.mana; P.spearCD = SKILLS.spear.cd; P.faceT = Math.atan2(tx - P.x, tz - P.z); P.atkT = 0.2;
+function castSpear(P, tx, tz) { if (P.spearCD > 0 || P.mp < SKILLS.spear.mana) return false; P.mp -= SKILLS.spear.mana; P.spearCD = SKILLS.spear.cd / PACE.act; P.faceT = Math.atan2(tx - P.x, tz - P.z); P.atkT = 0.2;
   shoot(P, 'spear', tx, tz, { dmg: P.dmg, life: 0.75 }); playerAnim(P, 'shoot'); return true; }
 function nearestEnemy(P, maxD) { let b = null, bd = maxD; if (G.focus && !G.focus.dead && Math.hypot(G.focus.x - P.x, G.focus.z - P.z) < maxD && G.floor.los(P.x, P.z, G.focus.x, G.focus.z)) return G.focus;
   for (const e of G.enemies) { const d = Math.hypot(e.x - P.x, e.z - P.z); if (d < bd && G.floor.los(P.x, P.z, e.x, e.z)) { bd = d; b = e; } } return b; }
@@ -91,7 +91,7 @@ function updatePlayer(dt) {
   // channelling 唤魂 on a corpse
   if (P.state === 'channel') { P.wantX = P.wantZ = 0; P.st += dt;
     if (!G.corpses.includes(P.chanC) || moving) { if (P.chanC) P.chanC.claim = null; P.state = 'idle'; P.chanC = null; }
-    else if (P.st >= SKILLS.raise.channel) { const c = P.chanC; c.claim = null; P.state = 'idle'; P.chanC = null; finishRaise(c); }
+    else if (P.st >= SKILLS.raise.channel / PACE.act) { const c = P.chanC; c.claim = null; P.state = 'idle'; P.chanC = null; finishRaise(c); }
     return; }
   // 唤魂 request
   if (IN.raiseKey) { IN.raiseKey = false; const from = !touchUI && IN.cursor ? IN.cursor : P; let c = pickCorpse(from, touchUI ? SKILLS.raise.range : 2.5) || pickCorpse(P, SKILLS.raise.range);

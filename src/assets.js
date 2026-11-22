@@ -68,6 +68,8 @@ export const CHARS = {
   archer: { file: 'sk_rogue', scale: 0.48, weapons: [['sk_crossbow', 'handslot.r']] },
   shaman: { file: 'sk_mage', scale: 0.5, weapons: [['sk_staff', 'handslot.r']] },
 };
+// height of the soul flame above the head bone (KayKit units; hats and helmets are taller)
+const SOUL_Y = { imp: 1.2, brute: 1.45, archer: 1.3, shaman: 1.6 };
 const SPHERE = new THREE.Sphere(new THREE.Vector3(0, 1.2, 0), 2.4);
 // a unit's visual: root (position / facing, unscaled: rings live here) -> model (scaled KayKit character)
 export function makeUnitMesh(kind, o = {}) {
@@ -82,23 +84,27 @@ export function makeUnitMesh(kind, o = {}) {
     else { const s = obj.scale.x || 1; adds.push([obj, new THREE.Mesh(obj.geometry, outlineMat(o.outline ?? 0x120a10, olW / s, u.uFade))]); }
   });
   // champion affix: the weapons glow in the element's colour and get a glowing tip that sheds particles
-  const el = o.elem && ELEM[o.elem], tips = [], glows = [];
-  const wMat = el ? new Map() : null, matW = map => { if (!el) return matFor(map); if (!wMat.has(map)) wMat.set(map, toonMat({ u: { ...u, uEmis: { value: new THREE.Color(el.emis) } }, map, vc: false })); return wMat.get(map); };
+  // champion affix glows on the body (rim light, faint emissive, particles from chest / head / hands); weapons only show gear quality
+  const el = o.elem && ELEM[o.elem], tips = [], glows = [], matW = matFor;
+  if (el) { u.uRim.value.set(el.col).multiplyScalar(0.95); u.uEmis.value.set(el.emis).multiplyScalar(0.3);
+    for (const n of ['chest', 'head', 'hand.l', 'hand.r', 'lowerleg.l', 'lowerleg.r']) { const b = findBone(model, n); if (b) tips.push(b); } }
+  // summons: a small soul flame floating over the head marks them as yours (keeps the body free for affix colours)
+  let soul = null; if (o.soul) { const h = findBone(model, 'head'); if (h) { soul = new THREE.Group(); soul.position.set(0, SOUL_Y[kind] ?? 1.25, 0); h.add(soul);
+    const a = glowSprite(0x46e8d8, 0.95, 0.85), c = glowSprite(0xe8fffc, 0.34, 1); soul.add(a, c); glows.push(a, c); } }
   // equipped gear replaces the default weapon (right hand) and, for the warrior, the shield (left hand)
   const gear = o.gear || {}, wl = (def.weapons || []).map(([w, bone]) => [bone === 'handslot.r' && gear.w ? WEAPONS[gear.w.type].bases[gear.w.b].model : bone === 'handslot.l' && gear.a ? ARMORS[gear.a.b].model : w, bone,
     bone === 'handslot.r' ? gear.w : bone === 'handslot.l' ? gear.a : null]);
   for (const [w, bone, it] of wl) { const pg = propGeo(w), b = findBone(model, bone); if (!pg || !b) continue; const shield = bone === 'handslot.l';
     const wm = new THREE.Mesh(pg.geo, matW(pg.map)); b.add(wm); adds.push([wm, new THREE.Mesh(pg.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
-    if (it && it.q && !el && !shield) { const t = new THREE.Object3D(); t.position.set(0, pg.box.max.y * 0.8, (pg.box.max.z + pg.box.min.z) / 2); wm.add(t);
+    if (it && it.q && !shield) { const t = new THREE.Object3D(); t.position.set(0, pg.box.max.y * 0.8, (pg.box.max.z + pg.box.min.z) / 2); wm.add(t);
       const gs = glowSprite(QUAL[it.q].hex, it.q === 2 ? 1.1 : 0.8, it.q === 2 ? 0.8 : 0.6); t.add(gs); glows.push(gs); }
-    if (el && !shield) { const tip = new THREE.Object3D(); tip.position.set(0, pg.box.max.y * 0.8, (pg.box.max.z + pg.box.min.z) / 2); wm.add(tip);
-      const gs = glowSprite(el.col, 1.3, 0.85); tip.add(gs); glows.push(gs); tips.push(tip); } }
+  }
 
   for (const [parent, ol] of adds) parent.add(ol);
   model.scale.setScalar(def.scale * (o.scale ?? 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
-  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, elem: el ? o.elem : null };
+  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, elem: el ? o.elem : null };
 }
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current

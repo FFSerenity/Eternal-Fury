@@ -72,7 +72,9 @@ void main(){
   base *= texture2D(uMap, vUv).rgb;
   #endif
   vec3 col = base * lit + uEmis;
-  float rim = 1.0 - max(dot(N, normalize(cameraPosition - vW)), 0.0); col += uRim * smoothstep(0.42, 0.9, rim);
+  // rim light blends the silhouette edge toward the rim colour (so blue on a red hood stays blue, not pink)
+  float rim = 1.0 - max(dot(N, normalize(cameraPosition - vW)), 0.0), rs = max(uRim.r, max(uRim.g, uRim.b));
+  if (rs > 0.0) col = mix(col, uRim / rs * 1.05, smoothstep(0.42, 0.9, rim) * rs * 0.85);
   col = mix(col, uStat.rgb * (dot(col, vec3(0.3, 0.59, 0.11)) * 1.3 + 0.12), uStat.a);
   col = mix(col, vec3(1.0, 0.96, 0.9), uFlash);
   gl_FragColor = vec4(col, 1.0);

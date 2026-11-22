@@ -239,7 +239,7 @@ export function drawOverlay() {
     const inR = d <= SKILLS.raise.range, txt = `唤魂 ${Math.round(captureChance(cp) * 100)}%`; g.globalAlpha = inR ? 1 : 0.45; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(txt, x, y - 4);
     g.fillStyle = inR ? '#8ff7ea' : '#cfc6d8'; g.fillText(txt, x, y - 4); g.globalAlpha = 1; }
   // raise channel beam
-  if (P.state === 'channel' && P.chanC) { const [ax, ay] = toScreen(P.x, 1.2, P.z), [bx, by] = toScreen(P.chanC.x, 0.3, P.chanC.z), k = P.st / SKILLS.raise.channel;
+  if (P.state === 'channel' && P.chanC) { const [ax, ay] = toScreen(P.x, 1.2, P.z), [bx, by] = toScreen(P.chanC.x, 0.3, P.chanC.z), k = P.st / (SKILLS.raise.channel / 0.8);
     g.strokeStyle = `rgba(120,255,235,${0.5 + 0.4 * Math.sin(G.t * 30)})`; g.lineWidth = 3 + 3 * k; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
     g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 6; g.beginPath(); g.arc(bx, by - 26, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.strokeStyle = '#8ff7ea'; g.lineWidth = 3; g.stroke(); }
   // lightning bolts: jagged, flickering polylines between units

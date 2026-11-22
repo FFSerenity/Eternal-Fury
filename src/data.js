@@ -40,6 +40,8 @@ export const ELEM = {
   stone: { col: 0xd8c49a, emis: 0x2e2618, part: { col: 0xb4a284, spd: 0.4, up: 0.2, grav: 5, life: 0.45, size: 0.17, spread: 0.1 },
            hit: { col: 0xa8987a, spd: 2.6, up: 2.4, grav: 7, life: 0.5, size: 0.22 } },
 };
+// overall pace: everyone moves slower and swings / casts a bit slower than the raw numbers below
+export const PACE = { move: 0.66, act: 0.8 };
 export const SKILLS = {
   spear: { name: '骨矛', mana: 2, cd: 0.34 },
   raise: { name: '唤魂', mana: 8, cd: 0.4, range: 6, channel: 0.7 },
