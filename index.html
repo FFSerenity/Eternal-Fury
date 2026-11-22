@@ -36,7 +36,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#07060a;color:#e8e0f0;
 #tr{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center}
 .btn{border:none;font-family:inherit;color:#f2eaff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(180deg,#4a3470,#2a1d42);border:1px solid rgba(200,170,255,.35);border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.4);touch-action:none}
 .btn.down{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
-#bCrypt{height:40px;padding:0 12px;font-weight:800;font-size:14px}#bCrypt b{background:#3fe0d0;color:#0b2a28;border-radius:9px;padding:1px 7px;font-size:12px}
+#bCrypt,#bGear{height:40px;padding:0 12px;font-weight:800;font-size:14px}#bCrypt b{background:#3fe0d0;color:#0b2a28;border-radius:9px;padding:1px 7px;font-size:12px}#bGear b{background:#e6c35a;color:#2a1d05;border-radius:9px;padding:1px 7px;font-size:12px}
+.gsum{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#c9b8e8}.gsum i{color:#8f82aa;font-style:normal}.secT .toGear{margin-left:auto;height:28px;padding:0 10px;font-size:12px;font-weight:800}
 #bSfx,#bReset{width:40px;height:40px;font-size:18px}#bReset{font-size:20px;font-weight:900}#bReset.arm{width:auto;padding:0 10px;font-size:13px;background:linear-gradient(180deg,#a33a3a,#6a1d1d);border-color:rgba(255,140,140,.6)}
 #fps{font:700 11px ui-monospace,monospace;color:#bfb3d6;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:7px;min-width:44px;text-align:center}
 #fps:after{content:' fps'}
@@ -128,6 +129,53 @@ body.touch .sk .k{display:none}
 #bNew{height:32px;padding:0 14px;font-size:12px;background:none;border-color:rgba(200,170,255,.25);box-shadow:none;color:#a898c4}
 @media (max-width:560px){#floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 50px);right:10px;left:auto;transform:none;font-size:11px;letter-spacing:1px}}
 @media (max-height:520px){#party{top:calc(max(8px,env(safe-area-inset-top)) + 76px)}.pc{width:150px;padding:2px 6px 2px 3px}.pc .ic{width:24px;height:24px;font-size:17px}#me{padding:6px 8px}}
+/* ---- 装备 panel: dark iron & bronze, Diablo-like ---- */
+#gearP{position:fixed;inset:0;background:rgba(5,3,9,.66);display:none;align-items:center;justify-content:center;z-index:6}
+#gearP.open{display:flex}
+#gearBox{position:relative;width:min(96vw,900px);max-height:94vh;overflow:auto;padding:14px 16px 12px;background:linear-gradient(180deg,#1d1712,#120e0b);border:2px solid #6b5636;border-radius:10px;box-shadow:0 0 0 1px #2a2016 inset,0 10px 40px rgba(0,0,0,.7)}
+#gearX{position:absolute;right:10px;top:10px;width:34px;height:34px;font-size:15px}
+.gTitle{font-family:"Songti SC","STSong","Noto Serif SC","Source Han Serif SC",serif;font-size:22px;font-weight:900;color:#e2c487;letter-spacing:4px;text-shadow:0 2px 0 #000;margin:0 44px 8px 2px}
+.gTitle .sub{font-family:system-ui,sans-serif;font-size:12px;letter-spacing:0;color:#bfa77a;margin-left:8px;font-weight:700}
+.gWho{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.gNone{color:#bfa77a;font-size:13px}
+.gWho .pt{position:relative;width:44px;height:44px;font-size:22px;border-radius:8px;background:#0f0c0a;border:1px solid #4a3c28;box-shadow:none}
+.gWho .pt small{position:absolute;right:2px;bottom:0;font-size:10px;font-weight:900;color:#e2c487}
+.gWho .pt.on:after{content:'';position:absolute;left:4px;top:4px;width:6px;height:6px;border-radius:3px;background:#3fe0d0}
+.gWho .pt.cur{border:2px solid #e2c487;background:#2a2016}
+.gMain{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+.gDollRow{display:flex;align-items:center;justify-content:center;gap:10px}
+#gDoll{width:170px;height:230px;border-radius:8px;background:radial-gradient(ellipse at 50% 70%,rgba(90,70,50,.45),rgba(0,0,0,.2) 70%);border:1px solid #3a2e20}
+#gDoll canvas{width:100%;height:100%;display:block}
+.gSlot{width:64px;height:112px;border:2px solid #6b5636;border-radius:6px;background:#0c0a08;box-shadow:inset 0 0 12px rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.gSlot span{color:#5d4f3a;font-family:"Songti SC","STSong",serif;font-size:20px;font-weight:900}
+.gSlot img{width:120%;max-width:none;pointer-events:none}
+.gSlot.can{border-color:#58d36a;box-shadow:inset 0 0 14px rgba(70,220,100,.45),0 0 10px rgba(70,220,100,.4)}.gSlot.no{border-color:#7a2b2b}
+.gStats{margin-top:8px;text-align:center}.gsN{font-weight:900;color:#e9dcc4;font-size:15px}.gsN small{color:#bfa77a;font-weight:600;font-size:11px}
+.gsL{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:12px;color:#bfa77a;margin-top:4px}.gsL b{color:#f2e6cc}
+.gLab{font-family:"Songti SC","STSong",serif;font-weight:900;color:#e2c487;margin-bottom:4px}
+.gGrid{display:grid;gap:3px}.gBag{grid-template-columns:repeat(8,1fr)}
+.cell{aspect-ratio:1;background:#0c0a08;border:1px solid #33291d;box-shadow:inset 0 0 8px rgba(0,0,0,.9);border-radius:3px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden}
+.cell img,.gSlot img{pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.8))}.cell img{width:118%;max-width:none}
+.cell.q1,.gSlot.q1{background:radial-gradient(circle,rgba(70,120,255,.38),#0c0a08 75%);border-color:#3c5aa8}
+.cell.q2,.gSlot.q2{background:radial-gradient(circle,rgba(255,190,50,.4),#0c0a08 75%);border-color:#b08a2a}
+.cell.nofit:after{content:'';position:absolute;inset:0;background:rgba(200,40,40,.24)}
+.cell:hover,.gSlot:hover{outline:1px solid #e2c487}
+.gFurn{position:relative;margin-top:12px;padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(110,40,10,.35),rgba(40,15,8,.4));border:1px solid #7a3e1c}
+.gfT{font-family:"Songti SC","STSong",serif;font-weight:900;color:#ffc080}.gfT small{font-family:system-ui,sans-serif;font-weight:600;font-size:11px;color:#d8a88a;margin-left:6px}
+.gfRow{display:flex;gap:12px;align-items:center;margin-top:6px}.gF{grid-template-columns:repeat(4,1fr);width:190px;flex:none}.gF .cell{border-color:#5a2e18;background:#140a06}
+.gfSide{flex:1;display:flex;flex-direction:column;gap:8px;align-items:flex-start}.gfOdds{display:flex;flex-direction:column;gap:2px;font-weight:800;font-size:13px}.gfOdds .dim{color:#8f7a68;font-weight:600}
+.gGo{height:36px;padding:0 18px;font-weight:900;background:linear-gradient(180deg,#c0582a,#7a2e12);border-color:rgba(255,170,110,.6)}
+.gReel{position:absolute;inset:0;border-radius:8px;background:rgba(12,6,4,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.gReel .lt{font-weight:900;color:#ffc080}.gReel .ri{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;border:2px solid #444;background:#0c0a08;min-width:200px}
+.gReel .ri img{width:52px}.gReel .ri.q1{border-color:#5f9cff}.gReel .ri.q2{border-color:#ffc83a}.gReel .reel.done .ri{animation:pop .4s}.gReel .reel.done.q2 .ri{box-shadow:0 0 26px rgba(255,200,60,.7)}
+.gReel .tN{font-weight:900}.gReel .ok{height:34px;padding:0 22px;font-weight:900}
+.gInfo{margin:10px -16px -12px;min-height:22px;position:sticky;bottom:-12px;padding:8px 12px 10px;background:linear-gradient(180deg,rgba(18,14,11,.85),#120e0b 30%);border-top:1px solid #3a2e20}.gInfo .hint{font-size:11px;color:#9d8a6e;text-align:center}
+.gInfo .hold{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:4px}.gInfo .hold img{width:56px}.gInfo .tip{text-align:left;background:none;border:none;padding:0}
+#gTip{position:fixed;display:none;z-index:20;pointer-events:none}
+.tip{background:rgba(8,6,5,.95);border:1px solid #5a4a30;padding:8px 14px;text-align:center;font-size:13px;line-height:1.45;min-width:170px}
+.tN{font-weight:900;font-size:14px}.tB{color:#e8e2d6}.tI{color:#bfb6a6;font-size:12px}.tL{color:#7f98ff}.tR{color:#e8e2d6}.tR.bad{color:#ff5a5a}.tC{color:#c9b8a0;font-size:12px}.tC.up{color:#6dff8e}.tC.dn{color:#ff6b6b}
+#gHeld{position:fixed;display:none;width:56px;height:56px;transform:translate(-50%,-50%);pointer-events:none;z-index:21}#gHeld img{width:100%;filter:drop-shadow(0 4px 6px rgba(0,0,0,.9))}
+@media (max-width:700px){.gMain{grid-template-columns:1fr}#gDoll{width:140px;height:180px}.gSlot{width:56px;height:96px}#gearBox{padding:12px 10px}.gF{width:160px}}
+@media (max-width:520px){#fps{display:none}#tr{max-width:calc(100vw - 196px);flex-wrap:wrap;justify-content:flex-end;gap:6px}#tr .lb{display:none}#tr .btn{height:38px}#bSfx,#bReset{width:38px}#bCrypt,#bGear{padding:0 8px}}
 </style>
 </head>
 <body>
@@ -138,7 +186,7 @@ body.touch .sk .k{display:none}
     <div class="bar"><i id="hpB"></i><span id="hpT"></span></div><div class="bar"><i id="mpB"></i><span id="mpT"></span></div><div class="bar xp"><i id="xpB"></i></div></div>
   <div id="party"></div>
   <div id="floorTag"></div>
-  <div id="tr"><span id="fps">60</span><button class="btn" id="bReset" title="重置副本（测试）">↺</button><button class="btn" id="bSfx">🔊</button><button class="btn" id="bCrypt">📜 墓典 <b id="cryptN">0</b></button></div>
+  <div id="tr"><span id="fps">60</span><button class="btn" id="bReset" title="重置副本（测试）">↺</button><button class="btn" id="bSfx">🔊</button><button class="btn" id="bGear">🎒<span class="lb"> 装备</span> <b id="gearN">0</b></button><button class="btn" id="bCrypt">📜<span class="lb"> 墓典</span> <b id="cryptN">0</b></button></div>
   <div id="msg"></div>
   <div id="skills">
     <button class="btn sk" id="sRaise"><span class="nm">唤魂</span>👻<span class="k">Q</span><b id="raiseN"></b></button>

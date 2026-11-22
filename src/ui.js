@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { G, save } from './state.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, QUAL, WEAPONS, BAG_MAX, itemName, itemLines, itemIcon, itemScore, itemFits, furnaceOdds, furnaceRoll, rollItem } from './data.js';
-import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed, equip, unequip } from './units.js';
+import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed } from './units.js';
+import { openGear, closeGear, gearOpen, toggleGear } from './gearui.js';
 import { S } from './audio.js';
 import { unlock, setSfx, sfxOn } from './audio.js';
 
@@ -59,8 +60,8 @@ function bindInput(cv) {
   const up = e => { if (e.pointerId === joyId) { joyId = null; IN.joy = null; hideJoy(); return; } if (e.pointerType === 'touch') return; IN.hold = false; IN.castHold = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   addEventListener('keydown', e => { if (e.repeat && e.key !== 'Shift') return; const k = e.key.toLowerCase(); unlock();
-    if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); }
-    else if (k === 'enter') IN.stairs = true; else if (k === 'escape') closeCrypt(); });
+    if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleGear(); }
+    else if (k === 'enter') IN.stairs = true; else if (k === 'escape') { closeCrypt(); closeGear(); } });
   addEventListener('keyup', e => { if (e.key === 'Shift') IN.shift = false; });
 }
 // screen-space stick direction -> world direction (camera looks diagonally: screen up = world (-1,0,-1))
@@ -75,6 +76,7 @@ function bindButtons() {
   hold($('#sRaise'), () => { IN.raiseKey = true; });
   hold($('#sMend'), () => { IN.mend = true; });
   hold($('#bCrypt'), () => toggleCrypt());
+  hold($('#bGear'), () => toggleGear());
   hold($('#bStairs'), () => { IN.stairs = true; });
   hold($('#bSfx'), () => { setSfx(!sfxOn()); $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇'; });
   $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇';
@@ -87,11 +89,11 @@ function bindButtons() {
 
 // ---------- crypt panel (墓典): list of summons; tap one to see its stats, spend 魂能点 on its skills and feed it other summons ----------
 export let cryptOpen = false;
-let sel = null, armed = null, sig = '', tab = 'sum', pickSlot = null; const furn = new Set();
+let sel = null, armed = null, sig = '';
 export function toggleCrypt() { cryptOpen ? closeCrypt() : openCrypt(); }
 export function closeCrypt() { cryptOpen = false; sel = null; $('#crypt').classList.remove('open'); }
 function inCombat() { const P = G.player; return G.enemies.some(e => !e.dead && e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 10); }
-export function openCrypt() { cryptOpen = true; sel = null; pickSlot = null; $('#crypt').classList.add('open'); renderCrypt(true); }
+export function openCrypt() { closeGear(); cryptOpen = true; sel = null; $('#crypt').classList.add('open'); renderCrypt(true); }
 const enName = en => (en.champ && en.mods[0] ? `<span class="mod">${MODS[en.mods[0]].name}</span>` : '') + TYPES[en.type].name;
 const status = en => en.active ? (en.reviveT > 0 ? `复原中 ${Math.ceil(en.reviveT)}s` : '出战中') : '休息';
 function toggleActive(en) {
@@ -106,14 +108,11 @@ const isArmed = key => armed && armed.k === key && performance.now() - armed.t <
 function statsOf(en) { const o = { kind: en.type, side: 'ally', level: en.level, mods: en.mods, champ: en.champ, entry: en, T: TYPES[en.type] }; Unit.prototype.stats.call(o); return o; }
 export function renderCrypt(force) {
   if (!cryptOpen) return; if (sel && !G.crypt.includes(sel)) sel = null;
-  for (const id of [...furn]) if (!G.bag.some(it => it.id === id)) furn.delete(id);
-  const s2 = JSON.stringify([tab, pickSlot, [...furn], G.bag.map(it => it.id), sel && sel.id, armed && isArmed(armed.k) && armed.k, G.level, G.crypt.map(e => [e.id, e.active, Math.ceil(e.reviveT), e.level, Math.floor(e.xp), e.sp, e.skills, e.gear && e.gear.w && e.gear.w.id, e.gear && e.gear.a && e.gear.a.id])]);
+  const s2 = JSON.stringify([sel && sel.id, armed && isArmed(armed.k) && armed.k, G.level, G.crypt.map(e => [e.id, e.active, Math.ceil(e.reviveT), e.level, Math.floor(e.xp), e.sp, e.skills, e.gear && e.gear.w && e.gear.w.id, e.gear && e.gear.a && e.gear.a.id])]);
   if (!force && s2 === sig) return; sig = s2;
   const max = partySize(G.level), n = activeCount(), list = $('#cryptList'), top = list.scrollTop;
-  $('#cryptHead').innerHTML = `墓典 <span class="sub">出战 ${n} / ${max}　·　共 ${G.crypt.length} 只</span><div class="tabs"><button class="btn${tab === 'sum' ? ' cur' : ''}" data-t="sum">召唤物</button><button class="btn${tab === 'gear' ? ' cur' : ''}" data-t="gear">装备 · 熔炉 <b>${G.bag.length}/${BAG_MAX}</b></button></div>`;
-  $('#cryptHead').querySelectorAll('.tabs .btn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); tab = b.dataset.t; sel = null; pickSlot = null; armed = null; renderCrypt(true); list.scrollTop = 0; }));
-  list.innerHTML = ''; list.classList.toggle('detail', !!sel || tab === 'gear');
-  if (tab === 'gear') { renderGear(list); list.scrollTop = top; return; }
+  $('#cryptHead').innerHTML = `墓典 <span class="sub">出战 ${n} / ${max}　·　共 ${G.crypt.length} 只</span>`;
+  list.innerHTML = ''; list.classList.toggle('detail', !!sel);
   if (!G.crypt.length) { list.innerHTML = `<div class="cEmpty">还没有召唤物。<br>打倒怪物后对尸体施放「唤魂」（${touchUI ? '右下按钮' : 'Q 键 / 点尸体'}）来收服它。</div>`; return; }
   if (sel) { renderDetail(list, sel); return; }
   const feedN = G.crypt.filter(e => !e.champ && !e.active).length;
@@ -122,7 +121,7 @@ export function renderCrypt(force) {
     const T = TYPES[en.type], d = document.createElement('div'); d.className = 'card' + (en.active ? ' on' : '') + (en.champ ? ' champ' : '');
     d.innerHTML = `<div class="ic">${T.icon}</div><div class="info"><div class="nm">${enName(en)}${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div>
       <div class="xp"><i style="width:${Math.min(100, en.xp / (xpNeed(en.level) * 0.8) * 100)}%"></i></div><div class="ds">${T.ally}</div></div><button class="btn tg">${en.active ? '休息' : '出战'}</button>`;
-    d.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('.tg')) toggleActive(en); else { sel = en; armed = null; pickSlot = null; renderCrypt(true); $('#cryptList').scrollTop = 0; } });
+    d.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('.tg')) toggleActive(en); else { sel = en; armed = null; renderCrypt(true); $('#cryptList').scrollTop = 0; } });
     list.appendChild(d);
   }
   list.scrollTop = top;
@@ -135,8 +134,8 @@ function renderDetail(list, en) {
       <div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div><div class="xp"><i style="width:${Math.min(100, en.xp / need * 100)}%"></i></div><div class="xpT">经验 ${Math.floor(en.xp)} / ${Math.round(need)}</div></div>
       <button class="btn tg">${en.active ? '休息' : '出战'}</button></div>
     <div class="stats">${statLine}${en.champ && en.mods[0] ? `<div class="affix">${MODS[en.mods[0]].name}：${MODS[en.mods[0]].desc}</div>` : ''}</div>
-    <div class="secT">装备 <small>武器只能用本类型的（${WEAPONS[en.type].cat}），护甲谁都能穿</small></div>
-    <div class="gear">${['w', 'a'].map(sl => gearSlot(en, sl)).join('')}</div>
+    <div class="secT">装备 <button class="btn toGear">打开装备界面</button></div>
+    <div class="gsum">${['w', 'a'].map(sl => { const it = en.gear && en.gear[sl]; return `<span>${sl === 'w' ? '武器' : '护甲'}：${it ? `<b style="color:${QUAL[it.q].col}">${itemName(it)}</b>` : '<i>空</i>'}</span>`; }).join('')}</div>
     <div class="secT">技能 <span class="pts">魂能点 <b>${en.sp || 0}</b></span></div>
     <div class="skl">${tree.map(sk => { const r = (en.skills || {})[sk.id] || 0, mx = r >= sk.max;
       return `<div class="sr${r ? ' got' : ''}"><span class="si">${sk.icon}</span><div class="sd"><div class="sn">${sk.name}<span class="pips">${'●'.repeat(r)}${'○'.repeat(sk.max - r)}</span></div>
@@ -148,10 +147,8 @@ function renderDetail(list, en) {
         <button class="btn eat${isArmed(k) ? ' arm' : ''}" data-id="${f.id}">${isArmed(k) ? '确认转化' : '转化'}</button></div>`; }).join('') +
       (feed.length > 1 ? `<button class="btn eatAll${isArmed('all') ? ' arm' : ''}">${isArmed('all') ? '确认全部转化' : `全部转化（${feed.length} 只）`}</button>` : '')
       : `<div class="fEmpty">墓典里没有可转化的召唤物。精英和出战中的不能转化；满员时收服的怪会存进墓典。</div>`}</div>`;
-  d.querySelector('.back').addEventListener('click', e => { e.stopPropagation(); sel = null; armed = null; pickSlot = null; renderCrypt(true); });
-  d.querySelectorAll('.gs .chg').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); pickSlot = pickSlot === b.dataset.s ? null : b.dataset.s; renderCrypt(true); }));
-  d.querySelectorAll('.gs .off').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); unequip(en, b.dataset.s); pickSlot = null; renderCrypt(true); }));
-  d.querySelectorAll('.pk').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const it = G.bag.find(x => x.id === +b.dataset.id); if (it && equip(en, it)) { message(`${TYPES[en.type].name} 装备了 ${itemName(it)}`); pickSlot = null; renderCrypt(true); } }));
+  d.querySelector('.back').addEventListener('click', e => { e.stopPropagation(); sel = null; armed = null; renderCrypt(true); });
+  d.querySelector('.toGear').addEventListener('click', e => { e.stopPropagation(); openGear(en); });
   d.querySelector('.tg').addEventListener('click', e => { e.stopPropagation(); toggleActive(en); });
   d.querySelectorAll('.plus').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); if (learn(en, b.dataset.id)) renderCrypt(true); }));
   const eat = list2 => { let pts = 0, xp = 0, up = 0; for (const f of list2) { const r = absorb(en, f); if (r) { pts += r.pts; xp += r.xp; up += r.up; } }
@@ -159,45 +156,6 @@ function renderDetail(list, en) {
   d.querySelectorAll('.eat').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const f = G.crypt.find(x => x.id === +b.dataset.id); if (f && arm('eat' + f.id)) eat([f]); }));
   const all = d.querySelector('.eatAll'); if (all) all.addEventListener('click', e => { e.stopPropagation(); if (arm('all')) eat(G.crypt.filter(f => canFeed(f, en))); });
   list.appendChild(d);
-}
-
-// ---------- equipment ----------
-const itemRow = (it, extra = '') => `<span class="ic">${itemIcon(it)}</span><div class="idt"><div class="in" style="color:${QUAL[it.q].col}">${itemName(it)} <small>物品等级 ${it.il}</small></div>
-  <div class="il">${itemLines(it).join(' · ')}${extra}</div></div>`;
-function gearSlot(en, sl) {
-  const it = en.gear && en.gear[sl], label = sl === 'w' ? `武器（${WEAPONS[en.type].cat}）` : '护甲（盾）';
-  const cand = G.bag.filter(x => x.slot === sl && itemFits(x, en.type)).sort((a, b) => itemScore(b) - itemScore(a)), cur = itemScore(it);
-  let h = `<div class="gs">${it ? itemRow(it) : `<span class="ic dim">${sl === 'w' ? TYPES[en.type].icon : '🛡️'}</span><div class="idt"><div class="in dim">${label}：空</div><div class="il">${cand.length ? `背包里有 ${cand.length} 件可用` : '背包里没有可用的'}</div></div>`}
-    <button class="btn chg" data-s="${sl}" ${cand.length ? '' : 'disabled'}>${pickSlot === sl ? '收起' : it ? '更换' : '装备'}</button>${it ? `<button class="btn off" data-s="${sl}">卸下</button>` : ''}</div>`;
-  if (pickSlot === sl) h += `<div class="pick">${cand.map(x => { const sc = itemScore(x), up = sc > cur + 0.5, dn = sc < cur - 0.5;
-    return `<div class="pr">${itemRow(x)}<span class="cmp ${up ? 'up' : dn ? 'dn' : ''}">${up ? '▲' : dn ? '▼' : '＝'}</span><button class="btn pk" data-id="${x.id}">装备</button></div>`; }).join('')}</div>`;
-  return h;
-}
-function renderGear(list) {
-  const d = document.createElement('div'); d.className = 'det gearTab'; const items = G.bag.slice().sort((a, b) => b.q - a.q || (a.slot > b.slot ? 1 : -1) || (a.type || '').localeCompare(b.type || '') || b.il - a.il);
-  const chosen = G.bag.filter(it => furn.has(it.id)), o = furnaceOdds(chosen), pc = v => Math.round(v * 100) + '%';
-  d.innerHTML = `<div class="furn"><div class="fh">🔥 熔炉 <small>把不要的装备丢进去，随机熔出一件新装备。丢得越多、品质越好，出好东西的几率越大（至少 2 件）。</small></div>
-    <div class="odds">${chosen.length ? `<span style="color:${QUAL[2].col}">稀有 ${pc(o.gold)}</span><span style="color:${QUAL[1].col}">精良 ${pc(o.blue)}</span><span style="color:${QUAL[0].col}">普通 ${pc(o.white)}</span>` : '<span class="dim">点下面的装备选中，再点熔炼</span>'}</div>
-    <div class="fb"><button class="btn sw">选中所有普通</button><button class="btn sc" ${chosen.length ? '' : 'disabled'}>清空</button><button class="btn go${isArmed('furn') ? ' arm' : ''}" ${chosen.length >= 2 ? '' : 'disabled'}>${isArmed('furn') ? '确认熔炼？' : `熔炼（${chosen.length} 件）`}</button></div></div>
-    <div class="bag">${items.length ? items.map(it => `<div class="it${furn.has(it.id) ? ' on' : ''}" data-id="${it.id}">${itemRow(it, ` · ${it.slot === 'w' ? '适用：' + TYPES[it.type].name : '所有召唤物'}`)}<span class="chk">✓</span></div>`).join('')
-      : '<div class="fEmpty">背包是空的。打怪会掉装备（精英必掉），走过去自动拾取；装备在墓典里点召唤物穿上。</div>'}</div>`;
-  d.querySelectorAll('.it').forEach(r => r.addEventListener('click', e => { e.stopPropagation(); const id = +r.dataset.id; furn.has(id) ? furn.delete(id) : furn.add(id); armed = null; renderCrypt(true); }));
-  d.querySelector('.sw').addEventListener('click', e => { e.stopPropagation(); for (const it of G.bag) if (it.q === 0) furn.add(it.id); renderCrypt(true); });
-  d.querySelector('.sc').addEventListener('click', e => { e.stopPropagation(); furn.clear(); armed = null; renderCrypt(true); });
-  d.querySelector('.go').addEventListener('click', e => { e.stopPropagation(); if (chosen.length < 2) return; if (!(chosen.some(it => it.q > 0)) || arm('furn')) smelt(chosen); });
-  list.appendChild(d);
-}
-// smelting: the inputs are gone at once, the result is shown after a short slot-machine reel
-function smelt(chosen) {
-  const res = furnaceRoll(chosen, G.uid++), odds = furnaceOdds(chosen); G.bag = G.bag.filter(it => !chosen.includes(it)); G.bag.push(res); furn.clear(); armed = null; save(); S.fire();
-  const box = document.createElement('div'); box.id = 'lotto'; box.innerHTML = '<div class="lt">熔炉里火光翻滚……</div><div class="reel"></div><button class="btn ok" style="visibility:hidden">收下</button>';
-  $('#cryptBox').appendChild(box); const reel = box.querySelector('.reel'); let dly = 45;
-  const show = it => { reel.innerHTML = `<div class="ri" style="color:${QUAL[it.q].col};border-color:${QUAL[it.q].col}">${itemRow(it)}</div>`; };
-  const tick = () => { if (dly > 300) { show(res); reel.className = 'reel done q' + res.q; box.querySelector('.lt').textContent = res.q === 2 ? '✨ 熔出了稀有装备！' : res.q === 1 ? '熔出了精良装备' : '熔出了一件普通装备';
-      box.querySelector('.ok').style.visibility = 'visible'; if (res.q === 2) S.level(); else if (res.q === 1) S.caught(); else S.pick(); return; }
-    const r = Math.random(); show(rollItem(0, res.il, r < odds.gold ? 2 : r < odds.gold + odds.blue ? 1 : 0)); S.pick(); dly *= 1.13; setTimeout(tick, dly); };
-  tick(); box.querySelector('.ok').addEventListener('click', e => { e.stopPropagation(); box.remove(); renderCrypt(true); });
-  renderCrypt(true);
 }
 
 // ---------- HUD (DOM, refreshed a few times per second) + overlay (every frame) ----------
@@ -208,7 +166,7 @@ export function updateHUD(dt, fps) {
   bar('#hpB', P.hp / P.maxHp); bar('#mpB', P.mp / P.maxMp); bar('#xpB', G.xp / xpNeed(G.level));
   if (hudT > 0) return; hudT = 0.2;
   $('#lvl').textContent = `Lv ${G.level} 召唤师`; $('#hpT').textContent = `${Math.ceil(P.hp)} / ${Math.round(P.maxHp)}`; $('#mpT').textContent = `${Math.floor(P.mp)} / ${Math.round(P.maxMp)}`;
-  $('#floorTag').textContent = G.depth === 0 ? '墓园营地' : `墓穴 · 第 ${G.depth} 层`; $('#cryptN').textContent = G.crypt.length; if (fps != null) $('#fps').textContent = fps;
+  $('#floorTag').textContent = G.depth === 0 ? '墓园营地' : `墓穴 · 第 ${G.depth} 层`; $('#cryptN').textContent = G.crypt.length; $('#gearN').textContent = G.bag.length; if (fps != null) $('#fps').textContent = fps;
   const party = $('#party'), act = G.crypt.filter(e => e.active); party.innerHTML = '';
   for (const en of act) { const u = en.unit, T = TYPES[en.type], d = document.createElement('div'); d.className = 'pc' + (en.reviveT > 0 ? ' dead' : '');
     d.innerHTML = `<span class="ic">${T.icon}</span><div class="pi"><div class="pn">${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${T.name} <small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i style="width:${u && !u.dead ? u.hp / u.maxHp * 100 : 0}%"></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;

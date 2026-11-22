@@ -24,8 +24,10 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - Only summons wear gear: a weapon of their own type (Warrior axes, Minion blades, Crossbowman crossbows, Mage staves; three bases each,
   from fast-and-light to slow-and-heavy) and a shield as armour (anyone). Quality: 普通 / 精良 / 稀有 (rare items get an extra line).
 - Monsters sometimes drop gear, champions always do; rare drops shine with a light beam. Walk over loot to pick it up (bag of 40).
-- Equip in the 墓典: tap a summon, then its weapon / armour slot (▲ / ▼ compares with what it wears). The warrior shows its shield.
-- **Furnace (熔炉):** throw unwanted gear in (2+ pieces) and get one random item back; more and better input raises the odds.
+- **装备 panel** (🎒 button or **I**): paperdoll with the chosen summon's live 3D model and its weapon / shield frames, a 40-cell bag
+  (one item per cell, icons rendered from the 3D models) and the furnace. Click an item to pick it up, click where it should go;
+  right-click or double-click = quick equip (or into the furnace). Diablo-style tooltips; items a summon can't use are tinted red.
+- **Furnace (熔炉):** put 2+ pieces into its 12 cells and smelt them into one random item; more and better input raises the odds.
 
 ## Monsters
 Skeleton Warrior (telegraphed smash, knock-back), Skeleton Minion packs (panic and flee when a packmate falls apart),

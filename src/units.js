@@ -1,6 +1,6 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
-import { G, save } from './state.js';
+import { G, save, bagPut } from './state.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, QUAL, BAG_MAX, rollDrop, itemName, itemBase } from './data.js';
 import { glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { makeUnitMesh, play, clipLen, CHARS, propMesh } from './assets.js';
@@ -25,7 +25,7 @@ export class Unit {
     const ally = side === 'ally', champ = this.champ;
     const mod0 = this.mods[0] && MODS[this.mods[0]];
     this.meshOpts = {
-      scale: champ ? 1.25 : 1,
+      scale: champ ? (ally ? 1.1 : 1.25) : 1,
       tint: this.mods.includes('stone') ? 0xb8b4ac : this.mods.includes('fire') && champ ? 0xffc8a8 : 0xffffff,
       emis: 0x000000, rim: 0x000000, elem: champ && mod0 ? this.mods[0] : null, soul: ally,
       outline: 0x120a10, outlineW: champ ? 0.06 : 0.05,
@@ -45,7 +45,7 @@ export class Unit {
     this.maxHp = T.hp * (1 + k * (L - 1)) * (ally ? 1.35 : 1); this.dmg = T.dmg * (1 + kd * (L - 1)) * (ally ? 1.15 : 1);
     this.armor = T.armor + 2 * (L - 1); this.speed = T.speed * (ally ? 1.08 : 1); this.range = T.range; this.cd = T.cd; this.r = T.r; this.noStun = false;
     if (ally && this.kind === 'brute') this.speed = TYPES.imp.speed * 1.08 * 0.92;
-    if (this.champ) { this.maxHp *= 2.4; this.dmg *= 1.35; this.r *= 1.2; }
+    if (this.champ) { this.maxHp *= 2.4; this.dmg *= 1.35; this.r *= ally ? 1.08 : 1.2; }
     if (this.mods.includes('fast')) { this.speed *= 1.45; this.cd *= 0.7; }
     if (this.mods.includes('stone')) { this.armor += 60; this.maxHp *= 1.3; this.speed *= 0.85; this.noStun = true; }
     this.taunt = ally && this.kind === 'brute'; this.tauntR = 5;
@@ -127,18 +127,15 @@ export function updateLoot(dt) {
   for (const L of G.loot) { L.t += dt; const k = Math.min(1, L.t / 0.45), x = L.x0 + (L.x - L.x0) * k, z = L.z0 + (L.z - L.z0) * k, y = k < 1 ? 1 * (1 - k) + Math.sin(Math.PI * k) * 0.8 : 0.12 + Math.sin(G.t * 2.5 + L.ph) * 0.04;
     L.root.position.set(x, y, z); L.m.rotation.z += dt * 0.8;
     if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 0.9) {
-      if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say('背包满了，去墓典里把多余的装备丢进熔炉吧'); } }
-      else { G.bag.push(L.it); C.scene.remove(L.root); S.pick(); C.say(`拾取：${itemName(L.it)}`); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0); save(); continue; } }
+      if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say('背包满了，打开装备界面（I）把多余的丢进熔炉吧'); } }
+      else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(`拾取：${itemName(L.it)}`); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0); save(); continue; } }
     G.loot[j++] = L; }
   G.loot.length = j;
 }
 // equipment changes from the 墓典
-export function equip(en, it) {
-  const slot = it.slot === 'w' ? 'w' : 'a', i = G.bag.indexOf(it); if (i < 0) return false; en.gear = en.gear || {};
-  G.bag.splice(i, 1); if (en.gear[slot]) G.bag.push(en.gear[slot]); en.gear[slot] = it; gearChanged(en); return true;
-}
-export function unequip(en, slot) { const it = en.gear && en.gear[slot]; if (!it) return false; if (G.bag.length >= BAG_MAX) { C.say('背包满了'); return false; } G.bag.push(it); delete en.gear[slot]; gearChanged(en); return true; }
-function gearChanged(en) { const u = en.unit; if (u && !u.dead) { const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.rebuildMesh(); } S.pick(); save(); }
+// put an item in a summon's slot (or clear it); returns what was there
+export function setGear(en, slot, it) { en.gear = en.gear || {}; const old = en.gear[slot] || null; if (it) en.gear[slot] = it; else delete en.gear[slot]; gearChanged(en); return old; }
+function gearChanged(en) { const u = en.unit; if (u && !u.dead) { const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.rebuildMesh(); } save(); }
 
 // ---------- elemental affixes: what champion hits do, and what champions leave behind when they fall ----------
 const CHILL = 2.2;
@@ -215,7 +212,7 @@ export function finishRaise(c) {
 }
 // party full: the captured monster still stands up, then turns into a soul that flies into the summoner
 function soulToSummoner(c) {
-  const m = makeUnitMesh(c.kind, { scale: c.champ ? 1.25 : 1, emis: 0x0a2a2a, rim: 0x2fbfb2, soul: true });
+  const m = makeUnitMesh(c.kind, { scale: c.champ ? 1.1 : 1, emis: 0x0a2a2a, rim: 0x2fbfb2, soul: true });
   m.root.position.set(c.x, 0, c.z); m.root.rotation.y = c.mesh.root.rotation.y; C.scene.add(m.root);
   const name = 'Death_C_Skeletons_Resurrect', sp = 1.6; play(m, name, { once: true, restart: true, speed: sp, fade: 0 }); m.mixer.update(0);
   G.ghosts.push({ m, t: 0, rise: clipLen(name) / sp * 0.9, x: c.x, z: c.z, orb: null });
@@ -567,7 +564,7 @@ function animate(u, dt, sp) {
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
-  const k = CHARS[u.kind].scale * (u.champ ? 1.25 : 1) / 0.5;
+  const k = CHARS[u.kind].scale * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }
   else play(m, a.idle, { fade: 0.22 });
 }

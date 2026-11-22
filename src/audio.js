@@ -35,5 +35,6 @@ export const S = {
   zap() { if (!ok() || !gate('zap', 70)) return; hiss(4200, 0.8, 0.12, 0.22); tone('square', 1800, 200, 0.12, 0.05); tone('sawtooth', 90, 60, 0.15, 0.08); },
   frost() { if (!ok()) return; hiss(5200, 1.5, 0.5, 0.25); [1568, 2093, 2637].forEach((f, i) => tone('sine', f, f * 0.98, 0.35, 0.05, i * 0.04)); },
   pick() { if (!ok() || !gate('pk', 80)) return; tone('triangle', 1320, 1320, 0.12, 0.08); tone('triangle', 1760, 1760, 0.18, 0.06, 0.06); },
+  clank() { if (!ok() || !gate('cl', 60)) return; hiss(1800, 3, 0.09, 0.22); tone('square', 380, 240, 0.08, 0.05); tone('triangle', 1250, 1180, 0.16, 0.05, 0.01); },
   rally() { if (!ok() || !gate('ra', 300)) return; tone('square', 500, 800, 0.1, 0.04); },
 };

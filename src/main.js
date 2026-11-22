@@ -171,7 +171,7 @@ function loop(now) {
   SH.uLight.value.set(P.x, 1.6, P.z); pickTorches(P);
   camera.updateMatrixWorld(); const v = new THREE.Vector3(P.x, 0.8, P.z), vz = v.clone().applyMatrix4(camera.matrixWorldInverse).z; v.project(camera);
   const bw = VW * RS, bh = VH * RS; SH.uCutC.value.set((v.x + 1) / 2 * bw, (v.y + 1) / 2 * bh); SH.uCutR.value = Math.min(bw, bh) * 0.17; SH.uCutZ.value = vz;
-  shadows.begin(); for (const u of G.units) if (!u.dead && u.mesh.root.visible && !(u === P && P.dead)) shadows.add(u.x, u.z, u.r * (u.champ ? 1.25 : 1)); shadows.end();
+  shadows.begin(); for (const u of G.units) if (!u.dead && u.mesh.root.visible && !(u === P && P.dead)) shadows.add(u.x, u.z, u.r * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1)); shadows.end();
   parts.update(dt);
   P.mesh.mat.uniforms.uFlash.value = P.flash * 0.6;
   renderer.render(scene, camera);
