@@ -38,7 +38,7 @@ function placeCamera(snap) {
 }
 const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 function groundAt(cx, cy) { ndc.set(cx / VW * 2 - 1, -(cy / VH) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(plane, hit) ? { x: hit.x, z: hit.z } : null; }
-initUI({ camera, groundAt, canvas, reset: () => resetDungeon() });
+initUI({ camera, groundAt, canvas, reset: what => what === 'all' ? resetAll() : resetDungeon() });
 
 // ---------- floors ----------
 let packId = 1;
@@ -75,6 +75,9 @@ function resetDungeon() {
   for (const en of G.crypt) en.reviveT = 0;
   S.stairs(); makeFloor(0); message('副本已重置');
 }
+
+// test helper: wipe the save and start over from scratch
+function resetAll() { wipe(); location.reload(); }
 
 function endChannel(P) { for (const c of P.chanList || []) c.claim = null; P.chanList = []; if (P.chanFx) { P.chanFx.dispose(); P.chanFx = null; } P.state = 'idle'; }
 

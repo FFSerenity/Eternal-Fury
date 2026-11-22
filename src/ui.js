@@ -84,16 +84,20 @@ function bindButtons() {
   hold($('#bStairs'), () => { IN.stairs = true; });
   hold($('#bSfx'), () => { setSfx(!sfxOn()); $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇'; });
   $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇';
-  // test helper: two taps → back to the camp, the crypt is generated again with fresh monsters
-  let rArm = 0; const rb = $('#bReset');
-  hold(rb, () => { if (performance.now() - rArm < 3000) { rArm = 0; rb.classList.remove('arm'); rb.textContent = '↺'; onReset && onReset(); return; }
-    rArm = performance.now(); rb.classList.add('arm'); rb.textContent = '确认重置？'; setTimeout(() => { if (performance.now() - rArm >= 2900) { rb.classList.remove('arm'); rb.textContent = '↺'; } }, 3000); });
+  // test helpers behind ↺: reset the dungeon (back to camp, fresh monsters) or wipe everything and start over; each needs a second tap
+  const menu = $('#resetMenu'), shut = () => { menu.classList.remove('open'); for (const b of menu.querySelectorAll('.btn')) { b.classList.remove('arm'); b.textContent = b.dataset.l; } };
+  for (const b of menu.querySelectorAll('.btn')) b.dataset.l = b.textContent;
+  hold($('#bReset'), () => { menu.classList.contains('open') ? shut() : menu.classList.add('open'); });
+  menu.addEventListener('pointerdown', e => { e.stopPropagation(); const b = e.target.closest('.btn'); if (!b) return; e.preventDefault();
+    if (!b.classList.contains('arm')) { for (const x of menu.querySelectorAll('.btn')) { x.classList.remove('arm'); x.textContent = x.dataset.l; } b.classList.add('arm'); b.textContent = b.dataset.c; return; }
+    const what = b.dataset.r; shut(); onReset && onReset(what); });
+  addEventListener('pointerdown', e => { if (menu.classList.contains('open') && !e.target.closest('#resetMenu, #bReset')) shut(); });
   $('#crypt').addEventListener('pointerdown', e => { if (e.target.id === 'crypt' || e.target.id === 'cryptX') closeCrypt(); });
 }
 
 // ---------- crypt panel (墓典): list of summons; tap one to see its stats, spend 魂能点 on its skills and feed it other summons ----------
 export let cryptOpen = false;
-let sel = null, armed = null, sig = '';
+let sel = null, armed = null, sig = '', feedTab = 'eat';
 export function toggleCrypt() { cryptOpen ? closeCrypt() : openCrypt(); }
 export function closeCrypt() { cryptOpen = false; sel = null; $('#crypt').classList.remove('open'); }
 function inCombat() { const P = G.player; return G.enemies.some(e => !e.dead && e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 10); }
@@ -149,14 +153,14 @@ function renderDetail(list, en) {
       return `<div class="sr${r ? ' got' : ''}"><span class="si">${sk.icon}</span><div class="sd"><div class="sn">${sk.name}<span class="pips">${'●'.repeat(r)}${'○'.repeat(sk.max - r)}</span></div>
         <div class="sx">${r ? sk.desc(r) : /解锁/.test(sk.desc(0)) ? sk.desc(0) : '1 级：' + sk.desc(1)}</div>${!mx && r ? `<div class="sx nx">下一级：${sk.desc(r + 1)}</div>` : ''}</div>
         <button class="btn plus" data-id="${sk.id}" ${mx || !(en.sp > 0) ? 'disabled' : ''}>${mx ? '满' : '＋'}</button></div>`; }).join('')}</div>
-    <div class="secT">吸收魂能 <small>把休息中的普通召唤物转化成魂能：获得经验和魂能点（同类经验 +50%）</small></div>
-    <div class="feed">${feed.length ? feed.map(f => { const k = 'eat' + f.id;
+    <div class="ftabs"><button class="btn ft${feedTab === 'eat' ? ' cur' : ''}" data-t="eat">吸收魂能 <b>${feed.length}</b></button><button class="btn ft${feedTab === 'fuse' ? ' cur' : ''}" data-t="fuse">融合 <b>${fuseList.length}</b></button></div>
+    <div class="ftD">${feedTab === 'eat' ? '把休息中的普通召唤物转化成魂能：获得经验和魂能点（同类经验 +50%）' : `和休息中的同类召唤物融合：它会消失，${TYPES[en.type].name}可能变成精英、继承或强化特殊属性（一定会得到一些经验）`}</div>
+    <div class="feed"${feedTab === 'eat' ? '' : ' style="display:none"'}>${feed.length ? feed.map(f => { const k = 'eat' + f.id;
       return `<div class="fr"><span class="ic">${portrait(f.type)}</span><div class="fn">${TYPES[f.type].name} <small>Lv ${f.level}</small></div><div class="gain">+${soulXP(f, en)} 经验 · +${soulPoints(f)} 点</div>
         <button class="btn eat${isArmed(k) ? ' arm' : ''}" data-id="${f.id}">${isArmed(k) ? '确认转化' : '转化'}</button></div>`; }).join('') +
       (feed.length > 1 ? `<button class="btn eatAll${isArmed('all') ? ' arm' : ''}">${isArmed('all') ? '确认全部转化' : `全部转化（${feed.length} 只）`}</button>` : '')
       : `<div class="fEmpty">墓典里没有可转化的召唤物。精英和出战中的不能转化；满员时收服的怪会存进墓典。</div>`}</div>
-    <div class="secT">融合 <small>和休息中的同类召唤物融合：它会消失，${TYPES[en.type].name}可能变成精英、继承或强化特殊属性（一定会得到一些经验）</small></div>
-    <div class="feed fuse">${fuseList.length ? fuseList.map(f => { const k = 'fuse' + f.id, o = fusionOdds(en, f), pc = v => Math.round(v * 100) + '%';
+    <div class="feed fuse"${feedTab === 'fuse' ? '' : ' style="display:none"'}>${fuseList.length ? fuseList.map(f => { const k = 'fuse' + f.id, o = fusionOdds(en, f), pc = v => Math.round(v * 100) + '%';
       const chance = [o.elite ? `成为精英 ${pc(o.elite)}` : '', ...o.add.map(a => `${en.champ ? '新增' : '继承'} ${chip(a.m)} ${pc(a.p)}`), ...o.up.map(u => `强化 ${chip(u.m, Math.min(3, ((en.modLv && en.modLv[u.m]) || 1) + 1))} ${pc(u.p)}`)].filter(Boolean).join('　') || '<span class="dim">只有经验</span>';
       return `<div class="fr"><span class="ic">${portrait(f.type)}</span><div class="fn">${enName(f)} <small>Lv ${f.level}</small>${chips(f) ? `<div class="fchips">${chips(f)}</div>` : ''}</div>
         <div class="odds2">${chance}<br><span class="dim">+${o.xp} 经验</span></div><button class="btn fz${isArmed(k) ? ' arm' : ''}" data-id="${f.id}">${isArmed(k) ? '确认融合' : '融合'}</button></div>`; }).join('')
@@ -169,6 +173,7 @@ function renderDetail(list, en) {
     message(`${TYPES[en.type].name} 吸收了 ${list2.length} 只的魂能：+${xp} 经验，+${pts} 魂能点${up ? `，升到 Lv ${en.level}` : ''}`); renderCrypt(true); };
   d.querySelectorAll('.eat').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const f = G.crypt.find(x => x.id === +b.dataset.id); if (f && arm('eat' + f.id)) eat([f]); }));
   const all = d.querySelector('.eatAll'); if (all) all.addEventListener('click', e => { e.stopPropagation(); if (arm('all')) eat(G.crypt.filter(f => canFeed(f, en))); });
+  d.querySelectorAll('.ft').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); feedTab = b.dataset.t; armed = null; renderCrypt(true); }));
   d.querySelectorAll('.fz').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const f = G.crypt.find(x => x.id === +b.dataset.id); if (f && arm('fuse' + f.id)) fuseShow(en, f); }));
   list.appendChild(d);
 }

@@ -192,6 +192,12 @@ body.touch .sk .k{display:none}
 .fzRow{position:relative;width:240px;height:110px}.fzA,.fzB{position:absolute;top:0;width:100px;height:100px;border-radius:14px;overflow:hidden;border:2px solid #3fe0d0;background:#120c1c;transition:transform 1s cubic-bezier(.6,0,.4,1),opacity 1s,box-shadow .3s}
 .fzA{left:0}.fzB{right:0}#fuseFx.merge .fzA{transform:translateX(70px)}#fuseFx.merge .fzB{transform:translateX(-70px) scale(.7);opacity:0}
 #fuseFx.flash .fzA{box-shadow:0 0 40px 10px rgba(111,247,232,.8);animation:pop .45s}.fzT{font-size:20px;font-weight:900;color:#e9dcff}.fzR{text-align:center;line-height:1.9;font-weight:700;color:#e9dcff}#fuseFx .ok{height:38px;padding:0 28px;font-weight:900}
+#resetMenu{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);display:none;flex-direction:column;gap:6px;padding:8px;z-index:3;min-width:190px}
+#resetMenu.open{display:flex}#resetMenu .btn{height:36px;padding:0 12px;font-size:13px;font-weight:800;justify-content:flex-start}#resetMenu .btn.danger{background:linear-gradient(180deg,#5a2430,#33141c)}
+#resetMenu .btn.arm{background:linear-gradient(180deg,#a33a3a,#6a1d1d);border-color:rgba(255,140,140,.6)}.rmT{font-size:10px;color:#8f82aa;text-align:center}
+@media (max-width:520px){#resetMenu{top:calc(max(10px,env(safe-area-inset-top)) + 92px)}}
+.ftabs{display:flex;gap:6px;margin-top:4px}.ftabs .btn{height:34px;padding:0 16px;font-size:14px;font-weight:900;background:rgba(40,28,60,.6);box-shadow:none}.ftabs .btn.cur{background:linear-gradient(180deg,#5a3f86,#35234f);border-color:rgba(220,190,255,.6)}
+.ftabs b{font-size:11px;color:#e6c35a;margin-left:2px}.ftD{font-size:11px;color:#a898c4;margin:-2px 0 2px}
 </style>
 </head>
 <body>
@@ -202,7 +208,8 @@ body.touch .sk .k{display:none}
     <div class="bar"><i id="hpB"></i><span id="hpT"></span></div><div class="bar"><i id="mpB"></i><span id="mpT"></span></div><div class="bar xp"><i id="xpB"></i></div></div>
   <div id="party"></div>
   <div id="floorTag"></div>
-  <div id="tr"><span id="fps">60</span><button class="btn" id="bReset" title="重置副本（测试）">↺</button><button class="btn" id="bSfx">🔊</button><button class="btn" id="bGear">🎒<span class="lb"> 背包</span> <b id="gearN">0</b></button><button class="btn" id="bCrypt">📜<span class="lb"> 墓典</span> <b id="cryptN">0</b></button></div>
+  <div id="tr"><span id="fps">60</span><button class="btn" id="bReset" title="重置（测试用）">↺</button><button class="btn" id="bSfx">🔊</button><button class="btn" id="bGear">🎒<span class="lb"> 背包</span> <b id="gearN">0</b></button><button class="btn" id="bCrypt">📜<span class="lb"> 墓典</span> <b id="cryptN">0</b></button></div>
+  <div id="resetMenu" class="panel"><button class="btn" data-r="dungeon" data-c="确认：回营地、刷新怪物">↺ 重置副本</button><button class="btn danger" data-r="all" data-c="确认：清空存档从头开始">⚠ 全部重置</button><div class="rmT">测试用 · 点两次生效</div></div>
   <div id="msg"></div>
   <div id="skills">
     <button class="btn sk" id="sRaise"><span class="nm">唤魂</span>👻<span class="k">Q</span><b id="raiseN"></b></button>
