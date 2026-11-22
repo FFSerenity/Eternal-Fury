@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07060a">
+<title>唤魂墓穴</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#07060a;color:#e8e0f0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overscroll-behavior:none}
+#c{position:fixed;left:0;top:0;touch-action:none;display:block}
+#ov{position:fixed;left:0;top:0;pointer-events:none}
+#hud{position:fixed;inset:0;pointer-events:none;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+#hud>*{pointer-events:auto}
+.panel{background:rgba(14,10,20,.72);border:1px solid rgba(190,160,255,.22);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+#me{position:absolute;left:max(10px,env(safe-area-inset-left));top:max(10px,env(safe-area-inset-top));width:clamp(170px,24vw,240px);padding:8px 10px;pointer-events:none}
+#lvl{font-weight:800;font-size:13px;color:#d9c8ff;margin-bottom:5px;letter-spacing:.5px}
+.bar{position:relative;height:13px;border-radius:7px;background:rgba(0,0,0,.55);overflow:hidden;margin-bottom:4px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;transition:width .12s}
+.bar span{position:absolute;inset:0;font-size:10px;font-weight:700;line-height:13px;text-align:center;color:#fff;text-shadow:0 1px 2px #000}
+#hpB{background:linear-gradient(180deg,#ff6b5b,#b4231c)} #mpB{background:linear-gradient(180deg,#6fa8ff,#2a4fc0)}
+.bar.xp{height:4px;margin:0}#xpB{background:#e6c35a}
+#party{position:absolute;left:max(10px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 84px);display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.pc{display:flex;align-items:center;gap:6px;width:clamp(150px,20vw,200px);padding:4px 8px 4px 4px;border-radius:10px;background:rgba(14,10,20,.66);border:1px solid rgba(63,224,208,.35);position:relative}
+.pc .ic{font-size:20px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(63,224,208,.12)}
+.pc .pi{flex:1;min-width:0}.pc .pn{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pc small{color:#9fe8de;font-weight:600}
+.pc .ph{height:5px;border-radius:3px;background:rgba(0,0,0,.6);margin-top:3px;overflow:hidden}.pc .ph i{display:block;height:100%;background:#3fe0d0}
+.pc.dead{filter:grayscale(.85);opacity:.75}.pc .rv{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:15px;color:#ffd58a;text-shadow:0 1px 3px #000}
+.pc.empty{border-style:dashed;opacity:.5}.pc.empty .ic{background:none;color:#9fe8de}
+#tr{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center}
+.btn{border:none;font-family:inherit;color:#f2eaff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(180deg,#4a3470,#2a1d42);border:1px solid rgba(200,170,255,.35);border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.4);touch-action:none}
+.btn.down{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+#bCrypt{height:40px;padding:0 12px;font-weight:800;font-size:14px}#bCrypt b{background:#3fe0d0;color:#0b2a28;border-radius:9px;padding:1px 7px;font-size:12px}
+#bSfx{width:40px;height:40px;font-size:18px}
+#fps{font:700 11px ui-monospace,monospace;color:#bfb3d6;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:7px;min-width:44px;text-align:center}
+#fps:after{content:' fps'}
+#floorTag{position:absolute;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);font-weight:800;font-size:13px;letter-spacing:2px;color:#cdbbe8;text-shadow:0 1px 4px #000;pointer-events:none}
+#msg{position:absolute;left:50%;top:22%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;width:90vw}
+#msg .m{font-weight:800;font-size:15px;color:#f4ecff;background:rgba(10,6,16,.7);padding:6px 14px;border-radius:10px;text-shadow:0 1px 3px #000;transition:opacity .5s,transform .5s;text-align:center}
+#msg .m.big{font-size:20px;color:#ffe4a8;letter-spacing:1px}#msg .m.out{opacity:0;transform:translateY(-8px)}
+#skills{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;gap:10px;align-items:end;justify-items:end}
+.sk{position:relative;width:60px;height:60px;border-radius:50%;font-size:26px;flex-direction:column;gap:0;overflow:hidden}
+.sk .k{position:absolute;bottom:3px;left:0;right:0;font-size:9px;font-weight:700;color:#cbb8ee;text-align:center}
+.sk .nm{position:absolute;top:4px;left:0;right:0;font-size:9px;font-weight:700;color:#d9c8ff;text-align:center}
+#sAtk{grid-column:2;grid-row:1/3;width:84px;height:84px;font-size:36px;background:radial-gradient(circle at 50% 35%,#6b5a8f,#2d2045)}
+#sRaise{grid-column:1;grid-row:1}#sMend{grid-column:1;grid-row:2}
+#sRaise.ready{box-shadow:0 0 0 2px #3fe0d0,0 0 18px rgba(63,224,208,.8),0 3px 0 rgba(0,0,0,.4);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 2px #3fe0d0,0 0 6px rgba(63,224,208,.4),0 3px 0 rgba(0,0,0,.4)}}
+#raiseN{position:absolute;top:2px;right:6px;min-width:18px;height:18px;border-radius:9px;background:#3fe0d0;color:#062420;font-size:11px;font-weight:900;display:none;align-items:center;justify-content:center}
+#sMend:after{content:'';position:absolute;left:0;right:0;bottom:0;height:var(--cd,0%);background:rgba(0,0,0,.55)}
+#bStairs{position:absolute;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 10px);transform:translateX(-50%);height:46px;padding:0 20px;font-size:16px;font-weight:800;display:none;background:linear-gradient(180deg,#3a5fa8,#1d2f60);border-color:rgba(140,190,255,.5)}
+#bStairs.show{display:flex}
+#joy{position:fixed;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:2px solid rgba(200,180,255,.35);background:rgba(40,25,60,.25);display:none;pointer-events:none}
+#joyK{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(200,180,255,.45)}
+body:not(.touch) #skills .sk{width:52px;height:52px;font-size:22px}body:not(.touch) #sAtk{width:64px;height:64px;font-size:28px}
+body.touch .sk .k{display:none}
+#crypt{position:fixed;inset:0;background:rgba(5,3,9,.66);display:none;align-items:center;justify-content:center;z-index:5}
+#crypt.open{display:flex}
+#cryptBox{position:relative;width:min(94vw,760px);max-height:88vh;display:flex;flex-direction:column;padding:16px}
+#cryptHead{font-size:20px;font-weight:900;color:#e9dcff;margin:0 40px 10px 4px}#cryptHead .sub{font-size:13px;color:#9fe8de;font-weight:700;margin-left:8px}
+#cryptX{position:absolute;right:12px;top:12px;width:36px;height:36px;font-size:16px}
+#cryptList{overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;padding:2px}
+.card{display:flex;gap:10px;padding:10px;border-radius:12px;background:rgba(40,28,60,.6);border:1px solid rgba(200,170,255,.18);cursor:pointer}
+.card.on{border-color:#3fe0d0;background:rgba(20,60,60,.45);box-shadow:inset 0 0 0 1px rgba(63,224,208,.4)}
+.card .ic{font-size:30px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(0,0,0,.3);flex:none}
+.card .info{min-width:0;flex:1}.card .nm{font-weight:800;font-size:15px}.card .lv{font-size:12px;color:#c9b8e8;margin:2px 0 4px}.card .lv b{color:#9fe8de}
+.card .mod{color:#ffb347;margin-right:2px}.card.champ{border-color:rgba(255,179,71,.5)}
+.card .xp{height:4px;border-radius:2px;background:rgba(0,0,0,.5);overflow:hidden}.card .xp i{display:block;height:100%;background:#e6c35a}
+.card .ds{font-size:11px;color:#a898c4;margin-top:5px;line-height:1.35}
+.cEmpty{grid-column:1/-1;padding:30px 10px;text-align:center;color:#b9a8d8;line-height:1.8}
+#start{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(ellipse at center,rgba(30,16,46,.55),rgba(4,2,8,.92));transition:opacity .5s;text-align:center;padding:20px}
+#start.hide{opacity:0;pointer-events:none}
+#start h1{margin:0;font-size:clamp(38px,9vmin,72px);letter-spacing:6px;color:#e9dcff;text-shadow:0 0 24px rgba(160,110,255,.6),0 4px 0 #2a1840}
+#start .en{font-size:13px;letter-spacing:6px;color:#9fe8de;margin-top:-8px}
+#startMsg{color:#cdbbe8;font-weight:700}
+#help{font-size:12px;color:#a898c4;line-height:1.8;max-width:620px}
+#bStart{height:54px;padding:0 38px;font-size:20px;font-weight:900;background:linear-gradient(180deg,#3fb8a8,#1d6a62);border-color:rgba(140,255,240,.5)}
+#bNew{height:32px;padding:0 14px;font-size:12px;background:none;border-color:rgba(200,170,255,.25);box-shadow:none;color:#a898c4}
+@media (max-width:560px){#floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 50px);right:10px;left:auto;transform:none;font-size:11px;letter-spacing:1px}}
+@media (max-height:520px){#party{top:calc(max(8px,env(safe-area-inset-top)) + 76px)}.pc{width:150px;padding:2px 6px 2px 3px}.pc .ic{width:24px;height:24px;font-size:17px}#me{padding:6px 8px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="ov"></canvas>
+<div id="hud">
+  <div id="me" class="panel"><div id="lvl">Lv 1 召唤师</div>
+    <div class="bar"><i id="hpB"></i><span id="hpT"></span></div><div class="bar"><i id="mpB"></i><span id="mpT"></span></div><div class="bar xp"><i id="xpB"></i></div></div>
+  <div id="party"></div>
+  <div id="floorTag"></div>
+  <div id="tr"><span id="fps">60</span><button class="btn" id="bSfx">🔊</button><button class="btn" id="bCrypt">📜 墓典 <b id="cryptN">0</b></button></div>
+  <div id="msg"></div>
+  <div id="skills">
+    <button class="btn sk" id="sRaise"><span class="nm">唤魂</span>👻<span class="k">Q</span><b id="raiseN"></b></button>
+    <button class="btn sk" id="sMend"><span class="nm">愈合</span>💚<span class="k">W</span></button>
+    <button class="btn sk" id="sAtk"><span class="nm">骨矛</span>🦴<span class="k">左/右键</span></button>
+  </div>
+  <button class="btn" id="bStairs">⬇ 下楼</button>
+</div>
+<div id="joy"><div id="joyK"></div></div>
+<div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead">墓典</div><div id="cryptList"></div></div></div>
+<div id="start"><h1>唤魂墓穴</h1><div class="en">GRAVE TAMER · 样片</div><div id="startMsg"></div><button class="btn" id="bStart">进入墓穴</button><div id="help"></div><button class="btn" id="bNew">清除存档</button></div>
+<script src="game.js"></script>
+<script>try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}</script>
+</body>
+</html>
