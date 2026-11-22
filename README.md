@@ -40,9 +40,10 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - **Furnace (熔炉):** put 2+ pieces into its 12 cells and smelt them into one random item; more and better input raises the odds. The result goes straight into the bag (it glows there until you close the panel).
   Auto-fill puts normal items in first, then magic ones (those that would be an upgrade for a summon last); rares are never added automatically.
 - **科技流 (tech line)**: epic weapons that turn a summon into an advanced tech unit with its own look, stance and skill tree (take the
-  weapon off and it is its old self again; both skill sets are kept). They come out of the forge: every rare weapon smelted gives +3%
-  (at most 15%), and **魂钢能量 / soul steel** builds up by one per rare weapon smelted without an epic — at 15 the next smelt with a
-  rare weapon is a guaranteed epic. Which one is weighted by the weapon types put in (more crossbows → likelier the mortar). Duplicates allowed.
+  weapon off and it is its old self again; both skill sets are kept). They come out of the forge: every rare piece smelted (weapon or
+  shield) gives +3% (at most 15%), and **魂钢能量 / soul steel** builds up by one per rare piece smelted without an epic — at 15 the next
+  smelt with a rare piece is a guaranteed epic. Which one is decided by the weapons put in (one crossbow + a few rare shields → the
+  mortar; more crossbows → likelier the mortar; no weapon at all → any of them). Duplicates allowed.
   Settings → Testing → "Get all tech weapons" puts one of each in the bag.
   - **噬魂机枪 → 机枪骷髅** (Minion): sustained fire, grenades, armour-piercing rounds, brace to fire on the move. Also the camp coffin's easter egg.
   - **裂魂臼炮 → 炮手骷髅** (Archer): lobs shells 9 m that blow up groups and knock them back; backs off from anyone in its face;

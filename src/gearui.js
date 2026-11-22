@@ -5,7 +5,7 @@
 // A fixed info box shows the hovered or held item, so nothing jumps around.
 import * as THREE from 'three';
 import { G, save, bagPut, bagFree } from './state.js';
-import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem, techName, TECH_PITY, rareWeapons } from './data.js';
+import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem, techName, TECH_PITY, rareItems } from './data.js';
 import { setGear, Unit, ANIM } from './units.js';
 import { makeUnitMesh, play } from './assets.js';
 import { initR, lit, itemIconURL as iconOf, portrait } from './icons.js';
@@ -124,7 +124,7 @@ export function render() {
     let h = ''; for (let p = 0; p < FURN_N; p++) h += cellHTML(at('furn', p), 'furn', p); $('#gF').innerHTML = h;
     const od = furnaceOdds(G.furn, G.techPity || 0), pc = v => Math.round(v * 100) + '%', pity = G.techPity || 0;
     $('#gfOdds').innerHTML = (G.furn.length ? (od.epic ? `<span style="color:${QUAL[3].col}">${QUAL[3].name} ${pc(od.epic)}</span>` : '') + `<span style="color:${QUAL[2].col}">${QUAL[2].name} ${pc(od.gold)}</span><span style="color:${QUAL[1].col}">${QUAL[1].name} ${pc(od.blue)}</span><span style="color:${QUAL[0].col}">${QUAL[0].name} ${pc(od.white)}</span>` : `<span class="dim">${tr('放进装备后显示几率', 'Odds show once items are in')}</span>`)
-      + `<div class="gfPity" title="${tr('熔炼稀有武器积累魂钢能量，满了必出史诗科技武器', 'Smelting rare weapons builds up soul steel; when it is full an epic tech weapon is guaranteed')}"><i style="width:${Math.min(100, pity / TECH_PITY * 100)}%"></i><span>${tr('魂钢能量', 'Soul steel')} ${pity}/${TECH_PITY}</span></div>`;
+      + `<div class="gfPity" title="${tr('熔炼稀有装备（武器或盾牌）积累魂钢能量，满了必出史诗科技武器；出哪一把看放进去的武器', 'Smelting rare gear (weapons or shields) builds up soul steel; when it is full an epic tech weapon is guaranteed')}"><i style="width:${Math.min(100, pity / TECH_PITY * 100)}%"></i><span>${tr('魂钢能量', 'Soul steel')} ${pity}/${TECH_PITY}</span></div>`;
     $('#gGo').disabled = G.furn.length < 2; $('#gEmpty').disabled = !G.furn.length;
   }
   setDoll();
@@ -151,7 +151,7 @@ function tipHTML(it) {
 
 // ---------- furnace ----------
 function smelt() {
-  if (G.furn.length < 2 || held) return; const pity = G.techPity || 0, nr = rareWeapons(G.furn), odds = furnaceOdds(G.furn, pity), res = furnaceRoll(G.furn, G.uid++, pity);
+  if (G.furn.length < 2 || held) return; const pity = G.techPity || 0, nr = rareItems(G.furn), odds = furnaceOdds(G.furn, pity), res = furnaceRoll(G.furn, G.uid++, pity);
   G.techPity = res.q === 3 ? 0 : Math.min(TECH_PITY, pity + nr); G.furn = [res]; res.fpos = 0; pending = res; save(); S.fire();
   const box = document.createElement('div'); box.className = 'gReel'; box.innerHTML = `<div class="lt">${tr('炉火翻滚……', 'The forge roars…')}</div><div class="reel"></div><button class="btn ok" style="visibility:hidden">${tr('收下', 'Take it')}</button>`;
   $('.gFurn').appendChild(box); const reel = box.querySelector('.reel'); let dly = 45;

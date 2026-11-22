@@ -134,7 +134,7 @@ export function rollItem(id, il, q, slot = Math.random() < 0.62 ? 'w' : 'a', typ
 export const itemBase = it => it.slot === 'w' ? WEAPONS[it.type].bases[it.b] : ARMORS[it.b];
 export const itemName = it => (it.q && it.q < 3 ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
 // ---------- 科技流: epic weapons that turn a summon into a tech unit (own look, own skill tree; take it off and it's back) ----------
-// the gatling is also the coffin easter egg; all of them come out of the forge when rare weapons are smelted
+// the gatling is also the coffin easter egg; all of them come out of the forge when rare gear is smelted
 export const TECH = {
   mg: { type: 'imp', key: 'gunner', name: tr('机枪骷髅', 'Gunner Skeleton'), short: tr('机枪骷髅', 'Gunner'), role: tr('重火力', 'Heavy gunner'),
     ally: tr('远程持续扫射；会往敌群里扔手雷，破甲弹越打越疼，敌人多时架稳机枪边走边扫射。', 'Sustained fire from range; lobs grenades into packs, armour-piercing rounds that hurt more the longer it fires, and braces the gun to fire on the move when the fight gets big.'),
@@ -181,11 +181,12 @@ export function itemScore(it) { if (!it) return 0; const v = it.v, B = itemBase(
 export const itemFits = (it, type) => it.slot === 'a' || it.type === type;
 // furnace: everything thrown in turns into one random item; more (and better) input, better odds
 export const itemPts = it => [1, 3, 8, 20][it.q] * (1 + it.il / 10);
-// 科技流 epics: every rare weapon in the forge gives +3% (at most 15%); 魂钢能量 (soul steel) builds up by one per rare weapon smelted
-// without an epic and guarantees one at TECH_PITY. Which one: weighted by the weapon types put in (more crossbows → likelier the mortar)
+// 科技流 epics: every rare piece in the forge (weapon or shield) gives +3% (at most 15%); 魂钢能量 (soul steel) builds up by one per rare
+// piece smelted without an epic and guarantees one at TECH_PITY. Which one: weighted by the weapon types put in (one crossbow + rare shields
+// → the mortar; no weapons at all → any of them)
 export const TECH_PITY = 15;
-export const rareWeapons = items => items.filter(it => it.slot === 'w' && it.q === 2).length;
-export function furnaceOdds(items, pity = 0) { const p = items.reduce((a, it) => a + itemPts(it), 0), nr = rareWeapons(items), epic = !nr ? 0 : pity + nr >= TECH_PITY ? 1 : Math.min(0.15, 0.03 * nr), k = 1 - epic;
+export const rareItems = items => items.filter(it => it.q === 2).length;
+export function furnaceOdds(items, pity = 0) { const p = items.reduce((a, it) => a + itemPts(it), 0), nr = rareItems(items), epic = !nr ? 0 : pity + nr >= TECH_PITY ? 1 : Math.min(0.15, 0.03 * nr), k = 1 - epic;
   const gold = Math.min(0.7, 0.01 + p * 0.022), blue = Math.min(1 - gold, 0.15 + p * 0.07); return { epic, gold: gold * k, blue: blue * k, white: Math.max(0, 1 - gold - blue) * k, pts: p, nr }; }
 export function furnaceRoll(items, id, pity = 0) { const o = furnaceOdds(items, pity), r = Math.random(), il = Math.max(...items.map(it => it.il));
   if (r < o.epic) { const keys = Object.keys(TECH), w = keys.map(k => items.filter(it => it.slot === 'w' && it.type === TECH[k].type).length), tot = w.reduce((a, b) => a + b, 0);
