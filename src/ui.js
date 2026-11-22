@@ -195,16 +195,26 @@ function renderDetail(list, en) {
   list.appendChild(d);
 }
 
-// fusion: two portraits drift together, flash, and the outcome is revealed
+// fusion: two portraits drift together inside a spinning ring of soul light, a flash, then the outcome:
+// a success bursts into rainbow light (rays, sparks in the affix colours, a rainbow frame), no change just glows softly
+const hex = c => '#' + c.toString(16).padStart(6, '0');
 function fuseShow(en, f) {
   const before = { champ: en.champ, mods: en.mods.slice() }, r = fuse(en, f); if (!r) { renderCrypt(true); return; }
+  const good = r.elite || r.added.length || r.upped.length, rnd = (a, b) => a + Math.random() * (b - a);
+  const gained = [...r.added, ...r.upped], affCols = gained.map(m => hex(MODS[m].col)), rainbow = ['#ff5a5a', '#ffb347', '#ffe66d', '#6fe87a', '#5fd0ff', '#8f7dff', '#e67dff'];
+  let motes = ''; for (let i = 0; i < 18; i++) { const a = rnd(0, 6.283), d = rnd(85, 130); motes += `<i class="fzM" style="--x:${(Math.cos(a) * d).toFixed(0)}px;--y:${(Math.sin(a) * d).toFixed(0)}px;--d:${rnd(0, 0.7).toFixed(2)}s;--c:${i % 3 ? '#6ff7e8' : '#b9a2ff'}"></i>`; }
+  let sparks = ''; if (good) for (let i = 0; i < 42; i++) { const a = rnd(0, 6.283), d = rnd(90, 230), c = affCols.length && i % 2 ? affCols[i % affCols.length] : r.elite && i % 5 === 0 ? '#ffd36a' : rainbow[i % rainbow.length];
+    sparks += `<i class="fzSp" style="--x:${(Math.cos(a) * d).toFixed(0)}px;--y:${(Math.sin(a) * d * 0.85).toFixed(0)}px;--d:${rnd(0, 0.15).toFixed(2)}s;--s:${rnd(4, 9).toFixed(1)}px;--c:${c}"></i>`; }
   S.raise(); const box = document.createElement('div'); box.id = 'fuseFx';
-  box.innerHTML = `<div class="fzRow"><div class="fzA">${portrait(en.type)}</div><div class="fzB">${portrait(f.type)}</div></div><div class="fzT">${tr('融合中……', 'Fusing…')}</div><div class="fzR"></div><button class="btn ok" style="visibility:hidden">${tr('好', 'OK')}</button>`;
+  box.innerHTML = `<div class="fzRow"><div class="fzRays"></div><div class="fzRingW"><div class="fzRing"></div></div>${motes}<div class="fzBurst"></div><div class="fzBurst b2"></div>${sparks}
+    <div class="fzA">${portrait(en.type)}</div><div class="fzB">${portrait(f.type)}</div></div><div class="fzT">${tr('融合中……', 'Fusing…')}</div><div class="fzR"></div>
+    <button class="btn ok" style="visibility:hidden">${tr('好', 'OK')}</button><div class="fzFlash"></div>`;
+  if (good) box.style.setProperty('--gc', affCols[0] || '#ffd36a');
   $('#cryptBox').appendChild(box);
   setTimeout(() => { box.classList.add('merge'); }, 60);
-  setTimeout(() => { box.classList.add('flash'); const good = r.elite || r.added.length || r.upped.length; if (good) S.level(); else S.caught();
-    box.querySelector('.fzT').innerHTML = good ? `✨ ${enName(en)}` : `${enName(en)}`;
-    box.querySelector('.fzR').innerHTML = [r.elite ? `<div>${tr('成为了精英！', 'Became an elite!')}</div>` : '', ...r.added.map(m => `<div>${r.elite && !before.champ ? tr('获得属性', 'Gained') : tr('新增属性', 'New affix')} ${chip(m)}</div>`),
+  setTimeout(() => { box.classList.add('flash', good ? 'win' : 'meh'); if (good) S.level(); else S.caught();
+    box.querySelector('.fzT').innerHTML = good ? `✨ ${enName(en)} ✨` : `${enName(en)}`;
+    box.querySelector('.fzR').innerHTML = [r.elite ? `<div class="big">${tr('成为了精英！', 'Became an elite!')}</div>` : '', ...r.added.map(m => `<div>${r.elite && !before.champ ? tr('获得属性', 'Gained') : tr('新增属性', 'New affix')} ${chip(m)}</div>`),
       ...r.upped.map(m => `<div>${tr('属性强化', 'Strengthened')} ${chip(m, en.modLv[m])}</div>`), `<div class="dim">+${r.xp} ${tr('经验', 'XP')}${en.level > r.before ? tr(`，升到 Lv ${en.level}`, `, now Lv ${en.level}`) : ''}</div>`, !good ? `<div class="dim">${tr('这次没有出现变化', 'Nothing changed this time')}</div>` : ''].join('');
     box.querySelector('.ok').style.visibility = 'visible'; }, 1200);
   box.querySelector('.ok').addEventListener('click', e => { e.stopPropagation(); box.remove(); renderCrypt(true); });

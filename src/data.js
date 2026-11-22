@@ -2,7 +2,7 @@ import { tr, SP } from './i18n.js';
 // All tunable content lives here (like Diablo II's data tables): monster types, champion affixes, skills, packs.
 export const TYPES = {
   imp: {
-    name: tr('骷髅小兵', 'Skeleton Minion'), short: tr('骷髅小兵', 'Minion'), role: tr('快攻', 'Striker'), icon: '🗡️', hp: 20, dmg: 3.5, speed: 4.4, range: 0.85, cd: 0.8, windup: 0.16, armor: 0, r: 0.32, xp: 6, capture: 0.75,
+    name: tr('骷髅小兵', 'Skeleton Minion'), short: tr('骷髅小兵', 'Minion'), role: tr('快攻', 'Striker'), icon: '🗡️', hp: 20, dmg: 3.5, speed: 4.4, range: 0.85, cd: 0.8, windup: 0.16, armor: 0, r: 0.32, xp: 6, capture: 0.6,
     desc: tr('速度快，成群结队。看到同伴散架会惊慌逃跑，过一会儿再冲回来。', 'Fast and comes in packs. Panics when a packmate falls apart, then rushes back.'),
     ally: tr('速度快的近战输出，会突刺冲向敌人（必定暴击），平时攻击也有几率暴击。', 'Fast melee damage. Lunges at enemies (always a critical hit) and often crits.'),
   },
@@ -100,7 +100,7 @@ export const TREE = {
 };
 // what a summon is worth when absorbed: experience for the absorber (same type +50%) and soul points
 export const soulPoints = en => 1 + Math.floor((en.level - 1) / 3);
-export const soulXP = (en, to) => Math.round(xpNeed(en.level) * 0.8 * 0.6 * (en.type === to.type ? 1.5 : 1));
+export const soulXP = (en, to) => Math.round(xpNeed(en.level) * 0.8 * 0.35 * (en.type === to.type ? 1.5 : 1));
 
 // ---------- equipment: summons only. Weapons are per monster type (collect them all), armour (shields) fits everyone ----------
 export const QUAL = [
