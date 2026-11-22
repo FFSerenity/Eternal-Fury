@@ -1,8 +1,8 @@
 // HUD, overlay text/bars, input (mouse + keyboard, touch joystick + buttons) and the crypt (墓典) panel
 import * as THREE from 'three';
 import { G, save } from './state.js';
-import { TYPES, MODS, SKILLS, xpNeed, partySize } from './data.js';
-import { captureChance, activeCount, spawnAlly, dismissAlly } from './units.js';
+import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP } from './data.js';
+import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed } from './units.js';
 import { unlock, setSfx, sfxOn } from './audio.js';
 
 const $ = s => document.querySelector(s);
@@ -76,30 +76,72 @@ function bindButtons() {
   $('#crypt').addEventListener('pointerdown', e => { if (e.target.id === 'crypt' || e.target.id === 'cryptX') closeCrypt(); });
 }
 
-// ---------- crypt panel ----------
+// ---------- crypt panel (墓典): list of summons; tap one to see its stats, spend 魂能点 on its skills and feed it other summons ----------
 export let cryptOpen = false;
+let sel = null, armed = null, sig = '';
 export function toggleCrypt() { cryptOpen ? closeCrypt() : openCrypt(); }
-export function closeCrypt() { cryptOpen = false; $('#crypt').classList.remove('open'); }
+export function closeCrypt() { cryptOpen = false; sel = null; $('#crypt').classList.remove('open'); }
 function inCombat() { const P = G.player; return G.enemies.some(e => !e.dead && e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 10); }
-export function openCrypt() { cryptOpen = true; $('#crypt').classList.add('open'); renderCrypt(); }
-export function renderCrypt() {
-  if (!cryptOpen) return; const max = partySize(G.level), n = activeCount();
+export function openCrypt() { cryptOpen = true; sel = null; $('#crypt').classList.add('open'); renderCrypt(true); }
+const enName = en => (en.champ && en.mods[0] ? `<span class="mod">${MODS[en.mods[0]].name}</span>` : '') + TYPES[en.type].name;
+const status = en => en.active ? (en.reviveT > 0 ? `复原中 ${Math.ceil(en.reviveT)}s` : '出战中') : '休息';
+function toggleActive(en) {
+  if (inCombat()) { message('战斗中不能更换出战'); return; } const max = partySize(G.level);
+  if (en.active) { en.active = false; dismissAlly(en); }
+  else { if (activeCount() >= max) { message(`出战已满（${max} 只），先让一只休息`); return; } en.active = true; if (en.reviveT <= 0) spawnAlly(en); }
+  save(); renderCrypt(true);
+}
+// two-tap confirm for destructive buttons
+function arm(key) { if (armed && armed.k === key && performance.now() - armed.t < 3000) { armed = null; return true; } armed = { k: key, t: performance.now() }; renderCrypt(true); return false; }
+const isArmed = key => armed && armed.k === key && performance.now() - armed.t < 3000;
+function statsOf(en) { const o = { kind: en.type, side: 'ally', level: en.level, mods: en.mods, champ: en.champ, entry: en, T: TYPES[en.type] }; Unit.prototype.stats.call(o); return o; }
+export function renderCrypt(force) {
+  if (!cryptOpen) return; if (sel && !G.crypt.includes(sel)) sel = null;
+  const s2 = JSON.stringify([sel && sel.id, armed && isArmed(armed.k) && armed.k, G.level, G.crypt.map(e => [e.id, e.active, Math.ceil(e.reviveT), e.level, Math.floor(e.xp), e.sp, e.skills])]);
+  if (!force && s2 === sig) return; sig = s2;
+  const max = partySize(G.level), n = activeCount(), list = $('#cryptList'), top = list.scrollTop;
   $('#cryptHead').innerHTML = `墓典 <span class="sub">出战 ${n} / ${max}　·　共 ${G.crypt.length} 只</span>`;
-  const list = $('#cryptList'); list.innerHTML = '';
+  list.innerHTML = ''; list.classList.toggle('detail', !!sel);
   if (!G.crypt.length) { list.innerHTML = `<div class="cEmpty">还没有召唤物。<br>打倒怪物后对尸体施放「唤魂」（${touchUI ? '右下按钮' : 'Q 键 / 点尸体'}）来收服它。</div>`; return; }
-  for (const en of G.crypt.slice().sort((a, b) => (b.active - a.active) || (b.level - a.level))) {
+  if (sel) { renderDetail(list, sel); return; }
+  const feedN = G.crypt.filter(e => !e.champ && !e.active).length;
+  if (feedN) { const tip = document.createElement('div'); tip.className = 'cTip'; tip.textContent = `点召唤物查看技能。休息中的普通召唤物（${feedN} 只）可以转化成魂能，喂给你想培养的召唤物。`; list.appendChild(tip); }
+  for (const en of G.crypt.slice().sort((a, b) => (b.active - a.active) || (b.champ - a.champ) || (b.level - a.level))) {
     const T = TYPES[en.type], d = document.createElement('div'); d.className = 'card' + (en.active ? ' on' : '') + (en.champ ? ' champ' : '');
-    const st = en.active ? (en.reviveT > 0 ? `复原中 ${Math.ceil(en.reviveT)}s` : '出战中') : '休息';
-    const mod = en.champ && en.mods[0] ? `<span class="mod">${MODS[en.mods[0]].name}</span>` : '';
-    d.innerHTML = `<div class="ic">${T.icon}</div><div class="info"><div class="nm">${mod}${T.name}</div><div class="lv">Lv ${en.level} · ${T.role} · <b>${st}</b></div>
-      <div class="xp"><i style="width:${Math.min(100, en.xp / (xpNeed(en.level) * 0.8) * 100)}%"></i></div><div class="ds">${T.ally}</div></div>`;
-    d.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation();
-      if (inCombat()) { message('战斗中不能更换出战'); return; }
-      if (en.active) { en.active = false; dismissAlly(en); }
-      else { if (activeCount() >= max) { message(`出战已满（${max} 只），先让一只休息`); return; } en.active = true; if (en.reviveT <= 0) spawnAlly(en); }
-      save(); renderCrypt(); });
+    d.innerHTML = `<div class="ic">${T.icon}</div><div class="info"><div class="nm">${enName(en)}${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div>
+      <div class="xp"><i style="width:${Math.min(100, en.xp / (xpNeed(en.level) * 0.8) * 100)}%"></i></div><div class="ds">${T.ally}</div></div><button class="btn tg">${en.active ? '休息' : '出战'}</button>`;
+    d.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('.tg')) toggleActive(en); else { sel = en; armed = null; renderCrypt(true); $('#cryptList').scrollTop = 0; } });
     list.appendChild(d);
   }
+  list.scrollTop = top;
+}
+function renderDetail(list, en) {
+  const T = TYPES[en.type], st = statsOf(en), tree = TREE[en.type] || [], d = document.createElement('div'); d.className = 'det';
+  const need = xpNeed(en.level) * 0.8, feed = G.crypt.filter(f => canFeed(f, en)).sort((a, b) => (b.type === en.type) - (a.type === en.type) || b.level - a.level);
+  const statLine = [`生命 <b>${Math.round(st.maxHp)}</b>`, `伤害 <b>${st.dmg.toFixed(1)}</b>`, `护甲 <b>${Math.round(st.armor)}</b>`, `攻击间隔 <b>${st.cd.toFixed(2)}s</b>`, en.type === 'archer' ? `射程 <b>${st.range.toFixed(1)}</b>` : ''].filter(Boolean).join('　');
+  d.innerHTML = `<div class="dHead"><button class="btn back">‹ 返回</button><div class="ic">${T.icon}</div><div class="info"><div class="nm">${enName(en)}</div>
+      <div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div><div class="xp"><i style="width:${Math.min(100, en.xp / need * 100)}%"></i></div><div class="xpT">经验 ${Math.floor(en.xp)} / ${Math.round(need)}</div></div>
+      <button class="btn tg">${en.active ? '休息' : '出战'}</button></div>
+    <div class="stats">${statLine}</div>
+    <div class="secT">技能 <span class="pts">魂能点 <b>${en.sp || 0}</b></span></div>
+    <div class="skl">${tree.map(sk => { const r = (en.skills || {})[sk.id] || 0, mx = r >= sk.max;
+      return `<div class="sr${r ? ' got' : ''}"><span class="si">${sk.icon}</span><div class="sd"><div class="sn">${sk.name}<span class="pips">${'●'.repeat(r)}${'○'.repeat(sk.max - r)}</span></div>
+        <div class="sx">${r ? sk.desc(r) : /解锁/.test(sk.desc(0)) ? sk.desc(0) : '1 级：' + sk.desc(1)}</div>${!mx && r ? `<div class="sx nx">下一级：${sk.desc(r + 1)}</div>` : ''}</div>
+        <button class="btn plus" data-id="${sk.id}" ${mx || !(en.sp > 0) ? 'disabled' : ''}>${mx ? '满' : '＋'}</button></div>`; }).join('')}</div>
+    <div class="secT">吸收魂能 <small>把休息中的普通召唤物转化成魂能：获得经验和魂能点（同类经验 +50%）</small></div>
+    <div class="feed">${feed.length ? feed.map(f => { const k = 'eat' + f.id;
+      return `<div class="fr"><span class="ic">${TYPES[f.type].icon}</span><div class="fn">${TYPES[f.type].name} <small>Lv ${f.level}</small></div><div class="gain">+${soulXP(f, en)} 经验 · +${soulPoints(f)} 点</div>
+        <button class="btn eat${isArmed(k) ? ' arm' : ''}" data-id="${f.id}">${isArmed(k) ? '确认转化' : '转化'}</button></div>`; }).join('') +
+      (feed.length > 1 ? `<button class="btn eatAll${isArmed('all') ? ' arm' : ''}">${isArmed('all') ? '确认全部转化' : `全部转化（${feed.length} 只）`}</button>` : '')
+      : `<div class="fEmpty">墓典里没有可转化的召唤物。精英和出战中的不能转化；满员时收服的怪会存进墓典。</div>`}</div>`;
+  d.querySelector('.back').addEventListener('click', e => { e.stopPropagation(); sel = null; armed = null; renderCrypt(true); });
+  d.querySelector('.tg').addEventListener('click', e => { e.stopPropagation(); toggleActive(en); });
+  d.querySelectorAll('.plus').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); if (learn(en, b.dataset.id)) renderCrypt(true); }));
+  const eat = list2 => { let pts = 0, xp = 0, up = 0; for (const f of list2) { const r = absorb(en, f); if (r) { pts += r.pts; xp += r.xp; up += r.up; } }
+    message(`${TYPES[en.type].name} 吸收了 ${list2.length} 只的魂能：+${xp} 经验，+${pts} 魂能点${up ? `，升到 Lv ${en.level}` : ''}`); renderCrypt(true); };
+  d.querySelectorAll('.eat').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const f = G.crypt.find(x => x.id === +b.dataset.id); if (f && arm('eat' + f.id)) eat([f]); }));
+  const all = d.querySelector('.eatAll'); if (all) all.addEventListener('click', e => { e.stopPropagation(); if (arm('all')) eat(G.crypt.filter(f => canFeed(f, en))); });
+  list.appendChild(d);
 }
 
 // ---------- HUD (DOM, refreshed a few times per second) + overlay (every frame) ----------
@@ -113,7 +155,7 @@ export function updateHUD(dt, fps) {
   $('#floorTag').textContent = G.depth === 0 ? '墓园营地' : `墓穴 · 第 ${G.depth} 层`; $('#cryptN').textContent = G.crypt.length; if (fps != null) $('#fps').textContent = fps;
   const party = $('#party'), act = G.crypt.filter(e => e.active); party.innerHTML = '';
   for (const en of act) { const u = en.unit, T = TYPES[en.type], d = document.createElement('div'); d.className = 'pc' + (en.reviveT > 0 ? ' dead' : '');
-    d.innerHTML = `<span class="ic">${T.icon}</span><div class="pi"><div class="pn">${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${T.name} <small>Lv${en.level}</small></div><div class="ph"><i style="width:${u && !u.dead ? u.hp / u.maxHp * 100 : 0}%"></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
+    d.innerHTML = `<span class="ic">${T.icon}</span><div class="pi"><div class="pn">${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${T.name} <small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i style="width:${u && !u.dead ? u.hp / u.maxHp * 100 : 0}%"></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
     party.appendChild(d); }
   for (let i = act.length; i < partySize(G.level); i++) { const d = document.createElement('div'); d.className = 'pc empty'; d.innerHTML = '<span class="ic">＋</span><div class="pi"><div class="pn">空位</div></div>'; party.appendChild(d); }
   const near = G.corpses.filter(c => !c.claim && Math.hypot(c.x - P.x, c.z - P.z) < SKILLS.raise.range).length; const rb = $('#sRaise');

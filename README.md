@@ -15,6 +15,10 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - Each summon keeps its monster personality: brute = tank (draws enemy attacks), imp = fast melee with crits, archer = keeps distance,
   shaman = heals the party and makes revives faster. Champions keep their affix (Swift / Fire-enchanted / Stoneskin).
 - Summons level up from kills. When one dies it keeps its level and comes back after a revive timer.
+- When the party is full a capture still stands up, then flies into the summoner as a soul and is stored in the 墓典.
+- **Soul energy:** in the 墓典, resting non-champion summons can be converted into soul energy for another summon:
+  it gains experience (same type +50%) and 魂能点 (soul points). Points buy ranks in that summon's own skill tree
+  (4 skills per monster type, e.g. Warrior: Leap Slam / Hard Bones / Whirlwind / War Cry).
 
 ## Monsters
 Skeleton Warrior (telegraphed smash, knock-back), Skeleton Minion packs (panic and flee when a packmate falls apart),

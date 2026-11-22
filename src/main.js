@@ -4,7 +4,7 @@ import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
 import { A, loadAll, propGeo } from './assets.js';
 import { Floor, setNavTime } from './world.js';
-import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim } from './units.js';
+import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt } from './ui.js';
 import { S, unlock } from './audio.js';
 
@@ -42,6 +42,7 @@ initUI({ camera, groundAt, canvas });
 let packId = 1;
 function makeFloor(depth) {
   for (const u of G.units) if (u.side !== 'player') u.remove(); for (const c of G.corpses) scene.remove(c.mesh.root); for (const s of G.shots) scene.remove(s.root);
+  for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = [];
   G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
   if (G.floor) G.floor.dispose(scene);
   const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; if (depth > 0) G.deep = depth;
@@ -149,12 +150,12 @@ function loop(now) {
     const active = [];
     for (const u of G.units) { if (u.dead || u === P) continue; if (u.side === 'enemy' && !u.aggro && Math.hypot(u.x - P.x, u.z - P.z) > 26) { u.mesh.root.visible = false; continue; } u.mesh.root.visible = true; updateUnit(u, dt); active.push(u); }
     if (!P.dead) active.push(P); integrate(active, dt);
-    updateShots(dt); updateCorpses(dt);
+    updateShots(dt); updateCorpses(dt); updateGhosts(dt);
     let j = 0; for (const f of G.fx) { f.t -= dt; f.k = (f.k || 0) + dt; if (f.tick) f.tick(Math.min(1, f.k / (f.k + Math.max(0, f.t)))); if (f.t <= 0) { f.fn && f.fn(); continue; } G.fx[j++] = f; } G.fx.length = j;
     G.units = G.units.filter(u => !u.dead || u === P);
     // revive timers (a shaman in the party speeds them up)
-    const shaman = G.friends.some(f => f.side === 'ally' && f.kind === 'shaman');
-    for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * (shaman ? 1.4 : 1); if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(`${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${TYPES[en.type].name} 复原了`); } } }
+    let rvs = 1; for (const f of G.friends) if (f.side === 'ally' && f.kind === 'shaman') rvs = Math.max(rvs, 1.4 * (1 + 0.2 * rk(f, 'soul')));
+    for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(`${en.champ && en.mods[0] ? MODS[en.mods[0]].name : ''}${TYPES[en.type].name} 复原了`); } } }
     G.floor.stairsGlow.material.opacity = 0.55 + 0.25 * Math.sin(G.t * 2.5);
   }
   const P = G.player;

@@ -38,3 +38,35 @@ export const PACKS = [
 ];
 export const xpNeed = L => Math.round(18 * Math.pow(L, 1.55));
 export const partySize = L => Math.min(4, 1 + Math.floor(L / 3));
+
+// ---------- summon skill trees: ranks are bought with 魂能点 (soul points), earned by absorbing other summons ----------
+const pct = v => Math.round(v * 100) + '%';
+export const TREE = {
+  brute: [
+    { id: 'leap', name: '跳劈', icon: '🪓', max: 5, desc: r => `跳劈伤害 +${pct(0.2 * r)}，冷却 ${(6.5 - 0.6 * r).toFixed(1)} 秒，砸地范围 +${(0.15 * r).toFixed(2)} 米` },
+    { id: 'bone', name: '坚骨', icon: '🦴', max: 5, desc: r => `生命 +${pct(0.12 * r)}，护甲 +${5 * r}` },
+    { id: 'spin', name: '旋风斩', icon: '🌀', max: 3, desc: r => r ? `身边有 2 个以上敌人时旋转劈砍两次，每次 ${pct(0.6 + 0.2 * r)} 伤害，冷却 ${7 - r} 秒` : '解锁：被围住时旋转劈砍周围所有敌人' },
+    { id: 'taunt', name: '战吼', icon: '📢', max: 3, desc: r => r ? `受到伤害 -${pct(0.08 * r)}，${(5 + 1.5 * r).toFixed(1)} 米内的敌人更想打它` : '解锁：减伤，并把更远的敌人引向自己' },
+  ],
+  imp: [
+    { id: 'lunge', name: '突刺', icon: '🗡️', max: 5, desc: r => `突刺伤害 +${pct(0.2 * r)}，冷却 ${(4 - 0.4 * r).toFixed(1)} 秒` },
+    { id: 'crit', name: '致命', icon: '💢', max: 5, desc: r => `暴击率 +${pct(0.06 * r)}，暴击伤害 ${pct(2 + 0.1 * r)}` },
+    { id: 'haste', name: '迅捷', icon: '💨', max: 5, desc: r => `攻击间隔 -${pct(0.07 * r)}，移动速度 +${pct(0.04 * r)}` },
+    { id: 'chain', name: '连环突刺', icon: '⚡', max: 3, desc: r => r ? `突刺命中后立刻再突刺附近另一个敌人，最多连 ${r} 次` : '解锁：突刺命中后接着扑向下一个敌人' },
+  ],
+  archer: [
+    { id: 'multi', name: '多重射击', icon: '🏹', max: 3, desc: r => r ? `一次射出 ${1 + r} 支弩箭（额外的箭 75% 伤害）` : '解锁：一次射出多支弩箭' },
+    { id: 'pierce', name: '穿透', icon: '🎯', max: 3, desc: r => r ? `弩箭可以穿过 ${r} 个敌人` : '解锁：弩箭穿透敌人' },
+    { id: 'eagle', name: '鹰眼', icon: '👁️', max: 5, desc: r => `伤害 +${pct(0.12 * r)}，射程 +${(0.4 * r).toFixed(1)} 米` },
+    { id: 'rapid', name: '快速装填', icon: '⏱️', max: 5, desc: r => `射击间隔 -${pct(0.08 * r)}` },
+  ],
+  shaman: [
+    { id: 'heal', name: '治愈', icon: '💚', max: 5, desc: r => `治疗量 +${pct(0.2 * r)}，治疗冷却 ${(3.5 - 0.3 * r).toFixed(1)} 秒` },
+    { id: 'fire', name: '火球', icon: '🔥', max: 5, desc: r => `火球伤害 +${pct(0.15 * r)}，爆炸范围 +${(0.15 * r).toFixed(2)} 米` },
+    { id: 'mass', name: '群体治疗', icon: '✨', max: 3, desc: r => r ? `治疗时附近 ${(2.5 + 0.5 * r).toFixed(1)} 米内的队友也回复 ${pct(0.35 + 0.15 * r)}` : '解锁：治疗溅射到附近队友' },
+    { id: 'soul', name: '引魂', icon: '👻', max: 3, desc: r => r ? `队伍复原速度再 +${pct(0.2 * r)}` : '解锁：让倒下的队友更快复原' },
+  ],
+};
+// what a summon is worth when absorbed: experience for the absorber (same type +50%) and soul points
+export const soulPoints = en => 1 + Math.floor((en.level - 1) / 3);
+export const soulXP = (en, to) => Math.round(xpNeed(en.level) * 0.8 * 0.6 * (en.type === to.type ? 1.5 : 1));
