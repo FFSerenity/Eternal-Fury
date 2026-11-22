@@ -22,6 +22,15 @@ export const MODS = {
   fire:  { name: '火焰强化', col: 0xff8a2a },
   stone: { name: '石肤', col: 0xb9b2a4 },
 };
+// elemental look of champion affixes: weapon glow, particles off the weapon, hit sparks, projectile trails
+export const ELEM = {
+  fire:  { col: 0xff7a20, emis: 0x7a2a00, part: { col: 0xff8a2a, spd: 0.35, up: 1.3, grav: -1.4, life: 0.5, size: 0.24, spread: 0.08 },
+           hit: { col: 0xff8a2a, spd: 2.2, up: 1.8, grav: -0.5, life: 0.45, size: 0.3 } },
+  fast:  { col: 0x8fe0ff, emis: 0x124a66, part: { col: 0xb8eeff, spd: 0.7, up: 0.3, grav: 0, life: 0.28, size: 0.16, spread: 0.08 },
+           hit: { col: 0xb8eeff, spd: 3.8, up: 0.8, grav: 0, life: 0.25, size: 0.16 } },
+  stone: { col: 0xd8c49a, emis: 0x2e2618, part: { col: 0xb4a284, spd: 0.4, up: 0.2, grav: 5, life: 0.45, size: 0.17, spread: 0.1 },
+           hit: { col: 0xa8987a, spd: 2.6, up: 2.4, grav: 7, life: 0.5, size: 0.22 } },
+};
 export const SKILLS = {
   spear: { name: '骨矛', mana: 2, cd: 0.34 },
   raise: { name: '唤魂', mana: 8, cd: 0.4, range: 6, channel: 0.7 },

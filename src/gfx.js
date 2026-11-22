@@ -43,7 +43,7 @@ void main(){
 }`;
 const TOON_F = `
 #define TN ${TORCH_N}
-uniform vec3 uTint; uniform float uFlash; uniform vec3 uEmis; uniform float uFade;
+uniform vec3 uTint; uniform float uFlash; uniform vec3 uEmis; uniform float uFade; uniform vec3 uRim;
 uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC;
 uniform vec4 uTL[TN]; uniform vec3 uTC;
 uniform float uCut; uniform vec2 uCutC; uniform float uCutR; uniform float uCutZ;
@@ -72,11 +72,12 @@ void main(){
   base *= texture2D(uMap, vUv).rgb;
   #endif
   vec3 col = base * lit + uEmis;
+  float rim = 1.0 - max(dot(N, normalize(cameraPosition - vW)), 0.0); col += uRim * smoothstep(0.42, 0.9, rim);
   col = mix(col, vec3(1.0, 0.96, 0.9), uFlash);
   gl_FragColor = vec4(col, 1.0);
 }`;
 // o.u: per-character uniforms shared by all of its materials (tint/flash/emissive/fade)
-export function charUniforms(o = {}) { return { uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uFlash: { value: 0 }, uEmis: { value: new THREE.Color(o.emis ?? 0x000000) }, uFade: { value: 1 } }; }
+export function charUniforms(o = {}) { return { uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uFlash: { value: 0 }, uEmis: { value: new THREE.Color(o.emis ?? 0x000000) }, uFade: { value: 1 }, uRim: { value: new THREE.Color(o.rim ?? 0x000000) } }; }
 export function toonMat(o = {}) {
   const u = o.u || charUniforms(o);
   const m = new THREE.ShaderMaterial({

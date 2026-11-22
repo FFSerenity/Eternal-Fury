@@ -52,6 +52,9 @@ export class Floor {
   block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); return true; } return false; }
   // line of sight on the tile grid (also used for projectiles)
   los(ax, az, bx, bz) { const dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz), n = Math.ceil(d / 0.3); for (let i = 1; i < n; i++) if (!this.walk(ax + dx * i / n, az + dz * i / n)) return false; return true; }
+  // a straight walk is only taken when a body of radius r fits along the whole line (stops units hugging corners)
+  clear(ax, az, bx, bz, r = 0.36) { const dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz) || 1, px = -dz / d * r, pz = dx / d * r;
+    return this.los(ax, az, bx, bz) && this.los(ax + px, az + pz, bx + px, bz + pz) && this.los(ax - px, az - pz, bx - px, bz - pz); }
   bfs(tx, tz) {
     const W = this.W, H = this.H, D = new Float32Array(W * H).fill(1e9), q = new Int32Array(W * H); let h = 0, t = 0; const s = tz * W + tx; if (this.g[s] !== 1) return D;
     D[s] = 0; q[t++] = s; const nb = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
@@ -62,7 +65,7 @@ export class Floor {
   }
   // direction to walk from (x,z) toward (tx,tz): straight if visible, otherwise down a cached flow field
   dirTo(x, z, tx, tz, out) {
-    if (this.los(x, z, tx, tz)) { const dx = tx - x, dz = tz - z, d = Math.hypot(dx, dz) || 1; out.x = dx / d; out.z = dz / d; return out; }
+    if (this.clear(x, z, tx, tz)) { const dx = tx - x, dz = tz - z, d = Math.hypot(dx, dz) || 1; out.x = dx / d; out.z = dz / d; return out; }
     const TX = Math.floor(tx), TZ = Math.floor(tz), key = TZ * this.W + TX; let f = this.fields.get(key);
     if (!f || G_T - f.t > 2) { f = { d: this.bfs(TX, TZ), t: G_T }; this.fields.set(key, f); if (this.fields.size > 40) this.fields.delete(this.fields.keys().next().value); }
     const D = f.d, X = Math.floor(x), Z = Math.floor(z), W = this.W; let best = D[Z * W + X], bx = 0, bz = 0;

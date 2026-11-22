@@ -37,7 +37,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#07060a;color:#e8e0f0;
 .btn{border:none;font-family:inherit;color:#f2eaff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(180deg,#4a3470,#2a1d42);border:1px solid rgba(200,170,255,.35);border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.4);touch-action:none}
 .btn.down{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
 #bCrypt{height:40px;padding:0 12px;font-weight:800;font-size:14px}#bCrypt b{background:#3fe0d0;color:#0b2a28;border-radius:9px;padding:1px 7px;font-size:12px}
-#bSfx{width:40px;height:40px;font-size:18px}
+#bSfx,#bReset{width:40px;height:40px;font-size:18px}#bReset{font-size:20px;font-weight:900}#bReset.arm{width:auto;padding:0 10px;font-size:13px;background:linear-gradient(180deg,#a33a3a,#6a1d1d);border-color:rgba(255,140,140,.6)}
 #fps{font:700 11px ui-monospace,monospace;color:#bfb3d6;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:7px;min-width:44px;text-align:center}
 #fps:after{content:' fps'}
 #floorTag{position:absolute;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);font-weight:800;font-size:13px;letter-spacing:2px;color:#cdbbe8;text-shadow:0 1px 4px #000;pointer-events:none}
@@ -121,7 +121,7 @@ body.touch .sk .k{display:none}
     <div class="bar"><i id="hpB"></i><span id="hpT"></span></div><div class="bar"><i id="mpB"></i><span id="mpT"></span></div><div class="bar xp"><i id="xpB"></i></div></div>
   <div id="party"></div>
   <div id="floorTag"></div>
-  <div id="tr"><span id="fps">60</span><button class="btn" id="bSfx">🔊</button><button class="btn" id="bCrypt">📜 墓典 <b id="cryptN">0</b></button></div>
+  <div id="tr"><span id="fps">60</span><button class="btn" id="bReset" title="重置副本（测试）">↺</button><button class="btn" id="bSfx">🔊</button><button class="btn" id="bCrypt">📜 墓典 <b id="cryptN">0</b></button></div>
   <div id="msg"></div>
   <div id="skills">
     <button class="btn sk" id="sRaise"><span class="nm">唤魂</span>👻<span class="k">Q</span><b id="raiseN"></b></button>

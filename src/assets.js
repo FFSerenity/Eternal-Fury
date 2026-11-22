@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
-import { toonMat, outlineMat, charUniforms } from './gfx.js';
+import { toonMat, outlineMat, charUniforms, glowSprite } from './gfx.js';
+import { ELEM } from './data.js';
 
 export const A = { chars: {}, clips: {}, props: {}, ready: false };
 const CHAR_FILES = ['mage', 'sk_minion', 'sk_warrior', 'sk_rogue', 'sk_mage'], PROP_FILES = ['weapons', 'dungeon', 'graveyard'];
@@ -80,13 +81,19 @@ export function makeUnitMesh(kind, o = {}) {
     if (obj.isSkinnedMesh) { obj.boundingSphere = SPHERE.clone(); const ol = new THREE.SkinnedMesh(obj.geometry, olSk); ol.bind(obj.skeleton, obj.bindMatrix); ol.boundingSphere = SPHERE.clone(); adds.push([obj.parent, ol]); }
     else { const s = obj.scale.x || 1; adds.push([obj, new THREE.Mesh(obj.geometry, outlineMat(o.outline ?? 0x120a10, olW / s, u.uFade))]); }
   });
+  // champion affix: the weapons glow in the element's colour and get a glowing tip that sheds particles
+  const el = o.elem && ELEM[o.elem], tips = [], glows = [];
+  const wMat = el ? new Map() : null, matW = map => { if (!el) return matFor(map); if (!wMat.has(map)) wMat.set(map, toonMat({ u: { ...u, uEmis: { value: new THREE.Color(el.emis) } }, map, vc: false })); return wMat.get(map); };
   for (const [w, bone] of def.weapons || []) { const pg = propGeo(w), b = findBone(model, bone); if (!pg || !b) continue;
-    const wm = new THREE.Mesh(pg.geo, matFor(pg.map)); b.add(wm); adds.push([wm, new THREE.Mesh(pg.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]); }
+    const wm = new THREE.Mesh(pg.geo, matW(pg.map)); b.add(wm); adds.push([wm, new THREE.Mesh(pg.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
+    if (el && w !== 'sk_shield') { const tip = new THREE.Object3D(); tip.position.set(0, pg.box.max.y * 0.8, (pg.box.max.z + pg.box.min.z) / 2); wm.add(tip);
+      const gs = glowSprite(el.col, 1.3, 0.85); tip.add(gs); glows.push(gs); tips.push(tip); } }
+
   for (const [parent, ol] of adds) parent.add(ol);
   model.scale.setScalar(def.scale * (o.scale ?? 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
-  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u };
+  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, elem: el ? o.elem : null };
 }
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current

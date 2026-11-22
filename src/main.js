@@ -36,7 +36,7 @@ function placeCamera(snap) {
 }
 const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 function groundAt(cx, cy) { ndc.set(cx / VW * 2 - 1, -(cy / VH) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(plane, hit) ? { x: hit.x, z: hit.z } : null; }
-initUI({ camera, groundAt, canvas });
+initUI({ camera, groundAt, canvas, reset: () => resetDungeon() });
 
 // ---------- floors ----------
 let packId = 1;
@@ -63,6 +63,14 @@ function makeFloor(depth) {
         u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: depth + 1, packId: pid, champ: true, mods: [keys[Math.floor(R() * keys.length)]] }); units[units.indexOf(u0)] = ch; }
       G.units.push(...units); } }
   placeCamera(true); message(depth === 0 ? '墓园营地' : `墓穴 · 第 ${depth} 层`, true); if (depth === 0 && G.deep > 1) message(`穿过墓穴大门可回到第 ${G.deep} 层`); save();
+}
+
+// test helper: back to the camp with everyone revived; the crypt floor is generated anew (fresh monsters) on the next entry
+function resetDungeon() {
+  const P = G.player; closeCrypt(); IN.moveTo = IN.attack = IN.castAt = IN.raise = null; IN.stairs = false;
+  if (P.dead) { P.dead = false; P.state = 'idle'; P.mesh.u.uFade.value = 1; } playerAnim(P, 'revive');
+  for (const en of G.crypt) en.reviveT = 0;
+  S.stairs(); makeFloor(0); message('副本已重置');
 }
 
 // ---------- the summoner ----------

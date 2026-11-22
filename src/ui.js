@@ -9,7 +9,8 @@ const $ = s => document.querySelector(s);
 export const IN = { joy: null, moveTo: null, hold: false, attack: null, castAt: null, castHold: false, autoAtk: false, raise: null, raiseKey: false, mend: false, stairs: false, cursor: null, shift: false };
 export const touchUI = matchMedia('(pointer: coarse)').matches;
 let cam = null, groundAt = null, W = 0, H = 0;
-export function initUI(o) { cam = o.camera; groundAt = o.groundAt; document.body.classList.toggle('touch', touchUI); bindInput(o.canvas); bindButtons(); }
+let onReset = null;
+export function initUI(o) { cam = o.camera; groundAt = o.groundAt; onReset = o.reset; document.body.classList.toggle('touch', touchUI); bindInput(o.canvas); bindButtons(); }
 export function resizeUI(w, h) { W = w; H = h; const c = $('#ov'), dpr = Math.min(devicePixelRatio || 1, 2); c.width = w * dpr; c.height = h * dpr; c.style.width = w + 'px'; c.style.height = h + 'px'; ovScale = dpr; }
 let ovScale = 1;
 const V = new THREE.Vector3();
@@ -73,6 +74,10 @@ function bindButtons() {
   hold($('#bStairs'), () => { IN.stairs = true; });
   hold($('#bSfx'), () => { setSfx(!sfxOn()); $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇'; });
   $('#bSfx').textContent = sfxOn() ? '🔊' : '🔇';
+  // test helper: two taps → back to the camp, the crypt is generated again with fresh monsters
+  let rArm = 0; const rb = $('#bReset');
+  hold(rb, () => { if (performance.now() - rArm < 3000) { rArm = 0; rb.classList.remove('arm'); rb.textContent = '↺'; onReset && onReset(); return; }
+    rArm = performance.now(); rb.classList.add('arm'); rb.textContent = '确认重置？'; setTimeout(() => { if (performance.now() - rArm >= 2900) { rb.classList.remove('arm'); rb.textContent = '↺'; } }, 3000); });
   $('#crypt').addEventListener('pointerdown', e => { if (e.target.id === 'crypt' || e.target.id === 'cryptX') closeCrypt(); });
 }
 
