@@ -47,6 +47,9 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
   噬魂机枪 / Soul Reaper Gatling (once per save; faint purple motes hint at it). Click the coffin → the summoner walks over,
   it bursts open and the gun drops.
 - Only a Skeleton Minion can equip it; while equipped the minion becomes a Gunner Skeleton: ranged (6.5 m), holds its
-  ground like the other ranged summons, fires 6-round bursts (each ~40% of a stab; crit from the minion tree; affix effects
-  on the first round of each burst). Lunge / chain don't apply while it holds the gun.
+  ground like the other ranged summons, sustained fire (~8 rounds/s, each ~21% of a stab; one damage number per 3 rounds;
+  crit from the minion tree; affix effects on every 6th round). Lunge / chain don't apply while it holds the gun.
+- Its own look (a new unit, not just a weapon swap): olive helmet with purple goggles, bandolier, ammo pack with a glowing
+  drum, 12% taller; own portrait. The KayKit accessory parts (warrior helmet, rogue hood / cape) made it read as the
+  existing warrior / archer, so these pieces are built in code (gun.js) in the same style and hung on the shared rig.
 - New quality tier 史诗 / Epic (purple). Epic items can't be smelted.

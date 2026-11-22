@@ -40,7 +40,7 @@ export class Unit {
     if (champ && mod0) { const rg = ring(0.56, 0.685, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
   get name() { return affixName(this.mods, this.champ) + (this.gun ? GUNNER.name : this.T ? this.T.name : tr('召唤师', 'Summoner')); }
-  stats() { Unit.prototype._stats.call(this); this.speed *= PACE.move; if (this.cd) this.cd /= PACE.act; }
+  stats() { Unit.prototype._stats.call(this); this.speed *= PACE.move; if (this.cd) this.cd /= PACE.act; if (this.gun) this.rof = this.cd / 6; }
   _stats() {
     const L = this.level;
     if (this.kind === 'player') { this.maxHp = 90 + 10 * (L - 1); this.maxMp = 40 + 5 * (L - 1); this.speed = 4.6; this.r = 0.36; this.armor = 8 + 2 * L; this.dmg = 10 + 2.5 * (L - 1); return; }
@@ -60,8 +60,8 @@ export class Unit {
     const g = this.entry.gear || {};
     if (g.w && g.w.type === this.kind) { const v = g.w.v; this.dmg *= 1 + v.dmg / 100; this.cd *= itemBase(g.w).cd / (1 + (v.spd || 0) / 100); this.maxHp *= 1 + (v.hp || 0) / 100; }
     if (g.a) { const v = g.a.v; this.maxHp *= 1 + v.hp / 100; this.armor += v.arm; this.dmg *= 1 + (v.dmg || 0) / 100; this.speed *= 1 + (v.move || 0) / 100; }
-    // 机枪骷髅: a minion holding the easter-egg gatling fights at range in bursts (each round ~40% of a stab)
-    this.gun = this.kind === 'imp' && !!(g.w && g.w.uniq === 'mg'); if (this.gun) { this.cd *= 2; this.range = 6.5; }
+    // 机枪骷髅: a minion holding the easter-egg gatling fights at range with sustained fire (each round ~21% of a stab, ~8 rounds a second)
+    this.gun = this.kind === 'imp' && !!(g.w && g.w.uniq === 'mg'); if (this.gun) { this.cd = 0.72 * this.cd / this.T.cd; this.range = 6.5; } // cd = one 6-round belt
   }
   remove() { C.scene.remove(this.mesh.root); }
   // new weapon / shield in hand after an equipment change
@@ -83,9 +83,11 @@ export function damage(src, dst, amt, o = {}) {
   if (o.knock) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
   if (dst.kind !== 'player' && !dst.noStun && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
-  if (dst.kind === 'player') S.hurt(); else if (!o.dot) S.hit(Math.min(1, d / 20));
+  if (dst.kind === 'player') S.hurt(); else if (!o.dot && !o.sum) S.hit(Math.min(1, d / 20));
   if (src && src.champ && !o.noFx) for (const mod of src.mods) { const el = ELEM[mod]; if (!el) continue; C.parts.emit(dst.x, 0.7, dst.z, src.mods.length > 1 ? 6 : 11, el.hit); elemHit(mod, src, dst, d, o); }
-  if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? tr('暴击 ', 'CRIT ') : '') + Math.round(d), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4);
+  let shown = d; // machine-gun rounds: one number for every 3 (or at once on a crit / the killing round)
+  if (o.sum) { dst.sumD = (dst.sumD || 0) + d; dst.sumN = (dst.sumN || 0) + 1; if (dst.sumN < 3 && !o.crit && dst.hp > 0) return d; shown = dst.sumD; dst.sumD = dst.sumN = 0; }
+  if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? tr('暴击 ', 'CRIT ') : '') + Math.round(shown), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4);
   if (dst.hp <= 0) kill(dst, src);
   return d;
 }
@@ -368,13 +370,15 @@ function flee(u, fx, fz, spd) {
 const faceTo = (u, t) => { u.faceT = Math.atan2(t.x - u.x, t.z - u.z); };
 const GUN_CLIP = '2H_Ranged_Shoot'; // two-handed shooting stance for the gatling
 function startWindup(u, t) {
-  if (u.gun) { u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); play(u.mesh, GUN_CLIP, { once: true, restart: true, speed: 0.5, fade: 0.1 }); u.animLock = 1.1; return; }
+  if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire)
+    if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd; if (u.mesh.curName !== GUN_CLIP) play(u.mesh, GUN_CLIP, { once: true, at: 0.55, speed: 0.5, fade: 0.08 }); return; }
+    u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); play(u.mesh, GUN_CLIP, { once: true, restart: true, speed: 0.5, fade: 0.1 }); u.animLock = 1.1; return; }
   u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind);
   if (u.kind === 'brute') { const rg = ring(0.2, u.range + u.r + 0.3, u.side === 'enemy' ? 0xff3a2a : 0x3fe0d0, 0.0); rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
   const t = u.tgt; u.state = 'recover'; u.st = 0; u.cdT = u.cd * rand(0.9, 1.15); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
   if (!t || t.dead) return;
-  if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; return; }
+  if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; u.cdT = u.cd; return; }
   if (u.kind === 'brute') { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 0.8, 0.2, u.z + Math.cos(u.face) * 0.8, 16, { col: 0xb8a890, spd: 3, up: 1.5, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d > u.range + u.r + h.r + 0.35) continue;
       const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1), { knock: 4 }); } }
@@ -385,10 +389,10 @@ function strike(u) {
     for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.17; shoot(u, 'arrow', tx, tz, { life: 0.9 + 0.04 * rk(u, 'eagle'), ang: a, pierce: rk(u, 'pierce'), dmg: u.dmg * (a ? 0.75 : 1) }); } }
   else if (u.kind === 'shaman') shoot(u, 'fire', t.x, t.z, { life: 1.1, dmg: u.dmg * (1 + 0.15 * rk(u, 'fire')), splash: 1.4 + 0.15 * rk(u, 'fire') });
 }
-// a burst: one round every ~0.09 s at the target (or the nearest enemy in range), tracer + muzzle flash + sparks; the first round carries the affix effects
+// sustained fire: one round every rof seconds at the target (or the nearest enemy in range), tracer + muzzle flash + sparks; every 6th round carries the affix effects
 const _mz = new THREE.Vector3();
 function gunTick(u, dt) {
-  const gn = u.mesh.gun; if (gn) gn.spin = 32; u.burstT -= dt; if (u.burstT > 0) return; u.burstT = 0.09; u.burst--;
+  const gn = u.mesh.gun; if (gn) gn.spin = 32; u.burstT -= dt; if (u.burstT > 0) return; u.burstT += u.rof || 0.12; u.burst--; u.lastShot = G.t; u.animLock = Math.max(u.animLock || 0, 0.3);
   let t = u.tgt; if (!t || t.dead || dist(u, t) > u.range + 1.5) t = nearestHostile(u, u.range + 1); if (!t) { u.burst = 0; return; }
   faceTo(u, t); u.face = u.faceT;
   if (gn) gn.muzzle.getWorldPosition(_mz); else _mz.set(u.x + Math.sin(u.face) * 0.5, 0.7, u.z + Math.cos(u.face) * 0.5);
@@ -396,7 +400,7 @@ function gunTick(u, dt) {
   tracer(_mz.x, _mz.y, _mz.z, tx, ty, tz); S.gun();
   C.parts.emit(_mz.x, _mz.y, _mz.z, 3, { col: 0xffe6a0, spd: 1.2, up: 0.2, life: 0.1, size: 0.3 });
   C.parts.emit(tx, ty, tz, 4, { col: Math.random() < 0.5 ? 0xd9a8ff : 0xffe6a0, spd: 2.4, up: 1, life: 0.22, size: 0.12 });
-  damage(u, t, u.dmg * 0.4 * rand(0.85, 1.15), { crit: u.side === 'ally' && Math.random() < 0.15 + 0.06 * rk(u, 'crit'), critX: 2 + 0.1 * rk(u, 'crit'), noFx: u.burstN++ > 0 });
+  damage(u, t, u.dmg * 0.21 * rand(0.85, 1.15), { crit: u.side === 'ally' && Math.random() < 0.15 + 0.06 * rk(u, 'crit'), critX: 2 + 0.1 * rk(u, 'crit'), noFx: u.burstN++ % 6 !== 0, sum: true });
 }
 const TR = [], trGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5), trMat = new THREE.MeshBasicMaterial({ color: 0xffc35a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
 function tracer(x0, y0, z0, x1, y1, z1) { const m = new THREE.Mesh(trGeo, trMat); m.renderOrder = 3; C.scene.add(m); const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0) || 0.01;

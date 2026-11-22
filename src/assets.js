@@ -108,8 +108,15 @@ export function makeUnitMesh(kind, o = {}) {
       const gs = glowSprite(QUAL[it.q].hex, it.q >= 2 ? 1.1 : 0.8, it.q >= 2 ? 0.8 : 0.6); t.add(gs); glows.push(gs); }
   }
 
+  // 机枪骷髅: a minion holding the gatling gets its own look — a gunmetal helmet with purple goggles, a bandolier and an ammo pack
+  // (built in gun.js in the rig's rest-pose space, then hung on the head / chest bones so they follow the animation); it stands a little taller
+  const gunner = kind === 'imp' && gear.w && gear.w.uniq === 'mg';
+  if (gunner) { model.updateMatrixWorld(true);
+    for (const [name, bone] of [['gunner_helmet', 'head'], ['gunner_kit', 'chest']]) { const kp = propGeo(name), b = findBone(model, bone); if (!kp || !b) continue;
+      const m = new THREE.Mesh(kp.geo, matW(kp.map)); new THREE.Matrix4().copy(b.matrixWorld).invert().multiply(model.matrixWorld).decompose(m.position, m.quaternion, m.scale); b.add(m);
+      adds.push([m, new THREE.Mesh(kp.geo, outlineMat(o.outline ?? 0x120a10, olW / (m.scale.x || 1), u.uFade))]); } }
   for (const [parent, ol] of adds) parent.add(ol);
-  model.scale.setScalar(def.scale * (o.scale ?? 1));
+  model.scale.setScalar(def.scale * (o.scale ?? 1) * (gunner ? 1.12 : 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
   return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, elem: el ? elems[0] : null, elems };

@@ -169,7 +169,7 @@ export function renderCrypt(force) {
   if (feedN) { const tip = document.createElement('div'); tip.className = 'cTip'; tip.textContent = tr(`点召唤物查看技能。休息中的普通召唤物（${feedN} 只）可以转化成魂能，喂给你想培养的召唤物。`, `Tap a summon for its skills. Resting normal summons (${feedN}) can be absorbed as soul energy by the one you want to grow.`); list.appendChild(tip); }
   for (const en of G.crypt.slice().sort((a, b) => (b.active - a.active) || (b.champ - a.champ) || (b.level - a.level))) {
     const T = TYPES[en.type], d = document.createElement('div'); d.className = 'card' + (en.active ? ' on' : '') + (en.champ ? ' champ' : '');
-    d.innerHTML = `<div class="ic">${portrait(en.type)}</div><div class="info"><div class="nm">${enName(en)}${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div>
+    d.innerHTML = `<div class="ic">${portrait(en)}</div><div class="info"><div class="nm">${enName(en)}${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div>
       <div class="xp"><i style="width:${Math.min(100, en.xp / (xpNeed(en.level) * 0.8) * 100)}%"></i></div><div class="ds">${T.ally}</div></div><button class="btn tg">${en.active ? tr('休息', 'Rest') : tr('出战', 'Join')}</button>`;
     d.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('.tg')) toggleActive(en); else { sel = en; armed = null; renderCrypt(true); $('#cryptList').scrollTop = 0; } });
     list.appendChild(d);
@@ -185,7 +185,7 @@ function renderDetail(list, en) {
     <button class="btn fzAllB${isArmed('fzall') ? ' arm' : ''}">${isArmed('fzall') ? tr('确认一键融合', 'Confirm') : tr(`一键融合（${plain.length} 只）`, `Fuse all (${plain.length})`)}</button></div>` : '';
   const need = xpNeed(en.level) * 0.8, feed = G.crypt.filter(f => canFeed(f, en)).sort((a, b) => (b.type === en.type) - (a.type === en.type) || b.level - a.level);
   const statLine = [`${tr('生命', 'Life')} <b>${Math.round(st.maxHp)}</b>`, `${tr('伤害', 'Damage')} <b>${st.dmg.toFixed(1)}</b>`, `${tr('护甲', 'Armour')} <b>${Math.round(st.armor)}</b>`, `${tr('攻击间隔', 'Interval')} <b>${st.cd.toFixed(2)}s</b>`, en.type === 'archer' ? `${tr('射程', 'Range')} <b>${st.range.toFixed(1)}</b>` : ''].filter(Boolean).join('　');
-  d.innerHTML = `<div class="dHead"><button class="btn back">‹ ${tr('返回', 'Back')}</button><div class="ic">${portrait(en.type)}</div><div class="info"><div class="nm">${enName(en)}</div>
+  d.innerHTML = `<div class="dHead"><button class="btn back">‹ ${tr('返回', 'Back')}</button><div class="ic">${portrait(en)}</div><div class="info"><div class="nm">${enName(en)}</div>
       <div class="lv">Lv ${en.level} · ${T.role} · <b>${status(en)}</b></div><div class="xp"><i style="width:${Math.min(100, en.xp / need * 100)}%"></i></div><div class="xpT">${tr('经验', 'XP')} ${Math.floor(en.xp)} / ${Math.round(need)}</div></div>
       <button class="btn tg">${en.active ? tr('休息', 'Rest') : tr('出战', 'Join')}</button></div>
     <div class="stats">${statLine}${en.champ ? en.mods.map(m => `<div class="affix">${chip(m, (en.modLv && en.modLv[m]) || 1)} ${MODS[m].desc}</div>`).join('') : ''}</div>
@@ -243,7 +243,7 @@ function fuseAnim(en, ftype, r, before, n) {
     sparks += `<i class="fzSp" style="--x:${(Math.cos(a) * d).toFixed(0)}px;--y:${(Math.sin(a) * d * 0.85).toFixed(0)}px;--d:${rnd(0, 0.15).toFixed(2)}s;--s:${rnd(4, 9).toFixed(1)}px;--c:${c}"></i>`; }
   S.raise(); const box = document.createElement('div'); box.id = 'fuseFx';
   box.innerHTML = `<div class="fzRow"><div class="fzRays"></div><div class="fzRingW"><div class="fzRing"></div></div>${motes}<div class="fzBurst"></div><div class="fzBurst b2"></div>${sparks}
-    <div class="fzA">${portrait(en.type)}</div><div class="fzB">${portrait(ftype)}${n > 1 ? `<b class="fzN">×${n}</b>` : ''}</div></div><div class="fzT">${n > 1 ? tr(`融合中……（${n} 只）`, `Fusing… (${n})`) : tr('融合中……', 'Fusing…')}</div><div class="fzR"></div>
+    <div class="fzA">${portrait(en)}</div><div class="fzB">${portrait(ftype)}${n > 1 ? `<b class="fzN">×${n}</b>` : ''}</div></div><div class="fzT">${n > 1 ? tr(`融合中……（${n} 只）`, `Fusing… (${n})`) : tr('融合中……', 'Fusing…')}</div><div class="fzR"></div>
     <button class="btn ok" style="visibility:hidden">${tr('好', 'OK')}</button><div class="fzFlash"></div>`;
   if (good) box.style.setProperty('--gc', affCols[0] || '#ffd36a');
   $('#cryptBox').appendChild(box);
@@ -269,7 +269,7 @@ export function updateHUD(dt, fps) {
   const party = $('#party'), act = G.crypt.filter(e => e.active), psig = JSON.stringify([partySize(G.level), act.map(en => [en.id, en.level, en.sp, Math.ceil(en.reviveT), en.mods, isGunner(en)])]);
   if (psig !== partySig) { partySig = psig; party.innerHTML = '';
     for (const en of act) { const T = TYPES[en.type], d = document.createElement('div'); d.className = 'pc' + (en.reviveT > 0 ? ' dead' : '');
-      d.dataset.id = en.id; d.title = tr('点开装备', 'Open equipment'); d.innerHTML = `<span class="ic">${portrait(en.type)}</span><div class="pi"><div class="pn">${ZH ? `<span class="pnn">${affixName(en.mods, en.champ)}${isGunner(en) ? GUNNER.name : T.name}</span>` : `<span class="pnn${en.champ && en.mods.length ? ' elite' : ''}">${isGunner(en) ? GUNNER.short : T.short}</span>${dots(en)}`}<small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
+      d.dataset.id = en.id; d.title = tr('点开装备', 'Open equipment'); d.innerHTML = `<span class="ic">${portrait(en)}</span><div class="pi"><div class="pn">${ZH ? `<span class="pnn">${affixName(en.mods, en.champ)}${isGunner(en) ? GUNNER.name : T.name}</span>` : `<span class="pnn${en.champ && en.mods.length ? ' elite' : ''}">${isGunner(en) ? GUNNER.short : T.short}</span>${dots(en)}`}<small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
       party.appendChild(d); }
     for (let i = act.length; i < partySize(G.level); i++) { const d = document.createElement('div'); d.className = 'pc empty'; d.title = tr('打开墓典', 'Open the Crypt'); d.innerHTML = `<span class="ic">＋</span><div class="pi"><div class="pn">${tr('空位', 'Empty slot')}</div></div>`; party.appendChild(d); } }
   for (const d of party.querySelectorAll('.pc[data-id]')) { const en = act.find(e => e.id === +d.dataset.id), u = en && en.unit, i = d.querySelector('.ph i'); if (i) i.style.width = (u && !u.dead ? u.hp / u.maxHp * 100 : 0) + '%'; }
