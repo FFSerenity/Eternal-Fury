@@ -53,6 +53,10 @@ frame the swing connects, with a slash arc, a flash and bone chips; heavy blows 
 (Settings → Screen shake). Warriors and Minions vary their swings; Leap Slam cracks the ground, Whirlwind spins a ring of blade
 light; enemy warriors telegraph their chop with a red ring. Damage numbers pop in (crits bigger, with a shiver) and drift aside.
 The 机枪骷髅 holds the gatling up with both hands while it walks, aims and fires (its legs and arms animate separately).
+**Deaths**: the killing blow throws the body back (a hop on a hard hit), the skeleton flashes and collapses faster, and bones
+fly off and clatter across the floor (more from hard hits, warriors and champions); a champion falling near the summoner
+slows time for a moment. **Weapon glow**: Magic weapons keep a soft glow at the tip; Rare and Epic weapons are wrapped in
+energy flowing from the grip to the tip (gold / purple) and shed sparks — in a hand and lying on the ground.
 
 ## World
 You start in a small graveyard camp; the crypt's door is a glowing portal — walk up its steps into it (or click anywhere on the building) to go down to the deepest floor you have reached.

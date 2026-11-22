@@ -2,6 +2,7 @@
 // (Hit-stop and the hit jolt live on the units themselves: see damage() / integrate() in units.js.)
 import * as THREE from 'three';
 import { G } from './state.js';
+import { propGeo, propMat } from './assets.js';
 
 const S = { scene: null, parts: null, shakeA: 0, shakeT: 0, ph: [0, 0, 0] };
 let shakeOn = true; try { shakeOn = localStorage.getItem('graveTamerShake') !== '0'; } catch (e) {}
@@ -80,6 +81,29 @@ function updateMarks(dt) { let j = 0;
     else k.m.material.opacity = 0.85 * Math.min(1, (1 - f) * 2.5);
     MARKS[j++] = k; } MARKS.length = j; }
 
+// ---------- bones flying off a skeleton that falls (instanced: one draw per bone shape however many are in the air) ----------
+const DEB = { types: ['bone_A', 'bone_B', 'bone_C'], ms: null, list: [], cap: 90 }, DM = new THREE.Matrix4(), DQ = new THREE.Quaternion(), DE = new THREE.Euler(), DP = new THREE.Vector3(), DS = new THREE.Vector3();
+function debMeshes() { if (DEB.ms) return DEB.ms;
+  DEB.ms = DEB.types.map(n => { const pg = propGeo(n), im = new THREE.InstancedMesh(pg.geo, propMat(pg.map), DEB.cap); im.count = 0; im.frustumCulled = false; S.scene.add(im); return im; }); return DEB.ms; }
+// n pieces from (x, y, z), thrown mostly along (dx, dz) with the given force
+export function debris(x, y, z, dx, dz, n, force) { if (!S.scene) return; debMeshes(); const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+  for (let i = 0; i < n; i++) { const t = Math.floor(Math.random() * DEB.types.length); if (DEB.list.filter(p => p.t === t).length >= DEB.cap) continue;
+    const a = (Math.random() - 0.5) * 2.2, c = Math.cos(a), s2 = Math.sin(a), f = force * (0.45 + Math.random() * 0.7), r = () => (Math.random() - 0.5) * 2;
+    DEB.list.push({ t, x: x + r() * 0.15, y: y + Math.random() * 0.3, z: z + r() * 0.15, vx: (dx * c - dz * s2) * f + r() * 0.6, vy: 2.2 + Math.random() * 2.6 + force * 0.25, vz: (dx * s2 + dz * c) * f + r() * 0.6,
+      rx: r() * 3, ry: r() * 3, rz: r() * 3, wx: r() * 14, wy: r() * 10, wz: r() * 14, s: 0.38 + Math.random() * 0.17, age: 0, life: 2.6 + Math.random() * 1.2 }); } }
+function updateDebris(dt) { if (!DEB.ms) return; const F = G.floor; let j = 0;
+  for (const p of DEB.list) { p.age += dt; if (p.age >= p.life) continue; DEB.list[j++] = p;
+    if (p.vy !== 0 || p.vx || p.vz) { p.vy -= 16 * dt; const nx = p.x + p.vx * dt, nz = p.z + p.vz * dt; if (F && !F.walk(nx, nz)) { p.vx *= -0.35; p.vz *= -0.35; } else { p.x = nx; p.z = nz; } p.y += p.vy * dt;
+      p.rx += p.wx * dt; p.ry += p.wy * dt; p.rz += p.wz * dt;
+      if (p.y < 0.05) { p.y = 0.05; if (p.vy < -1.6) { p.vy *= -0.32; p.vx *= 0.55; p.vz *= 0.55; p.wx *= 0.5; p.wy *= 0.5; p.wz *= 0.5; } // bounce and clatter
+        else { p.vy = 0; p.vx *= 0.7; p.vz *= 0.7; p.wx = p.wz = 0; p.rx = Math.round(p.rx / Math.PI) * Math.PI; p.rz = Math.round(p.rz / Math.PI) * Math.PI; if (Math.abs(p.vx) + Math.abs(p.vz) < 0.05) p.vx = p.vz = 0; } } } }
+  DEB.list.length = j; const cnt = DEB.ms.map(() => 0);
+  for (const p of DEB.list) { const im = DEB.ms[p.t], k = Math.min(1, (p.life - p.age) / 0.4), sc = p.s * k; DE.set(p.rx, p.ry, p.rz); DQ.setFromEuler(DE); DM.compose(DP.set(p.x, p.y, p.z), DQ, DS.set(sc, sc, sc)); im.setMatrixAt(cnt[p.t]++, DM); }
+  DEB.ms.forEach((im, i) => { im.count = cnt[i]; im.instanceMatrix.needsUpdate = true; }); }
+// leaving a floor: drop what is still lying around or in the air
+export function clearFx() { DEB.list.length = 0; if (DEB.ms) for (const im of DEB.ms) im.count = 0;
+  for (const L of LIVE) { S.scene.remove(L.s); POOL.push(L.s); } LIVE.length = 0; for (const k of MARKS) k.parent.remove(k.m); MARKS.length = 0; TR.list.clear(); }
+
 // ---------- camera shake: amount in metres; fades with distance from the summoner ----------
 export function shake(a, x, z) { if (!shakeOn) return; const P = G.player; const k = P && x != null ? Math.max(0, 1 - Math.hypot(x - P.x, z - P.z) / 14) : 1; S.shakeA = Math.min(0.35, Math.max(S.shakeA, a * k)); }
 const SH = new THREE.Vector3();
@@ -115,5 +139,5 @@ export function updateFx(dt, units) {
     const e = 1 - (1 - k) * (1 - k); L.s.scale.setScalar(L.size * (L.s0 + (L.s1 - L.s0) * e)); L.s.material.opacity = L.op * (1 - k * k); L.s.material.rotation += L.spin * dt * (1 - k); LIVE[j++] = L; }
   LIVE.length = j;
   S.shakeT += dt; S.shakeA *= Math.exp(-dt * 11); if (S.shakeA < 0.002) S.shakeA = 0;
-  updateTrails(dt, units); updateMarks(dt);
+  updateTrails(dt, units); updateMarks(dt); updateDebris(dt);
 }

@@ -188,6 +188,25 @@ export class Particles {
   }
 }
 
+// ---------- energy flowing over rare and epic weapons: a slightly inflated, additive copy of the weapon with bands of light
+// running from the grip to the tip (one small extra draw per such weapon; the time is shared) ----------
+export const AURA_T = { value: 0 };
+const AURA_V = `uniform float uInf; varying vec3 vN; varying vec3 vW; varying vec3 vL;
+void main(){ vL = position; vec4 w = modelMatrix * vec4(position + normal * uInf, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }`;
+const AURA_F = `uniform vec3 uCol; uniform float uT; uniform float uLen; uniform float uFade; uniform float uI; uniform vec3 uAx; varying vec3 vN; varying vec3 vW; varying vec3 vL;
+void main(){
+  float ly = dot(vL, uAx), y = ly / uLen, s = y * 6.2832;
+  float f1 = sin(s * 1.6 - uT * 5.5 + sin(vL.x * 9.0 + vL.z * 7.0 + uT * 2.3) * 1.4);
+  float f2 = sin(s * 2.7 + vL.z * 11.0 - uT * 8.0 + 1.7);
+  float band = smoothstep(0.3, 0.95, f1 * 0.6 + f2 * 0.45), wisp = smoothstep(0.75, 1.0, sin(s * 4.3 - uT * 11.0 + vL.x * 13.0));
+  vec3 V = normalize(cameraPosition - vW); float fr = 1.0 - abs(dot(normalize(vN), V)); fr *= fr;
+  float a = (0.07 + 0.93 * band + 0.5 * wisp) * (0.5 + 0.9 * fr) * smoothstep(-0.1, 0.3, y) * uFade * uI;
+  gl_FragColor = vec4(uCol * a + vec3(1.0) * a * a * 0.12, 1.0); // the brightest crests run toward white
+}`;
+export function auraMat(col, len, fade, inf = 0.035, i = 1, ax = new THREE.Vector3(0, 1, 0)) {
+  return new THREE.ShaderMaterial({ vertexShader: AURA_V, fragmentShader: AURA_F, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uCol: { value: new THREE.Color(col) }, uT: AURA_T, uLen: { value: Math.max(0.3, len) }, uFade: fade || { value: 1 }, uInf: { value: inf }, uI: { value: i }, uAx: { value: ax } } });
+}
 export function ring(r1, r2, col, opacity = 0.8) {
   const g = new THREE.RingGeometry(r1, r2, 40); g.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));

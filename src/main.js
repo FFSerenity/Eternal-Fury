@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { G, save, load, wipe } from './state.js';
 import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName } from './data.js';
-import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
+import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch } from './assets.js';
 import './gun.js';
 import './forest.js';
 import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
-import { initFx, updateFx, shakeOffset } from './fx.js';
+import { initFx, updateFx, shakeOffset, clearFx } from './fx.js';
 import * as FXM from './fx.js';
 import { Floor, setNavTime } from './world.js';
 import { openCoffin, setGear } from './units.js';
@@ -59,7 +59,7 @@ function makeFloor(depth) {
   for (const u of G.units) if (u.side !== 'player') u.remove(); for (const c of G.corpses) scene.remove(c.mesh.root); for (const s of G.shots) scene.remove(s.root);
   for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = []; for (const c of G.clouds) scene.remove(c.disc); G.clouds = []; G.bolts = []; for (const L of G.loot) scene.remove(L.root); G.loot = [];
   G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
-  if (G.floor) G.floor.dispose(scene);
+  if (G.floor) G.floor.dispose(scene); clearFx();
   const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; if (depth > 0) G.deep = depth;
   SH.uAmb.value.setRGB(...F.amb); SH.uLightR.value = F.lightR; renderer.setClearColor(depth === 0 ? 0x0b0d12 : 0x07060a);
   const R = F.R, st = F.start;
@@ -199,7 +199,9 @@ let last = performance.now();
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); last = performance.now(); PM.cool = 2000; });
 function loop(now) {
   requestAnimationFrame(loop);
-  const ms = now - last; last = now; perf(ms); const dt = Math.min(0.05, ms / 1000); if (dt <= 0) return;
+  const ms = now - last; last = now; perf(ms); let dt = Math.min(0.05, ms / 1000); if (dt <= 0) return;
+  if (G.slowT > 0) { G.slowT -= dt; dt *= 0.4; } // a champion falling: a moment of slow motion
+  AURA_T.value += dt;
   if (started) { G.t += dt; setNavTime(G.t);
     const P = G.player;
     G.enemies = []; G.friends = []; for (const u of G.units) { if (u.dead) continue; if (u.side === 'enemy') G.enemies.push(u); else G.friends.push(u); }
@@ -229,4 +231,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, PropBatch, fx: FXM, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, PropBatch, fx: FXM, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
