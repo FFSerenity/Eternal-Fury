@@ -54,7 +54,48 @@ export class Floor {
   // standing height: the crypt's plinth (0.26 high, front edge at z 15) under the doorway; 0 everywhere else
   lift(x, z) { const c = this.crypt; if (!c || Math.abs(x - c.x) > 0.7 || z < c.z) return 0; return 0.26 * Math.min(1, Math.max(0, (15.08 - z) / 0.3)); }
   walk(x, z) { const X = Math.floor(x), Z = Math.floor(z); return X >= 0 && Z >= 0 && X < this.W && Z < this.H && this.g[Z * this.W + X] === 1; }
-  block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); this.nw = null; return true; } return false; }
+  block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); this.nw = null; this.lab = null; return true; } return false; }
+  // connected walkable areas (8-way, same corner rule as the flow fields): a point in another area can never be walked to
+  region(x, z) { if (!this.lab) this.labelRegions(); const X = Math.floor(x), Z = Math.floor(z); return X < 0 || Z < 0 || X >= this.W || Z >= this.H ? -1 : this.lab[Z * this.W + X]; }
+  labelRegions() {
+    const W = this.W, H = this.H, g = this.g, lab = this.lab = new Int32Array(W * H).fill(-1); let n = 0;
+    for (let i = 0; i < W * H; i++) { if (g[i] !== 1 || lab[i] >= 0) continue; const q = [i]; lab[i] = n;
+      while (q.length) { const j = q.pop(), x = j % W, z = (j / W) | 0;
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Z = z + dz; if ((!dx && !dz) || X < 0 || Z < 0 || X >= W || Z >= H) continue; const k = Z * W + X;
+          if (g[k] !== 1 || lab[k] >= 0 || (dx && dz && (g[z * W + X] !== 1 || g[Z * W + x] !== 1))) continue; lab[k] = n; q.push(k); } }
+      n++; }
+  }
+  // a body of radius r can stand here (not squeezed against a wall it would never get past)
+  fits(x, z, r = 0.3) { return this.walk(x, z) && this.walk(x + r, z) && this.walk(x - r, z) && this.walk(x, z + r) && this.walk(x, z - r); }
+  // walking distance from (x,z) to every cell (cached for the cell we stand in)
+  distFrom(x, z) { const X = Math.floor(x), Z = Math.floor(z), key = Z * this.W + X; if (!this.df || this.df.key !== key || this.df.lab !== this.lab) this.df = { key, lab: this.lab, D: this.bfs(X, Z) }; return this.df.D; }
+  // hold-to-move: where to head for when pointing at (x,z) from (fx,fz).
+  // - the point itself (or the first good point on the line back toward us) if a body fits there, it is in our area and the walk
+  //   there isn't a long detour — pointing over a wall top or the void beside a corridor lands "behind" the wall on the ground,
+  //   and walking the long way round to get there felt like the summoner stalling;
+  // - otherwise keep heading toward the pointer: the longest free straight run from us in its direction (turned up to ±60° so we
+  //   slide along walls); null when even that goes nowhere (keep going where we were going)
+  moveTarget(x, z, fx, fz, detour = true) {
+    if (!this.lab) this.labelRegions();
+    const reg = this.region(fx, fz), ok = (px, pz) => this.fits(px, pz) && this.region(px, pz) === reg, D = this.distFrom(fx, fz);
+    const near = (px, pz) => { const s = Math.hypot(px - fx, pz - fz), w = D[Math.floor(pz) * this.W + Math.floor(px)]; return !detour || w <= s * 1.5 + 2.5; };
+    let cand = null;
+    if (ok(x, z)) cand = { x, z };
+    else { const dx = fx - x, dz = fz - z, d = Math.hypot(dx, dz), n = Math.ceil(d / 0.15);
+      for (let i = 1; i <= n; i++) { const px = x + dx * i / n, pz = z + dz * i / n; if (ok(px, pz)) { if (Math.hypot(px - fx, pz - fz) > 0.6) cand = { x: px, z: pz }; break; } } }
+    if (cand && near(cand.x, cand.z)) return cand;
+    // a free straight run from us toward the pointer
+    const a0 = Math.atan2(x - fx, z - fz), want = Math.min(Math.hypot(x - fx, z - fz), 8); let best = null, bl = 0.6;
+    for (const da of [0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05]) { const a = a0 + da, sx = Math.sin(a), sz = Math.cos(a); let L = 0;
+      for (let t = 0.15; t <= want; t += 0.15) { if (!ok(fx + sx * t, fz + sz * t)) break; L = t; }
+      const score = L * Math.cos(da); if (L > 0.6 && score > bl) { bl = score; best = { x: fx + sx * L, z: fz + sz * L }; } }
+    if (best) return best;
+    // boxed in that way: the nearest good spot around the pointer that brings us closer to it without a long detour (slides us along the wall)
+    const X = Math.floor(x), Z = Math.floor(z), here = Math.hypot(x - fx, z - fz); let bd = 1e9;
+    for (let r = 0; r <= 6 && !best; r++) for (let cz = Z - r; cz <= Z + r; cz++) for (let cx = X - r; cx <= X + r; cx++) { if (Math.max(Math.abs(cx - X), Math.abs(cz - Z)) !== r) continue;
+      const px = cx + 0.5, pz = cz + 0.5, dd = Math.hypot(px - x, pz - z); if (!ok(px, pz) || !near(px, pz) || dd > here - 0.5) continue; if (dd < bd) { bd = dd; best = { x: px, z: pz }; } }
+    return best;
+  }
   // line of sight on the tile grid (also used for projectiles)
   los(ax, az, bx, bz) { const dx = bx - ax, dz = bz - az, d = Math.hypot(dx, dz), n = Math.ceil(d / 0.3); for (let i = 1; i < n; i++) if (!this.walk(ax + dx * i / n, az + dz * i / n)) return false; return true; }
   // nearest walkable point to (x, z) (spiral over cells, cached per cell)

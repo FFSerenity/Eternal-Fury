@@ -50,17 +50,16 @@ export function message(text, big = false, ms = 2200) {
 function pickEnemy(p, r = 0.9) { let b = null, bd = r; for (const e of G.enemies) { if (e.dead) continue; const d = Math.hypot(e.x - p.x, e.z - p.z) - e.r; if (d < bd) { bd = d; b = e; } } return b; }
 export function pickCorpse(p, r = 1.0) { let b = null, bd = r; for (const c of G.corpses) { if (c.claim) continue; const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < bd) { bd = d; b = c; } } return b; }
 // clicks on walls, props or the dark outside keep the summoner walking toward them instead of stopping dead
-const snapMove = p => { const F = G.floor, P = G.player; if (!F || !P) return p;
+const snapMove = (p, detour = true) => { const F = G.floor, P = G.player; if (!F || !P) return p;
   // in the camp, pointing at the crypt building means "walk into its door" (not to the nearest free spot beside it)
   // (the camera looks down along -x/-z, so a point h up on the building lands 0.69·h further back on the ground: sweep the box up its height)
   const c = F.crypt; if (c) for (let h = 0; h <= 5.2; h += 0.25) { const k = 0.69 * h; if (Math.abs(p.x + k - c.x) < 2.0 && Math.abs(p.z + k - c.z) < 2.65) return { ...F.stairs }; }
-  const s = F.snapToward(p.x, p.z, P.x, P.z);
-  return Math.hypot(s.x - P.x, s.z - P.z) < 0.6 ? F.nearestWalk(p.x, p.z) : s; };
+  return F.moveTarget(p.x, p.z, P.x, P.z, detour); }; // may be null: nowhere sensible to go, keep the current heading
 // the camp coffin (until its secret is out): the click can land a little behind it, since it's raised off the ground
 function pickCoffin(p) { const F = G.floor, c = F && F.coffin; if (!c || G.egg || G.depth !== 0) return false;
   for (let h = 0; h <= 0.7; h += 0.35) { const k = 0.69 * h; if (Math.abs(p.x + k - c.x) < 0.85 && Math.abs(p.z + k - c.z) < 0.85) return true; } return false; }
 function bindInput(cv) {
-  let joyId = null, joyO = null;
+  let joyId = null, joyO = null, clickAt = null;
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => {
     unlock(); e.preventDefault(); const p = groundAt(e.clientX, e.clientY); IN.cursor = p; IN.coffin = false;
@@ -75,17 +74,20 @@ function bindInput(cv) {
     if (IN.shift) { IN.castAt = p; IN.castHold = true; return; }
     const en = pickEnemy(p); if (en) { IN.attack = en; G.focus = en; IN.hold = false; return; }
     const c = pickCorpse(p, 0.9); if (c) { IN.raise = c; return; }
-    IN.attack = null; IN.moveTo = snapMove(p); IN.hold = true;
+    IN.attack = null; IN.hold = true; IN.moveTo = snapMove(p); clickAt = { t: performance.now(), p }; // a quick click (see up) may walk the long way round
   });
   cv.addEventListener('pointermove', e => {
     if (e.pointerId === joyId) { const dx = e.clientX - joyO.x, dy = e.clientY - joyO.y, l = Math.hypot(dx, dy), R = 56, k = Math.min(1, l / R);
       if (l < 6) IN.joy = null; else { const sx = dx / l * k, sy = dy / l * k; IN.joy = screenDir(sx, sy); } showJoy(joyO, { x: joyO.x + dx / Math.max(l, 1) * Math.min(l, R), y: joyO.y + dy / Math.max(l, 1) * Math.min(l, R) }); return; }
     if (e.pointerType === 'touch') return;
     const p = groundAt(e.clientX, e.clientY); IN.cursor = p; if (!p) return;
-    if (IN.hold) IN.moveTo = snapMove(p); if (IN.castHold) IN.castAt = p;
+    if (IN.hold) { const m = snapMove(p); if (m) IN.moveTo = m; } if (IN.castHold) IN.castAt = p;
     cv.style.cursor = pickEnemy(p) ? 'crosshair' : pickCorpse(p, 0.9) ? 'cell' : pickCoffin(p) ? 'pointer' : 'default';
   });
-  const up = e => { if (e.pointerId === joyId) { joyId = null; IN.joy = null; hideJoy(); return; } if (e.pointerType === 'touch') return; IN.hold = false; IN.castHold = false; };
+  const up = e => { if (e.pointerId === joyId) { joyId = null; IN.joy = null; hideJoy(); return; } if (e.pointerType === 'touch') return;
+    // a quick click (not a hold) on a spot only reachable the long way round: walk there
+    if (IN.hold && clickAt && performance.now() - clickAt.t < 280 && G.floor && G.player) { const m = snapMove(clickAt.p, false); if (m) IN.moveTo = m; }
+    clickAt = null; IN.hold = false; IN.castHold = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   addEventListener('keydown', e => { if (e.repeat && e.key !== 'Shift') return; const k = e.key.toLowerCase(); unlock();
     if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleBag(); }
