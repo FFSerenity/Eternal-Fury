@@ -27,8 +27,11 @@ const findBone = (root, name) => root.getObjectByName(name) || root.getObjectByN
 
 // ---------- props: a model's meshes baked into one float geometry (for instancing / static placement) ----------
 const PROP_CACHE = {};
+// props built in code instead of loaded (the easter-egg gatling, see gun.js)
+export const CUSTOM_PROPS = {};
 export function propGeo(name) {
   if (PROP_CACHE[name]) return PROP_CACHE[name];
+  if (CUSTOM_PROPS[name]) return (PROP_CACHE[name] = CUSTOM_PROPS[name]());
   const root = A.props[name]; if (!root) { console.warn('missing prop', name); return null; }
   root.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4(), N = new THREE.Matrix3(), v = new THREE.Vector3();
   const pos = [], nor = [], uv = [], idx = []; let base = 0, map = null;
@@ -94,17 +97,22 @@ export function makeUnitMesh(kind, o = {}) {
   // equipped gear replaces the default weapon (right hand) and, for the warrior, the shield (left hand)
   const gear = o.gear || {}, wl = (def.weapons || []).map(([w, bone]) => [bone === 'handslot.r' && gear.w ? WEAPONS[gear.w.type].bases[gear.w.b].model : bone === 'handslot.l' && gear.a ? ARMORS[gear.a.b].model : w, bone,
     bone === 'handslot.r' ? gear.w : bone === 'handslot.l' ? gear.a : null]);
-  for (const [w, bone, it] of wl) { const pg = propGeo(w), b = findBone(model, bone); if (!pg || !b) continue; const shield = bone === 'handslot.l';
+  let gun = null;
+  for (const [w, bone, it] of wl) { const gat = w === 'gatling', pg = propGeo(gat ? 'gatling_body' : w), b = findBone(model, bone); if (!pg || !b) continue; const shield = bone === 'handslot.l';
     const wm = new THREE.Mesh(pg.geo, matW(pg.map)); b.add(wm); adds.push([wm, new THREE.Mesh(pg.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
-    if (it && it.q && !shield) { const t = new THREE.Object3D(); t.position.set(0, pg.box.max.y * 0.8, (pg.box.max.z + pg.box.min.z) / 2); wm.add(t);
-      const gs = glowSprite(QUAL[it.q].hex, it.q === 2 ? 1.1 : 0.8, it.q === 2 ? 0.8 : 0.6); t.add(gs); glows.push(gs); }
+    if (gat) { // the barrel cluster is its own mesh so it can spin while firing; the muzzle marks where tracers start
+      wm.rotation.set(0, 1.55, 0); wm.scale.setScalar(1.2); // the shooting poses hold the right-hand slot turned ~90°: this lines the barrels up with the aim
+      const bp = propGeo('gatling_barrel'), bm = new THREE.Mesh(bp.geo, matW(bp.map)); bm.position.copy(bp.pivot); wm.add(bm); adds.push([bm, new THREE.Mesh(bp.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
+      const mz = new THREE.Object3D(); mz.position.set(bp.pivot.x, bp.pivot.y, bp.pivot.z + bp.muzzle + 0.04); wm.add(mz); gun = { barrel: bm, muzzle: mz, spin: 0 }; }
+    if (it && it.q && !shield) { const t = new THREE.Object3D(); t.position.set(0, gat ? 0.13 : pg.box.max.y * 0.8, gat ? 0.2 : (pg.box.max.z + pg.box.min.z) / 2); wm.add(t);
+      const gs = glowSprite(QUAL[it.q].hex, it.q >= 2 ? 1.1 : 0.8, it.q >= 2 ? 0.8 : 0.6); t.add(gs); glows.push(gs); }
   }
 
   for (const [parent, ol] of adds) parent.add(ol);
   model.scale.setScalar(def.scale * (o.scale ?? 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
-  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, elem: el ? elems[0] : null, elems };
+  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, elem: el ? elems[0] : null, elems };
 }
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current

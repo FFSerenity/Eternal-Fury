@@ -162,7 +162,7 @@ body.touch .sk .k{display:none}
 .cell{aspect-ratio:1;background:#0c0a08;border:1px solid #33291d;box-shadow:inset 0 0 8px rgba(0,0,0,.9);border-radius:3px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden}
 .cell img,.gSlot img{pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.8))}.cell img{width:118%;max-width:none}
 .cell.q1,.gSlot.q1{background:radial-gradient(circle,rgba(70,120,255,.38),#0c0a08 75%);border-color:#3c5aa8}
-.cell.q2,.gSlot.q2{background:radial-gradient(circle,rgba(255,190,50,.4),#0c0a08 75%);border-color:#b08a2a}
+.cell.q2,.gSlot.q2{background:radial-gradient(circle,rgba(255,190,50,.4),#0c0a08 75%);border-color:#b08a2a}.cell.q3,.gSlot.q3{background:radial-gradient(circle,rgba(180,108,255,.5),#0c0a08 75%);border-color:#9a5ae0;box-shadow:inset 0 0 10px rgba(199,125,255,.45)}.giIc.q3{background:radial-gradient(circle,rgba(180,108,255,.5),#0c0a08 75%);border-color:#9a5ae0}.tL.sp{color:#d9a8ff}
 .cell.nofit:after{content:'';position:absolute;inset:0;background:rgba(200,40,40,.24)}
 .cell:hover,.gSlot:hover{outline:1px solid #e2c487}
 .gFurn{position:relative;margin-top:12px;padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(110,40,10,.35),rgba(40,15,8,.4));border:1px solid #7a3e1c}
@@ -262,6 +262,9 @@ body.touch #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 50px);right:m
 body.touch:has(#mmap.small) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 162px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 96px)}
 @media (max-height:520px){body.touch #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 44px);width:96px}body.touch:has(#mmap.small) #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 144px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 90px)}}
 @media (max-width:560px){body:not(.touch):has(#mmap.small) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 196px)}}
+
+/* portrait phones: the summoner panel and party cards a bit smaller so a full party doesn't cover the screen */
+@media (max-width:520px) and (orientation:portrait){#me,#party{transform:scale(.84);transform-origin:top left}#party{top:calc(max(10px,env(safe-area-inset-top)) + 70px)}}
 </style>
 </head>
 <body>

@@ -1,7 +1,7 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
 import { G, save, bagPut } from './state.js';
-import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase } from './data.js';
+import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase, GUNNER, makeGun } from './data.js';
 import { glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
 import { makeUnitMesh, play, clipLen, CHARS, propMesh } from './assets.js';
@@ -39,7 +39,7 @@ export class Unit {
     if (ally) { const rg = ring(0.45, 0.5, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
     if (champ && mod0) { const rg = ring(0.56, 0.685, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
-  get name() { return affixName(this.mods, this.champ) + (this.T ? this.T.name : tr('召唤师', 'Summoner')); }
+  get name() { return affixName(this.mods, this.champ) + (this.gun ? GUNNER.name : this.T ? this.T.name : tr('召唤师', 'Summoner')); }
   stats() { Unit.prototype._stats.call(this); this.speed *= PACE.move; if (this.cd) this.cd /= PACE.act; }
   _stats() {
     const L = this.level;
@@ -60,6 +60,8 @@ export class Unit {
     const g = this.entry.gear || {};
     if (g.w && g.w.type === this.kind) { const v = g.w.v; this.dmg *= 1 + v.dmg / 100; this.cd *= itemBase(g.w).cd / (1 + (v.spd || 0) / 100); this.maxHp *= 1 + (v.hp || 0) / 100; }
     if (g.a) { const v = g.a.v; this.maxHp *= 1 + v.hp / 100; this.armor += v.arm; this.dmg *= 1 + (v.dmg || 0) / 100; this.speed *= 1 + (v.move || 0) / 100; }
+    // 机枪骷髅: a minion holding the easter-egg gatling fights at range in bursts (each round ~40% of a stab)
+    this.gun = this.kind === 'imp' && !!(g.w && g.w.uniq === 'mg'); if (this.gun) { this.cd *= 2; this.range = 6.5; }
   }
   remove() { C.scene.remove(this.mesh.root); }
   // new weapon / shield in hand after an equipment change
@@ -120,10 +122,19 @@ function fireBlast(u) {
 export function dropLoot(it, x, z) {
   const root = new THREE.Group(), m = propMesh(itemBase(it).model); m.scale.setScalar(0.5); m.rotation.set(Math.PI / 2, 0, Math.random() * 6.28); root.add(m);
   const Q = QUAL[it.q], gl = glowSprite(Q.hex, it.q ? 1.4 : 0.9, it.q ? 0.75 : 0.45); gl.position.y = 0.1; root.add(gl);
-  if (it.q === 2) { const beam = glowSprite(Q.hex, 1, 0.55); beam.scale.set(0.45, 5, 1); beam.position.y = 2.2; root.add(beam); }
+  if (it.q >= 2) { const beam = glowSprite(Q.hex, 1, it.q === 3 ? 0.75 : 0.55); beam.scale.set(it.q === 3 ? 0.6 : 0.45, it.q === 3 ? 7 : 5, 1); beam.position.y = it.q === 3 ? 3.2 : 2.2; root.add(beam); }
   const a = Math.random() * 6.28, r = 0.5 + Math.random() * 0.7; root.position.set(x, 1, z); C.scene.add(root);
   G.loot.push({ it, root, m, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: 0, ph: Math.random() * 6 });
-  if (it.q === 2) S.level(); else if (it.q === 1) S.heal();
+  if (it.q >= 2) S.level(); else if (it.q === 1) S.heal();
+}
+// the camp coffin's secret: opens once per save and spits out the gatling
+export function openCoffin() {
+  const F = C.floor, c = F && F.coffin, P = G.player; if (!c || G.egg) return; G.egg = 1;
+  C.parts.emit(c.x, 0.4, c.z, 46, { col: 0xb46cff, spd: 2.6, up: 3.2, life: 1.1, size: 0.34 }); C.parts.emit(c.x, 0.5, c.z, 24, { col: 0xffe6a0, spd: 1.8, up: 2.4, life: 0.8, size: 0.2 });
+  const rg = ring(0.2, 1.6, 0xb46cff, 0.8); rg.position.set(c.x, 0.05, c.z); C.scene.add(rg); G.fx.push({ t: 0.8, tick: k => { rg.scale.setScalar(0.4 + k * 1.6); rg.material.opacity = 0.8 * (1 - k); }, fn: () => C.scene.remove(rg) });
+  S.raise(); C.say(tr('棺材里藏着什么……', 'Something was hidden in the coffin…'), true);
+  const s = F.snapToward(c.x + (P.x - c.x) * 0.4, c.z + (P.z - c.z) * 0.4, P.x, P.z) || { x: P.x, z: P.z };
+  const gun = makeGun(G.uid++); G.fx.push({ t: 0.45, fn: () => dropLoot(gun, s.x, s.z) }); save();
 }
 export function updateLoot(dt) {
   const P = G.player; let j = 0;
@@ -131,7 +142,8 @@ export function updateLoot(dt) {
     L.root.position.set(x, y, z); L.m.rotation.z += dt * 0.8;
     if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 1.5) {
       if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say(tr('背包满了，打开背包（I）把多余的丢进熔炉吧', 'Bag is full — open the bag (I) and feed the spares to the forge')); } }
-      else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0); save(); continue; } }
+      else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0);
+        if (L.it.uniq === 'mg') C.say(tr('史诗武器！点左上角的骷髅小兵卡片，把它装上试试', 'An epic weapon! Tap a Skeleton Minion card (top left) and equip it'), true, 6000); save(); continue; } }
     G.loot[j++] = L; }
   G.loot.length = j;
 }
@@ -327,6 +339,7 @@ export function shoot(src, kind, tx, tz, o = {}) {
   return s;
 }
 export function updateShots(dt) {
+  updateTracers(dt);
   const F = C.floor; let j = 0;
   for (const s of G.shots) {
     s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z);
@@ -353,11 +366,15 @@ function flee(u, fx, fz, spd) {
   u.wantX = u.wantZ = 0; return false;
 }
 const faceTo = (u, t) => { u.faceT = Math.atan2(t.x - u.x, t.z - u.z); };
-function startWindup(u, t) { u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind);
+const GUN_CLIP = '2H_Ranged_Shoot'; // two-handed shooting stance for the gatling
+function startWindup(u, t) {
+  if (u.gun) { u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); play(u.mesh, GUN_CLIP, { once: true, restart: true, speed: 0.5, fade: 0.1 }); u.animLock = 1.1; return; }
+  u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind);
   if (u.kind === 'brute') { const rg = ring(0.2, u.range + u.r + 0.3, u.side === 'enemy' ? 0xff3a2a : 0x3fe0d0, 0.0); rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
   const t = u.tgt; u.state = 'recover'; u.st = 0; u.cdT = u.cd * rand(0.9, 1.15); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
   if (!t || t.dead) return;
+  if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; return; }
   if (u.kind === 'brute') { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 0.8, 0.2, u.z + Math.cos(u.face) * 0.8, 16, { col: 0xb8a890, spd: 3, up: 1.5, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d > u.range + u.r + h.r + 0.35) continue;
       const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1), { knock: 4 }); } }
@@ -368,6 +385,28 @@ function strike(u) {
     for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.17; shoot(u, 'arrow', tx, tz, { life: 0.9 + 0.04 * rk(u, 'eagle'), ang: a, pierce: rk(u, 'pierce'), dmg: u.dmg * (a ? 0.75 : 1) }); } }
   else if (u.kind === 'shaman') shoot(u, 'fire', t.x, t.z, { life: 1.1, dmg: u.dmg * (1 + 0.15 * rk(u, 'fire')), splash: 1.4 + 0.15 * rk(u, 'fire') });
 }
+// a burst: one round every ~0.09 s at the target (or the nearest enemy in range), tracer + muzzle flash + sparks; the first round carries the affix effects
+const _mz = new THREE.Vector3();
+function gunTick(u, dt) {
+  const gn = u.mesh.gun; if (gn) gn.spin = 32; u.burstT -= dt; if (u.burstT > 0) return; u.burstT = 0.09; u.burst--;
+  let t = u.tgt; if (!t || t.dead || dist(u, t) > u.range + 1.5) t = nearestHostile(u, u.range + 1); if (!t) { u.burst = 0; return; }
+  faceTo(u, t); u.face = u.faceT;
+  if (gn) gn.muzzle.getWorldPosition(_mz); else _mz.set(u.x + Math.sin(u.face) * 0.5, 0.7, u.z + Math.cos(u.face) * 0.5);
+  const tx = t.x + rand(-0.18, 0.18), ty = 0.45 + rand(0, 0.45), tz = t.z + rand(-0.18, 0.18);
+  tracer(_mz.x, _mz.y, _mz.z, tx, ty, tz); S.gun();
+  C.parts.emit(_mz.x, _mz.y, _mz.z, 3, { col: 0xffe6a0, spd: 1.2, up: 0.2, life: 0.1, size: 0.3 });
+  C.parts.emit(tx, ty, tz, 4, { col: Math.random() < 0.5 ? 0xd9a8ff : 0xffe6a0, spd: 2.4, up: 1, life: 0.22, size: 0.12 });
+  damage(u, t, u.dmg * 0.4 * rand(0.85, 1.15), { crit: u.side === 'ally' && Math.random() < 0.15 + 0.06 * rk(u, 'crit'), critX: 2 + 0.1 * rk(u, 'crit'), noFx: u.burstN++ > 0 });
+}
+const TR = [], trGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5), trMat = new THREE.MeshBasicMaterial({ color: 0xffc35a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+function tracer(x0, y0, z0, x1, y1, z1) { const m = new THREE.Mesh(trGeo, trMat); m.renderOrder = 3; C.scene.add(m); const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0) || 0.01;
+  TR.push({ m, a: [x0, y0, z0], b: [x1, y1, z1], L, t: 0, dur: Math.max(0.05, L / 48) }); }
+function updateTracers(dt) { let j = 0; // a short bright streak flying from the muzzle to the target
+  for (const r of TR) { r.t += dt; const k = Math.min(1, r.t / r.dur), k0 = Math.max(0, k - 1.6 / r.L), A = r.a, B = r.b, m = r.m;
+    if (r.t > r.dur + 0.03) { C.scene.remove(m); continue; }
+    const hx = A[0] + (B[0] - A[0]) * k, hy = A[1] + (B[1] - A[1]) * k, hz = A[2] + (B[2] - A[2]) * k, sx = A[0] + (B[0] - A[0]) * k0, sy = A[1] + (B[1] - A[1]) * k0, sz = A[2] + (B[2] - A[2]) * k0;
+    m.position.set(sx, sy, sz); m.scale.set(0.045, 0.045, Math.max(0.05, Math.hypot(hx - sx, hy - sy, hz - sz))); m.lookAt(hx, hy, hz); TR[j++] = r; }
+  TR.length = j; }
 function meleeLogic(u, t) {
   const d = dist(u, t), reach = u.range + u.r + t.r;
   if (d > reach * 0.95) { let tx = t.x, tz = t.z;
@@ -420,6 +459,7 @@ function enemyThink(u, dt) {
 // summons fight up front: they pick fights near the summoner on their own, peel enemies off the summoner,
 // and the melee ones close the gap with a move skill (warrior: leap slam, minion: lunge)
 const MELEE = k => k === 'brute' || k === 'imp';
+const isMelee = u => MELEE(u.kind) && !u.gun;
 function allyScore(u, e, P) { const de = dist(e, P); return dist(e, u) + de * 0.35 - (e.target === P ? 3 : 0) - (e === G.focus ? 2.5 : 0) - (e.champ ? 0.5 : 0); }
 function allyThink(u, dt) {
   const P = G.player; if (P.dead) { u.wantX = u.wantZ = 0; return; }
@@ -438,13 +478,14 @@ function allyThink(u, dt) {
     if (u.healCD <= 0) { let lo = null, lr = 0.75; for (const f of G.friends) { if (f.dead || dist(f, u) > 8) continue; const r = f.hp / f.maxHp; if (r < lr) { lr = r; lo = f; } }
       if (lo) { u.state = 'cast'; u.st = 0; u.castH = lo; u.wantX = u.wantZ = 0; faceTo(u, lo); u.healCD = 3.5 - 0.3 * rk(u, 'heal'); return; } u.healCD = 0.6; } }
   if (!u.target || dp > 15) { // formation: melee summons walk ahead of the summoner, ranged ones beside / behind
-    const allies = G.friends.filter(f => f.side === 'ally'), mine = allies.filter(f => MELEE(f.kind) === MELEE(u.kind)), idx = mine.indexOf(u), n = mine.length;
-    const ang = MELEE(u.kind) ? P.face + (idx - (n - 1) / 2) * 0.8 : P.face + Math.PI + (idx - (n - 1) / 2) * 0.9, r = MELEE(u.kind) ? 1.7 : 1.6;
+    const allies = G.friends.filter(f => f.side === 'ally'), mine = allies.filter(f => isMelee(f) === isMelee(u)), idx = mine.indexOf(u), n = mine.length;
+    const ang = isMelee(u) ? P.face + (idx - (n - 1) / 2) * 0.8 : P.face + Math.PI + (idx - (n - 1) / 2) * 0.9, r = isMelee(u) ? 1.7 : 1.6;
     let tx = P.x + Math.sin(ang) * r, tz = P.z + Math.cos(ang) * r; if (!C.floor.walk(tx, tz)) { tx = P.x; tz = P.z; } const d = Math.hypot(tx - u.x, tz - u.z);
     if (d > 0.5) seek(u, tx, tz, u.speed * Math.min(1.3, 0.35 + d / 2.5)); else { u.wantX = u.wantZ = 0; }
     return; }
   const t = u.target;
-  if (MELEE(u.kind)) { if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
+  if (u.gun) rangedLogic(u, t, dt, 3, 6.5);
+  else if (isMelee(u)) { if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 3.5, 6.5 + 0.4 * rk(u, 'eagle'));
   else rangedLogic(u, t, dt, 4.5, 7);
 }
@@ -506,6 +547,7 @@ export function updateUnit(u, dt) {
   if (u.dead) return;
   u.flash = Math.max(0, u.flash - dt * 5); u.barT -= dt; u.cdT -= dt * slowK(u); dt *= slowK(u) < 1 ? 0.75 : 1;
   if (u.spawnT > 0) { u.spawnT -= dt; u.wantX = u.wantZ = 0; return; }
+  if (u.burst > 0) gunTick(u, dt);
   if (u.stun > 0 && u.state !== 'leap') { u.stun -= dt; u.wantX = u.wantZ = 0; if (u.tele) { C.scene.remove(u.tele); u.tele = null; } }
   else if (u.state === 'windup') { u.st += dt; u.wantX = u.wantZ = 0; if (u.tgt && !u.tgt.dead && u.kind !== 'brute') faceTo(u, u.tgt);
     if (u.tele) { const k = u.st / u.wind; u.tele.material.opacity = 0.15 + 0.45 * k; u.tele.position.set(u.x, 0.04, u.z); }
@@ -593,6 +635,7 @@ export function playerAnim(u, kind) {
 function rise(u, name, sp) { play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clipLen(name) / sp * 0.92; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
 function animate(u, dt, sp) {
   const m = u.mesh, a = ANIM[u.kind];
+  if (m.gun) { m.gun.barrel.rotation.z += m.gun.spin * dt; m.gun.spin = Math.max(0, m.gun.spin - dt * 22); }
   if (u.spawnT > 0) return;
   if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover' || u.state === 'leap' || u.state === 'lunge') return; }
   if (u.state === 'leap') return;

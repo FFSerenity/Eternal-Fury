@@ -1,6 +1,7 @@
 // HUD, overlay text/bars, input (mouse + keyboard, touch joystick + buttons) and the crypt (墓典) panel
 import * as THREE from 'three';
 import { G, save } from './state.js';
+import { isGunner, GUNNER } from './data.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, affixName, ROMAN, QUAL, WEAPONS, BAG_MAX, itemName, itemLines, itemIcon, itemScore, itemFits, furnaceOdds, furnaceRoll, rollItem } from './data.js';
 import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed, canFuse, fusionOdds, fuse } from './units.js';
 import { openGear, closeGear, gearOpen, toggleBag } from './gearui.js';
@@ -40,9 +41,9 @@ function toScreen(x, y, z) { V.set(x, y, z).project(cam); return [(V.x + 1) / 2 
 
 // ---------- messages ----------
 let msgT = 0;
-export function message(text, big = false) {
+export function message(text, big = false, ms = 2200) {
   const box = $('#msg'), d = document.createElement('div'); d.className = 'm' + (big ? ' big' : ''); d.textContent = text; box.appendChild(d);
-  while (box.children.length > 4) box.firstChild.remove(); setTimeout(() => d.classList.add('out'), 2200); setTimeout(() => d.remove(), 2800);
+  while (box.children.length > 4) box.firstChild.remove(); setTimeout(() => d.classList.add('out'), ms); setTimeout(() => d.remove(), ms + 600);
 }
 
 // ---------- input ----------
@@ -55,11 +56,15 @@ const snapMove = p => { const F = G.floor, P = G.player; if (!F || !P) return p;
   const c = F.crypt; if (c) for (let h = 0; h <= 5.2; h += 0.25) { const k = 0.69 * h; if (Math.abs(p.x + k - c.x) < 2.0 && Math.abs(p.z + k - c.z) < 2.65) return { ...F.stairs }; }
   const s = F.snapToward(p.x, p.z, P.x, P.z);
   return Math.hypot(s.x - P.x, s.z - P.z) < 0.6 ? F.nearestWalk(p.x, p.z) : s; };
+// the camp coffin (until its secret is out): the click can land a little behind it, since it's raised off the ground
+function pickCoffin(p) { const F = G.floor, c = F && F.coffin; if (!c || G.egg || G.depth !== 0) return false;
+  for (let h = 0; h <= 0.7; h += 0.35) { const k = 0.69 * h; if (Math.abs(p.x + k - c.x) < 0.85 && Math.abs(p.z + k - c.z) < 0.85) return true; } return false; }
 function bindInput(cv) {
   let joyId = null, joyO = null;
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => {
-    unlock(); e.preventDefault(); const p = groundAt(e.clientX, e.clientY); IN.cursor = p;
+    unlock(); e.preventDefault(); const p = groundAt(e.clientX, e.clientY); IN.cursor = p; IN.coffin = false;
+    if (p && pickCoffin(p) && !(e.pointerType === 'touch' && e.clientX < W * 0.5)) { const c = G.floor.coffin, P = G.player; IN.coffin = true; IN.attack = null; IN.hold = false; IN.moveTo = G.floor.snapToward(c.x, c.z, P.x, P.z); return; }
     if (e.pointerType === 'touch') {
       if (e.clientX < W * 0.5 && joyId === null) { joyId = e.pointerId; joyO = { x: e.clientX, y: e.clientY }; showJoy(joyO, joyO); cv.setPointerCapture(e.pointerId); return; }
       if (!p) return; const en = pickEnemy(p, 1.2); if (en) { IN.attack = en; G.focus = en; return; } const c = pickCorpse(p, 1.4); if (c) { IN.raise = c; return; } return;
@@ -78,7 +83,7 @@ function bindInput(cv) {
     if (e.pointerType === 'touch') return;
     const p = groundAt(e.clientX, e.clientY); IN.cursor = p; if (!p) return;
     if (IN.hold) IN.moveTo = snapMove(p); if (IN.castHold) IN.castAt = p;
-    cv.style.cursor = pickEnemy(p) ? 'crosshair' : pickCorpse(p, 0.9) ? 'cell' : 'default';
+    cv.style.cursor = pickEnemy(p) ? 'crosshair' : pickCorpse(p, 0.9) ? 'cell' : pickCoffin(p) ? 'pointer' : 'default';
   });
   const up = e => { if (e.pointerId === joyId) { joyId = null; IN.joy = null; hideJoy(); return; } if (e.pointerType === 'touch') return; IN.hold = false; IN.castHold = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
@@ -133,7 +138,8 @@ export function toggleCrypt() { cryptOpen ? closeCrypt() : openCrypt(); }
 export function closeCrypt() { cryptOpen = false; sel = null; $('#crypt').classList.remove('open'); }
 function inCombat() { const P = G.player; return G.enemies.some(e => !e.dead && e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 10); }
 export function openCrypt() { closeGear(); cryptOpen = true; sel = null; $('#crypt').classList.add('open'); renderCrypt(true); }
-const enName = en => (en.champ && en.mods.length ? `<span class="mod">${affixName(en.mods)}</span>` : '') + TYPES[en.type].name;
+const tName = en => isGunner(en) ? GUNNER.name : TYPES[en.type].name;
+const enName = en => (en.champ && en.mods.length ? `<span class="mod">${affixName(en.mods)}</span>` : '') + tName(en);
 // coloured affix chips with their level
 const chip = (m, lv = 1, short = false) => `<span class="achip" style="color:#${MODS[m].col.toString(16).padStart(6, '0')};border-color:#${MODS[m].col.toString(16).padStart(6, '0')}88">${short && !ZH ? MODS[m].short : MODS[m].name}${lv > 1 ? SP + ROMAN[lv - 1] : ''}</span>`;
 const chips = (en, short = false) => en.champ ? en.mods.map(m => chip(m, (en.modLv && en.modLv[m]) || 1, short)).join('') : '';
@@ -260,10 +266,10 @@ export function updateHUD(dt, fps) {
   $('#lvl').textContent = tr(`Lv ${G.level} 召唤师`, `Lv ${G.level} Summoner`); $('#hpT').textContent = `${Math.ceil(P.hp)} / ${Math.round(P.maxHp)}`; $('#mpT').textContent = `${Math.floor(P.mp)} / ${Math.round(P.maxMp)}`;
   $('#floorTag').textContent = G.depth === 0 ? tr('墓园营地', 'Graveyard Camp') : tr(`墓穴 · 第 ${G.depth} 层`, `Crypt · Floor ${G.depth}`); $('#cryptN').textContent = G.crypt.length; $('#gearN').textContent = G.bag.length; if (fps != null) $('#fps').textContent = fps;
   // party cards: rebuilt only when something on them changes (so taps are not lost), hp bars updated in place
-  const party = $('#party'), act = G.crypt.filter(e => e.active), psig = JSON.stringify([partySize(G.level), act.map(en => [en.id, en.level, en.sp, Math.ceil(en.reviveT), en.mods])]);
+  const party = $('#party'), act = G.crypt.filter(e => e.active), psig = JSON.stringify([partySize(G.level), act.map(en => [en.id, en.level, en.sp, Math.ceil(en.reviveT), en.mods, isGunner(en)])]);
   if (psig !== partySig) { partySig = psig; party.innerHTML = '';
     for (const en of act) { const T = TYPES[en.type], d = document.createElement('div'); d.className = 'pc' + (en.reviveT > 0 ? ' dead' : '');
-      d.dataset.id = en.id; d.title = tr('点开装备', 'Open equipment'); d.innerHTML = `<span class="ic">${portrait(en.type)}</span><div class="pi"><div class="pn">${ZH ? `<span class="pnn">${affixName(en.mods, en.champ)}${T.name}</span>` : `<span class="pnn${en.champ && en.mods.length ? ' elite' : ''}">${T.short}</span>${dots(en)}`}<small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
+      d.dataset.id = en.id; d.title = tr('点开装备', 'Open equipment'); d.innerHTML = `<span class="ic">${portrait(en.type)}</span><div class="pi"><div class="pn">${ZH ? `<span class="pnn">${affixName(en.mods, en.champ)}${isGunner(en) ? GUNNER.name : T.name}</span>` : `<span class="pnn${en.champ && en.mods.length ? ' elite' : ''}">${isGunner(en) ? GUNNER.short : T.short}</span>${dots(en)}`}<small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
       party.appendChild(d); }
     for (let i = act.length; i < partySize(G.level); i++) { const d = document.createElement('div'); d.className = 'pc empty'; d.title = tr('打开墓典', 'Open the Crypt'); d.innerHTML = `<span class="ic">＋</span><div class="pi"><div class="pn">${tr('空位', 'Empty slot')}</div></div>`; party.appendChild(d); } }
   for (const d of party.querySelectorAll('.pc[data-id]')) { const en = act.find(e => e.id === +d.dataset.id), u = en && en.unit, i = d.querySelector('.ph i'); if (i) i.style.width = (u && !u.dead ? u.hp / u.maxHp * 100 : 0) + '%'; }

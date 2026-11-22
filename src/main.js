@@ -3,10 +3,12 @@ import { G, save, load, wipe } from './state.js';
 import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N } from './gfx.js';
 import { A, loadAll, propGeo } from './assets.js';
+import './gun.js';
 import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
 import { Floor, setNavTime } from './world.js';
+import { openCoffin, setGear } from './units.js';
 import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt, goFull } from './ui.js';
 import { initMap, updateMap } from './minimap.js';
@@ -18,7 +20,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPrefer
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace; renderer.setClearColor(0x07060a);
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(40, 1, 0.5, 80);
 const shadows = new Shadows(scene), parts = new Particles(scene);
-C.scene = scene; C.parts = parts; C.say = (t, big) => message(t, big);
+C.scene = scene; C.parts = parts; C.say = (t, big, ms) => message(t, big, ms);
 
 // ---------- quality: pixel ratio steps down if frames keep arriving late ----------
 const DPR = Math.min(devicePixelRatio || 1, 2), RS_STEPS = [DPR, Math.max(1, DPR * 0.75), Math.max(1, DPR * 0.6), 1];
@@ -141,6 +143,7 @@ function updatePlayer(dt) {
   if (shooting && !IN.joy) { P.wantX = P.wantZ = 0; }
   // stairs
   const ns = Math.hypot(P.x - F.stairs.x, P.z - F.stairs.z) < 1.3;
+  if (IN.coffin) { const c = F.coffin; if (!c || G.egg) IN.coffin = false; else if (Math.hypot(P.x - c.x, P.z - c.z) < 2) { IN.coffin = false; IN.moveTo = null; openCoffin(); } else if (!IN.moveTo) IN.coffin = false; }
   // going down needs the button (or Enter) — except the camp's portal, which you simply walk into
   const intoPortal = G.depth === 0 && Math.hypot(P.x - F.stairs.x, P.z - F.stairs.z) < 0.3;
   if ((IN.stairs && ns) || intoPortal) { IN.stairs = false; IN.moveTo = null; IN.hold = false; S.stairs(); closeCrypt(); makeFloor(G.depth === 0 ? G.deep : G.depth + 1); } else if (IN.stairs) IN.stairs = false;
@@ -187,6 +190,7 @@ function loop(now) {
     let rvs = 1; for (const f of G.friends) if (f.side === 'ally' && f.kind === 'shaman') rvs = Math.max(rvs, 1.4 * (1 + 0.2 * rk(f, 'soul')));
     for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(tr(`${affixName(en.mods, en.champ)}${TYPES[en.type].name} 复原了`, `${affixName(en.mods, en.champ)}${TYPES[en.type].name} is back`)); } } }
     G.floor.stairsGlow.material.opacity = 0.55 + 0.25 * Math.sin(G.t * 2.5);
+    const cf = G.floor.coffin; if (cf && !G.egg && Math.random() < dt * 1.3) parts.emit(cf.x + (Math.random() - 0.5) * 0.8, 0.3, cf.z + (Math.random() - 0.5) * 0.8, 1, { col: 0xb46cff, spd: 0.08, up: 0.55, grav: -0.25, life: 1.7, size: 0.15 }); // a faint hint
     const pt = G.floor.portal; if (pt) { pt.material.uniforms.uT.value = G.t;   // motes drifting up the portal and out over the plinth
       if (Math.random() < dt * 16) parts.emit(pt.position.x + (Math.random() - 0.5) * 0.9, 0.35 + Math.random() * 1.4, pt.position.z + 0.08, 1, { col: Math.random() < 0.5 ? 0x8fe8ff : 0x5fa8ff, spd: 0.12, up: 0.5, grav: -0.35, life: 1.3, size: 0.13, spread: 0.05 }); }
   }
@@ -201,4 +205,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { dbg: { dropLoot, rollItem, fuse, fusionOdds, message }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

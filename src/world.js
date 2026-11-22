@@ -187,7 +187,7 @@ export class Floor {
       if (name.startsWith('grave_')) this.block(cx, cz + 1); }
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 20.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
-    B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12);
+    B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing
     for (const [x, z, t] of [[29.5, 10.5, 'tree_dead_large'], [10.5, 30.5, 'tree_dead_medium'], [30.5, 29.5, 'tree_dead_small'], [28.5, 17.5, 'tree_dead_medium'], [19.5, 30.5, 'tree_dead_small']]) {

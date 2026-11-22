@@ -22,6 +22,7 @@ export const S = {
   die() { if (!ok() || !gate('die', 50)) return; tone('sawtooth', 300, 80, 0.25, 0.08); hiss(900, 1, 0.2, 0.12); },
   squeal() { if (!ok() || !gate('sq', 200)) return; tone('square', 1400, 2200, 0.08, 0.05); tone('square', 1700, 900, 0.14, 0.05, 0.07); },
   arrow() { if (!ok() || !gate('ar', 50)) return; hiss(3200, 2, 0.08, 0.12); },
+  gun() { if (!ok() || !gate('gun', 60)) return; hiss(1500, 1.4, 0.05, 0.2); tone('square', 180, 70, 0.05, 0.06); },
   fire() { if (!ok() || !gate('fi', 60)) return; hiss(500, 0.6, 0.35, 0.2); tone('sawtooth', 120, 60, 0.3, 0.05); },
   boom() { if (!ok()) return; tone('sine', 90, 30, 0.5, 0.5); hiss(200, 0.5, 0.5, 0.5, 0, 'lowpass'); },
   raise() { if (!ok()) return; tone('sine', 220, 440, 0.7, 0.1); tone('sine', 331, 662, 0.7, 0.06); },

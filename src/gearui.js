@@ -5,7 +5,7 @@
 // A fixed info box shows the hovered or held item, so nothing jumps around.
 import * as THREE from 'three';
 import { G, save, bagPut, bagFree } from './state.js';
-import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem } from './data.js';
+import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem, isGunner, GUNNER } from './data.js';
 import { setGear, Unit, ANIM } from './units.js';
 import { makeUnitMesh, play } from './assets.js';
 import { initR, lit, itemIconURL as iconOf, portrait } from './icons.js';
@@ -55,7 +55,8 @@ function returnHeld() {
   else if (!bagPut(it, f === 'bag' ? held.pos : null)) { const fp = furnFree(); if (fp >= 0) { it.fpos = fp; G.furn.push(it); } }
   held = null;
 }
-function cantUse(it) { S.fail(); message(it.slot === 'w' ? tr(`${TYPES[selEn.type].name}用不了${WEAPONS[it.type].cat}，这是${TYPES[it.type].name}的武器`, `A ${TYPES[selEn.type].name} can't use this — it's a ${TYPES[it.type].name}'s ${WEAPONS[it.type].cat.toLowerCase()}`) : tr('这里放不下', "Doesn't fit here")); }
+function cantUse(it) { S.fail(); message(it.slot === 'w' ? tr(`${TYPES[selEn.type].name}用不了${itemBase(it).cat || WEAPONS[it.type].cat}，这是${TYPES[it.type].name}的武器`, `A ${TYPES[selEn.type].name} can't use this — it's a ${TYPES[it.type].name}'s ${WEAPONS[it.type].cat.toLowerCase()}`) : tr('这里放不下', "Doesn't fit here")); }
+const noSmelt = () => { S.fail(); message(tr('史诗装备不能熔炼', "Epic items can't be smelted")); };
 let lastPick = null;
 function clickCell(c, p) {
   if ((c === 'w' || c === 'a') && !selEn) return;
@@ -64,6 +65,7 @@ function clickCell(c, p) {
   else { // a quick second tap on the same cell = double-click: quick move
     if (lastPick && lastPick.c === c && lastPick.p === p && now - lastPick.t < 380 && held.from === c) { lastPick = null; put(c, p, held.it); held = null; quick(c, p); return; }
     if ((c === 'w' || c === 'a') && !fitsSlot(held.it, c)) { cantUse(held.it); return; }
+    if (c === 'furn' && held.it.q >= 3) { noSmelt(); return; }
     const o = put(c, p, held.it); held = o ? { it: o, from: c, pos: p } : null; lastPick = null; S.clank(); }
   infoIt = held ? held.it : at(c, p); save(); render();
 }
@@ -72,7 +74,7 @@ function quick(c, p) {
   if (held) return; const it = at(c, p); if (!it) return;
   if (c === 'bag' && mode === 'doll') { const s = it.slot === 'w' ? 'w' : 'a'; if (!fitsSlot(it, s)) { cantUse(it); return; }
     take('bag', p); const o = setGear(selEn, s, it); if (o) { o.pos = p; G.bag.push(o); } S.clank(); }
-  else if (c === 'bag') { const fp = furnFree(); if (fp < 0) { message(tr('熔炉放满了', 'The forge is full')); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.clank(); }
+  else if (c === 'bag') { if (it.q >= 3) { noSmelt(); return; } const fp = furnFree(); if (fp < 0) { message(tr('熔炉放满了', 'The forge is full')); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.clank(); }
   else { if (bagFree() < 0) { message(tr('背包满了', 'Bag is full')); return; } bagPut(take(c, p)); S.clank(); }
   infoIt = null; save(); render();
 }
@@ -111,7 +113,7 @@ export function render() {
     for (const el of document.querySelectorAll('.gSlot')) { const c = el.dataset.c, it = en.gear ? en.gear[c] : null, ok = held && fitsSlot(held.it, c);
       el.className = 'gSlot' + (it ? ' q' + it.q : '') + (held ? ok ? ' can' : ' no' : '');
       el.innerHTML = it ? `<img src="${iconOf(it)}" draggable="false">` : `<span>${c === 'w' ? WEAPONS[en.type].cat : tr('盾', 'Shield')}</span>`; }
-    $('#gStats').innerHTML = `<div class="gsN">${portrait(en.type, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${TYPES[en.type].name} <small style="white-space:nowrap">Lv ${en.level}${en.active ? tr(' · 出战中', ' · in party') : ''}</small></div>
+    $('#gStats').innerHTML = `<div class="gsN">${portrait(en.type, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${isGunner(en) ? GUNNER.name : TYPES[en.type].name} <small style="white-space:nowrap">Lv ${en.level}${en.active ? tr(' · 出战中', ' · in party') : ''}</small></div>
       <div class="gsL"><span>${tr('生命', 'Life')} <b>${Math.round(o.maxHp)}</b></span><span>${tr('伤害', 'Damage')} <b>${o.dmg.toFixed(1)}</b></span><span>${tr('护甲', 'Armour')} <b>${Math.round(o.armor)}</b></span><span>${tr('攻击间隔', 'Interval')} <b>${o.cd.toFixed(2)}s</b></span></div>`;
     $('#gSide').innerHTML = '';
   } else {
@@ -142,8 +144,8 @@ function tipHTML(it) {
   const isCur = cur === it, sc = itemScore(it), cs = itemScore(cur);
   const cmp = !en || isCur || !fit ? '' : !cur ? `<span class="tC up">${tr(`${TYPES[en.type].name}现在没穿`, 'Slot is empty')}</span>` : sc > cs + 0.5 ? `<span class="tC up">${tr('▲ 比现在的强', '▲ Better than current')}</span>` : sc < cs - 0.5 ? `<span class="tC dn">${tr('▼ 不如现在的', '▼ Worse than current')}</span>` : `<span class="tC">${tr('与现在的差不多', 'About the same')}</span>`;
   return `<div class="tip"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)} <span class="tI">${tr('物品等级', 'Item Level')} ${it.il}</span></div>
-    <div class="tB">${it.slot === 'w' ? `${WEAPONS[it.type].cat} · ${B.name}` : `${tr('护甲', 'Armour')} · ${B.name}`}　${it.slot === 'w' ? `<span class="tR${fit ? '' : ' bad'}">${tr(`${TYPES[it.type].name}专用`, `${TYPES[it.type].name} only`)}</span>` : `<span class="tR">${tr('所有召唤物', 'Any summon')}</span>`}　${isCur ? `<span class="tC">${tr('正在穿着', 'Equipped')}</span>` : cmp}</div>
-    <div class="tLs">${itemLines(it).map(l => `<span class="tL">${l}</span>`).join('')}</div></div>`;
+    <div class="tB">${it.slot === 'w' ? `${B.cat || WEAPONS[it.type].cat} · ${B.name}` : `${tr('护甲', 'Armour')} · ${B.name}`}　${it.slot === 'w' ? `<span class="tR${fit ? '' : ' bad'}">${tr(`${TYPES[it.type].name}专用`, `${TYPES[it.type].name} only`)}</span>` : `<span class="tR">${tr('所有召唤物', 'Any summon')}</span>`}　${isCur ? `<span class="tC">${tr('正在穿着', 'Equipped')}</span>` : cmp}</div>
+    <div class="tLs">${itemLines(it).map(l => `<span class="tL${l[0] === '✦' ? ' sp' : ''}">${l}</span>`).join('')}</div></div>`;
 }
 
 // ---------- furnace ----------

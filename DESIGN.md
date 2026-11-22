@@ -41,3 +41,12 @@ Open questions:
 ## Implemented: same-class fusion (for reference)
 normal + normal → 12% elite · normal + elite → 45% inherit an affix · elite + normal → 15% strengthen an owned affix ·
 elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthen if owned (40%, max Ⅲ).
+
+## 机枪骷髅 / Gunner Skeleton (easter egg for now)
+- Planned as a later cross-class fusion unit. For now: the coffin to the right of the camp's crypt hides the epic weapon
+  噬魂机枪 / Soul Reaper Gatling (once per save; faint purple motes hint at it). Click the coffin → the summoner walks over,
+  it bursts open and the gun drops.
+- Only a Skeleton Minion can equip it; while equipped the minion becomes a Gunner Skeleton: ranged (6.5 m), holds its
+  ground like the other ranged summons, fires 6-round bursts (each ~40% of a stab; crit from the minion tree; affix effects
+  on the first round of each burst). Lunge / chain don't apply while it holds the gun.
+- New quality tier 史诗 / Epic (purple). Epic items can't be smelted.

@@ -34,7 +34,7 @@ export const MODS = {
 export const ROMAN = ['', 'Ⅱ', 'Ⅲ'];
 export const affixName = (mods, champ = true) => !champ || !mods || !mods.length ? '' : (mods.length === 1 ? MODS[mods[0]].name : mods.map(m => MODS[m].short).join(tr('', '-'))) + SP;
 // a unit's full name: affixes + type (no gap in Chinese, a space in English)
-export const fullName = (type, mods, champ) => affixName(mods, champ) + TYPES[type].name;
+export const fullName = (type, mods, champ, en) => affixName(mods, champ) + (isGunner(en) ? GUNNER.name : TYPES[type].name);
 export const MAX_AFFIX = 3, MAX_AFFIX_LV = 3;
 // elemental look of champion affixes: weapon glow, particles off the weapon, hit sparks, projectile trails
 export const ELEM = {
@@ -109,10 +109,12 @@ export const QUAL = [
   { name: tr('普通', 'Normal'), col: '#e6dfd2', hex: 0xe6dfd2, k: 1 },
   { name: tr('精良', 'Magic'), col: '#6fa8ff', hex: 0x5f9cff, k: 1.4 },
   { name: tr('稀有', 'Rare'), col: '#ffcf4a', hex: 0xffc83a, k: 1.9 },
+  { name: tr('史诗', 'Epic'), col: '#c77dff', hex: 0xb46cff, k: 2.4 },
 ];
 export const WEAPONS = {
   brute:  { cat: tr('斧', 'Axe'), bases: [{ name: tr('骨斧', 'Bone Axe'), model: 'sk_axe', dm: 1, cd: 1 }, { name: tr('战斧', 'Hand Axe'), model: 'axe_1handed', dm: 0.82, cd: 0.82 }, { name: tr('巨斧', 'Great Axe'), model: 'axe_2handed', dm: 1.32, cd: 1.16 }] },
-  imp:    { cat: tr('刃', 'Blade'), bases: [{ name: tr('骨刃', 'Bone Blade'), model: 'sk_blade', dm: 1, cd: 1 }, { name: tr('匕首', 'Dagger'), model: 'dagger', dm: 0.8, cd: 0.8 }, { name: tr('长剑', 'Long Sword'), model: 'sword_1handed', dm: 1.25, cd: 1.12 }] },
+  imp:    { cat: tr('刃', 'Blade'), bases: [{ name: tr('骨刃', 'Bone Blade'), model: 'sk_blade', dm: 1, cd: 1 }, { name: tr('匕首', 'Dagger'), model: 'dagger', dm: 0.8, cd: 0.8 }, { name: tr('长剑', 'Long Sword'), model: 'sword_1handed', dm: 1.25, cd: 1.12 },
+    { name: tr('噬魂机枪', 'Soul Reaper Gatling'), cat: tr('机枪', 'Gatling'), model: 'gatling', dm: 1, cd: 1, epic: true }] }, // [3]: the easter egg (never rolled)
   archer: { cat: tr('弩', 'Crossbow'), bases: [{ name: tr('骨弩', 'Bone Crossbow'), model: 'sk_crossbow', dm: 1, cd: 1 }, { name: tr('轻弩', 'Light Crossbow'), model: 'crossbow_1handed', dm: 0.82, cd: 0.82 }, { name: tr('重弩', 'Heavy Crossbow'), model: 'crossbow_2handed', dm: 1.3, cd: 1.15 }] },
   shaman: { cat: tr('杖', 'Staff'), bases: [{ name: tr('骨杖', 'Bone Staff'), model: 'sk_staff', dm: 1, cd: 1 }, { name: tr('魔杖', 'Wand'), model: 'wand', dm: 0.82, cd: 0.82 }, { name: tr('法师长杖', 'Mage Staff'), model: 'mage_staff', dm: 1.3, cd: 1.15 }] },
 };
@@ -129,13 +131,18 @@ export function rollItem(id, il, q, slot = Math.random() < 0.62 ? 'w' : 'a', typ
   return it;
 }
 export const itemBase = it => it.slot === 'w' ? WEAPONS[it.type].bases[it.b] : ARMORS[it.b];
-export const itemName = it => (it.q ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
+export const itemName = it => (it.q && it.q < 3 ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
+// the easter egg: hidden in the camp coffin; a Skeleton Minion holding it becomes a Gunner Skeleton (ranged bursts)
+export const makeGun = id => ({ id, slot: 'w', type: 'imp', b: 3, q: 3, il: 5, uniq: 'mg', v: { dmg: 40, spd: 15 } });
+export const isGunner = en => !!(en && en.type === 'imp' && en.gear && en.gear.w && en.gear.w.uniq === 'mg');
+export const GUNNER = { name: tr('机枪骷髅', 'Gunner Skeleton'), short: tr('机枪骷髅', 'Gunner') };
 export const itemIcon = it => it.slot === 'w' ? TYPES[it.type].icon : '🛡️';
 export function itemLines(it) {
   const v = it.v, B = itemBase(it), L = [];
   const W = { dmg: tr('伤害', 'Damage'), cd: tr('攻击间隔', 'Attack interval'), spd: tr('攻击速度', 'Attack speed'), hp: tr('生命', 'Life'), arm: tr('护甲', 'Armour'), move: tr('移动速度', 'Move speed') };
   if (it.slot === 'w') { L.push(`${W.dmg} +${v.dmg}%`); if (B.cd !== 1) L.push(`${W.cd} ${B.cd < 1 ? '-' : '+'}${Math.round(Math.abs(1 - B.cd) * 100)}%`); if (v.spd) L.push(`${W.spd} +${v.spd}%`); if (v.hp) L.push(`${W.hp} +${v.hp}%`); }
   else { L.push(`${W.hp} +${v.hp}%`, `${W.arm} +${v.arm}`); if (v.dmg) L.push(`${W.dmg} +${v.dmg}%`); if (v.move) L.push(`${W.move} +${v.move}%`); }
+  if (it.uniq === 'mg') L.push('✦ ' + tr('骷髅小兵装备后变成机枪骷髅', 'A Skeleton Minion holding it becomes a Gunner Skeleton'), '✦ ' + tr('远程连射：每轮 6 发子弹', 'Ranged bursts: 6 rounds a volley'));
   return L;
 }
 // rough power, for the ▲ / ▼ comparison
@@ -143,7 +150,7 @@ export function itemScore(it) { if (!it) return 0; const v = it.v, B = itemBase(
   return it.slot === 'w' ? (100 + v.dmg) / B.cd * (1 + (v.spd || 0) / 100) * (1 + (v.hp || 0) / 300) : (100 + v.hp) * (1 + v.arm / 60) * (1 + (v.dmg || 0) / 150) * (1 + (v.move || 0) / 200); }
 export const itemFits = (it, type) => it.slot === 'a' || it.type === type;
 // furnace: everything thrown in turns into one random item; more (and better) input, better odds
-export const itemPts = it => [1, 3, 8][it.q] * (1 + it.il / 10);
+export const itemPts = it => [1, 3, 8, 20][it.q] * (1 + it.il / 10);
 export function furnaceOdds(items) { const p = items.reduce((a, it) => a + itemPts(it), 0), gold = Math.min(0.7, 0.01 + p * 0.022), blue = Math.min(1 - gold, 0.15 + p * 0.07); return { gold, blue, white: Math.max(0, 1 - gold - blue), pts: p }; }
 export function furnaceRoll(items, id) { const o = furnaceOdds(items), r = Math.random(), q = r < o.gold ? 2 : r < o.gold + o.blue ? 1 : 0, il = Math.max(...items.map(it => it.il)) + (q === 2 ? 1 : 0); return rollItem(id, il, q); }
 // drops: champions always drop something decent, normal monsters sometimes
