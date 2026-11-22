@@ -48,7 +48,12 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
   - **噬魂机枪 → 机枪骷髅** (Minion): sustained fire, grenades, armour-piercing rounds, brace to fire on the move. Also the camp coffin's easter egg.
   - **裂魂臼炮 → 炮手骷髅** (Archer): lobs shells 9 m that blow up groups and knock them back; backs off from anyone in its face;
     skills: Heavy Shells, Cluster Shells, Incendiary (fire on the ground), Barrage (a quick volley at a pack). Goggles, a shell rack, a bronze pauldron.
-  - Planned: 机甲骷髅 (Warrior, a drill; rocket dash, shield field, overload EMP shockwave) and 机械师骷髅 (Mage, drones; repair drone, orbital strike).
+  - **魂钢钻头 → 机甲骷髅** (Warrior): +45% life, +15 armour, a little bigger (not much — crypt corridors are narrow). Each attack is a
+    3-hit drill grind (the last hit knocks back); skills: Soulsteel Drill, Rocket Dash (thrusters charge 3–9 m, shoving enemies aside,
+    a stunning impact), Shield Field (when swarmed or hurt: a dome soaks a share of its life and taunts everyone around), Overload
+    (charges up, then an EMP shockwave from itself that damages, stuns and knocks back). Dome helmet with an antenna, steel plates,
+    a glowing reactor and a thruster backpack.
+  - Planned: 机械师骷髅 (Mage, drones; repair drone, orbital strike).
 
 ## Monsters
 Skeleton Warrior (telegraphed smash, knock-back), Skeleton Minion packs (panic and flee when a packmate falls apart),

@@ -112,7 +112,8 @@ export const QUAL = [
   { name: tr('史诗', 'Epic'), col: '#c77dff', hex: 0xb46cff, k: 2.4 },
 ];
 export const WEAPONS = {
-  brute:  { cat: tr('斧', 'Axe'), bases: [{ name: tr('骨斧', 'Bone Axe'), model: 'sk_axe', dm: 1, cd: 1 }, { name: tr('战斧', 'Hand Axe'), model: 'axe_1handed', dm: 0.82, cd: 0.82 }, { name: tr('巨斧', 'Great Axe'), model: 'axe_2handed', dm: 1.32, cd: 1.16 }] },
+  brute:  { cat: tr('斧', 'Axe'), bases: [{ name: tr('骨斧', 'Bone Axe'), model: 'sk_axe', dm: 1, cd: 1 }, { name: tr('战斧', 'Hand Axe'), model: 'axe_1handed', dm: 0.82, cd: 0.82 }, { name: tr('巨斧', 'Great Axe'), model: 'axe_2handed', dm: 1.32, cd: 1.16 },
+    { name: tr('魂钢钻头', 'Soulsteel Drill'), cat: tr('钻头', 'Drill'), model: 'drill', dm: 1, cd: 1, epic: true }] }, // [3]: tech line (forge only)
   imp:    { cat: tr('刃', 'Blade'), bases: [{ name: tr('骨刃', 'Bone Blade'), model: 'sk_blade', dm: 1, cd: 1 }, { name: tr('匕首', 'Dagger'), model: 'dagger', dm: 0.8, cd: 0.8 }, { name: tr('长剑', 'Long Sword'), model: 'sword_1handed', dm: 1.25, cd: 1.12 },
     { name: tr('噬魂机枪', 'Soul Reaper Gatling'), cat: tr('机枪', 'Gatling'), model: 'gatling', dm: 1, cd: 1, epic: true }] }, // [3]: the easter egg (never rolled)
   archer: { cat: tr('弩', 'Crossbow'), bases: [{ name: tr('骨弩', 'Bone Crossbow'), model: 'sk_crossbow', dm: 1, cd: 1 }, { name: tr('轻弩', 'Light Crossbow'), model: 'crossbow_1handed', dm: 0.82, cd: 0.82 }, { name: tr('重弩', 'Heavy Crossbow'), model: 'crossbow_2handed', dm: 1.3, cd: 1.15 },
@@ -142,6 +143,9 @@ export const TECH = {
   mortar: { type: 'archer', key: 'bomber', name: tr('炮手骷髅', 'Bombardier Skeleton'), short: tr('炮手骷髅', 'Bombardier'), role: tr('远程轰炸', 'Artillery'),
     ally: tr('远远地抛射炮弹，落点范围爆炸并击退；敌人贴脸会后撤。能打集束弹、燃烧弹，敌人扎堆时连轰齐射。', 'Lobs shells from far away that blow up whole groups and knock them back; backs off from anyone in its face. Cluster shells, incendiary shells, and a barrage when enemies bunch up.'),
     lines: [tr('骷髅弩手装备后变成炮手骷髅', 'A Skeleton Archer holding it becomes a Bombardier Skeleton'), tr('抛射炮弹：范围爆炸 + 击退，射程 9 米', 'Lobbed shells: area blast + knock-back, 9 m range')] },
+  drill: { type: 'brute', key: 'mech', name: tr('机甲骷髅', 'Mech Skeleton'), short: tr('机甲骷髅', 'Mech'), role: tr('重装前排', 'Heavy front line'),
+    ally: tr('穿着魂钢机甲的战士：钻头连钻带击退，喷射冲锋撞进人堆，撑起护盾力场吸收伤害并嘲讽敌人，过载时以自身为中心放出电磁冲击波。', 'A warrior in soulsteel armour: the drill grinds in several hits and knocks back, a rocket dash rams it into packs, a shield field soaks damage and draws enemies onto it, and overload sends out an EMP shockwave all around.'),
+    lines: [tr('骷髅战士装备后变成机甲骷髅', 'A Skeleton Warrior holding it becomes a Mech Skeleton'), tr('钻击：每次出手连钻 3 下，最后一下击退', 'Drill: each attack grinds 3 times, the last one knocks back')] },
 };
 export const techOf = en => { const w = en && en.gear && en.gear.w, T = w && w.uniq && TECH[w.uniq]; return T && T.type === en.type ? T : null; };
 export const techName = en => { const T = techOf(en); return T ? T.name : TYPES[en.type].name; };
@@ -164,6 +168,13 @@ TREE.bomber = [
   { id: 'mcluster', name: tr('集束弹', 'Cluster Shells'), icon: '🎆', max: 3, unlock: true, desc: r => r ? tr(`炮弹落地后再弹出 ${r + 1} 颗子弹，每颗 ${pct(0.4)} 炮弹伤害`, `Shells burst into ${r + 1} bomblets, each dealing ${pct(0.4)} of the shell's damage`) : tr('解锁：炮弹炸开后弹出子弹', 'Unlock: shells scatter bomblets') },
   { id: 'incend', name: tr('燃烧弹', 'Incendiary'), icon: '🔥', max: 3, unlock: true, desc: r => r ? tr(`每 3 发里有 1 发燃烧弹：落点烧起 ${(1.4 + 0.15 * r).toFixed(1)} 米的火圈，持续 ${(2.5 + 0.5 * r).toFixed(1)} 秒，每秒 ${pct(0.45 + 0.15 * r)} 伤害`, `Every 3rd shell is incendiary: a ${(1.4 + 0.15 * r).toFixed(1)} m fire burns for ${(2.5 + 0.5 * r).toFixed(1)} s, ${pct(0.45 + 0.15 * r)} damage a second`) : tr('解锁：燃烧弹留下火圈', 'Unlock: incendiary shells leave fires') },
   { id: 'barrage', name: tr('齐射', 'Barrage'), icon: '🎯', max: 3, unlock: true, desc: r => r ? tr(`敌人扎堆（3 个以上）或有精英时，朝最密集处连轰 ${r + 2} 发；冷却 ${(14 - 1.5 * r).toFixed(1)} 秒`, `When 3+ enemies bunch up or an elite shows up, fires ${r + 2} shells in quick succession at the thickest spot; cooldown ${(14 - 1.5 * r).toFixed(1)}s`) : tr('解锁：敌人扎堆时连轰齐射', 'Unlock: a quick barrage at packs') },
+];
+// 机甲骷髅: drill (innate), rocket dash (from the start, like the leap), shield field, overload EMP
+TREE.mech = [
+  { id: 'drill', name: tr('魂钢钻头', 'Soulsteel Drill'), icon: '🔩', max: 5, desc: r => tr(`钻击连钻 3 下，总伤害 ${pct((1.5 + 0.12 * r))}，最后一下击退`, `The drill grinds 3 times for ${pct(1.5 + 0.12 * r)} damage in all; the last one knocks back`) },
+  { id: 'rocket', name: tr('喷射冲锋', 'Rocket Dash'), icon: '🚀', max: 3, desc: r => tr(`推进器全开冲向 3–9 米外的敌人，撞开路上的敌人（${pct(0.6 + 0.15 * r)} 伤害），落点冲击眩晕；冷却 ${(7 - 0.7 * r).toFixed(1)} 秒`, `Thrusters at full: rams an enemy 3–9 m away, knocking aside everything in the way (${pct(0.6 + 0.15 * r)} damage), stunning at the end; cooldown ${(7 - 0.7 * r).toFixed(1)}s`) },
+  { id: 'aegis', name: tr('护盾力场', 'Shield Field'), icon: '🛡️', max: 3, unlock: true, desc: r => r ? tr(`被围或血量低时撑起护盾 ${4 + r} 秒：吸收 ${pct(0.25 + 0.1 * r)} 最大生命的伤害，并嘲讽 ${6 + r} 米内的敌人；冷却 ${(16 - 1.5 * r).toFixed(1)} 秒`, `When surrounded or hurt, raises a shield for ${4 + r} s: soaks ${pct(0.25 + 0.1 * r)} of max life and draws every enemy within ${6 + r} m onto it; cooldown ${(16 - 1.5 * r).toFixed(1)}s`) : tr('解锁：护盾力场', 'Unlock: shield field') },
+  { id: 'overload', name: tr('过载', 'Overload'), icon: '⚡', max: 3, unlock: true, desc: r => r ? tr(`身边敌人多（3 个以上）时蓄能过载，以自身为中心放出 ${(3 + 0.3 * r).toFixed(1)} 米电磁冲击波：${pct(1.1 + 0.3 * r)} 伤害，眩晕 ${(0.8 + 0.3 * r).toFixed(1)} 秒并击退；冷却 ${11 - r} 秒`, `With 3+ enemies close, overloads and sends out a ${(3 + 0.3 * r).toFixed(1)} m EMP shockwave: ${pct(1.1 + 0.3 * r)} damage, ${(0.8 + 0.3 * r).toFixed(1)} s stun and knock-back; cooldown ${11 - r}s`) : tr('解锁：过载电磁冲击波', 'Unlock: overload EMP shockwave') },
 ];
 export const treeKey = en => { const T = techOf(en); return T ? T.key : en.type; };
 export const itemIcon = it => it.slot === 'w' ? TYPES[it.type].icon : '🛡️';

@@ -24,6 +24,7 @@ export const S = {
   arrow() { if (!ok() || !gate('ar', 50)) return; hiss(3200, 2, 0.08, 0.12); },
   gun() { if (!ok() || !gate('gun', 60)) return; hiss(1500, 1.4, 0.05, 0.2); tone('square', 180, 70, 0.05, 0.06); },
   fire() { if (!ok() || !gate('fi', 60)) return; hiss(500, 0.6, 0.35, 0.2); tone('sawtooth', 120, 60, 0.3, 0.05); },
+  drill() { if (!ok() || !gate('dr', 90)) return; tone('sawtooth', 95, 80, 0.12, 0.07); hiss(2600, 2.5, 0.1, 0.16); tone('square', 1900, 1500, 0.06, 0.025); },
   mortar() { if (!ok() || !gate('mo', 90)) return; tone('sine', 120, 45, 0.28, 0.32); hiss(700, 0.7, 0.18, 0.28, 0, 'lowpass'); },
   boom() { if (!ok()) return; tone('sine', 90, 30, 0.5, 0.5); hiss(200, 0.5, 0.5, 0.5, 0, 'lowpass'); },
   raise() { if (!ok()) return; tone('sine', 220, 440, 0.7, 0.1); tone('sine', 331, 662, 0.7, 0.06); },

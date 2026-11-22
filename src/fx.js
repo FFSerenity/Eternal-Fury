@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { propGeo, propMat } from './assets.js';
+import { ring } from './gfx.js';
 
 const S = { scene: null, parts: null, shakeA: 0, shakeT: 0, ph: [0, 0, 0] };
 let shakeOn = true; try { shakeOn = localStorage.getItem('graveTamerShake') !== '0'; } catch (e) {}
@@ -78,6 +79,7 @@ export function slamMark(x, z) { if (!S.scene) return; const m = new THREE.Mesh(
 function updateMarks(dt) { let j = 0;
   for (const k of MARKS) { k.t += dt; const f = k.t / k.life; if (f >= 1) { k.parent.remove(k.m); k.m.geometry.dispose(); k.m.material.dispose(); continue; }
     if (k.kind === 'spin') { k.m.rotation.y -= dt * 17; k.m.material.opacity = Math.min(1, f * 8) * (f > 0.75 ? (1 - f) / 0.25 : 1) * 0.75; k.m.scale.setScalar(0.85 + 0.2 * Math.min(1, f * 4)); }
+    else if (k.kind === 'wave') { const q = Math.max(0, f); k.m.scale.setScalar(Math.max(0.01, (k.R / 0.95) * (1 - (1 - q) * (1 - q)))); k.m.material.opacity = 0.95 * (1 - q); }
     else k.m.material.opacity = 0.85 * Math.min(1, (1 - f) * 2.5);
     MARKS[j++] = k; } MARKS.length = j; }
 
@@ -103,6 +105,37 @@ function updateDebris(dt) { if (!DEB.ms) return; const F = G.floor; let j = 0;
 // leaving a floor: drop what is still lying around or in the air
 export function clearFx() { DEB.list.length = 0; if (DEB.ms) for (const im of DEB.ms) im.count = 0;
   for (const L of LIVE) { S.scene.remove(L.s); POOL.push(L.s); } LIVE.length = 0; for (const k of MARKS) k.parent.remove(k.m); MARKS.length = 0; TR.list.clear(); }
+
+// ---------- 机甲骷髅: the shield field (a bubble of soul energy with a hex lattice that flares where it is hit) and the EMP shockwave ----------
+const DOME_V = `varying vec3 vN; varying vec3 vW; varying vec3 vP; void main(){ vP = position; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }`;
+const DOME_F = `uniform vec3 uCol; uniform float uT; uniform float uHit; uniform float uOp; varying vec3 vN; varying vec3 vW; varying vec3 vP;
+float hexLine(vec2 p){ p.x *= 1.1547; p.y += mod(floor(p.x), 2.0) * 0.5; vec2 f = abs(fract(p) - 0.5); return smoothstep(0.38, 0.47, max(f.x * 1.5 + f.y, f.y * 2.0)); }
+void main(){
+  vec3 V = normalize(cameraPosition - vW); float fr = 1.0 - abs(dot(normalize(vN), V)); fr = pow(fr, 2.2);
+  vec3 n = normalize(vP); vec2 uv = vec2(atan(n.z, n.x) * 2.6, n.y * 4.2 - uT * 0.35);
+  float hx = hexLine(uv), sweep = smoothstep(0.92, 1.0, sin(n.y * 6.0 - uT * 3.0));
+  float a = (0.015 + 0.42 * fr + 0.14 * hx * (0.25 + fr) + 0.1 * sweep * (0.3 + fr) + uHit * (0.06 + 0.22 * hx + 0.2 * fr)) * uOp;
+  gl_FragColor = vec4(uCol * a, 1.0);
+}`;
+const DOMES = [], DOME_G = new THREE.SphereGeometry(1, 28, 16);
+export function shieldDome(u, col = 0x56c8ff) { if (!S.scene) return null;
+  const m = new THREE.Mesh(DOME_G, new THREE.ShaderMaterial({ vertexShader: DOME_V, fragmentShader: DOME_F, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uCol: { value: new THREE.Color(col) }, uT: { value: 0 }, uHit: { value: 0 }, uOp: { value: 0 } } }));
+  m.position.y = 0.7; m.scale.set(1.25, 1.1, 1.25); m.renderOrder = 4; u.mesh.root.add(m); const d = { u, m, t: 0, end: false }; DOMES.push(d); return d; }
+export function domeHit(d) { if (d) d.m.material.uniforms.uHit.value = 1; }
+export function domeEnd(d) { if (d) d.end = true; }
+function updateDomes(dt) { let j = 0;
+  for (const d of DOMES) { const U = d.m.material.uniforms; d.t += dt; U.uT.value += dt; U.uHit.value = Math.max(0, U.uHit.value - dt * 5);
+    U.uOp.value = d.end ? Math.max(0, U.uOp.value - dt * 4) : Math.min(1, d.t * 5); const sc = d.end ? 1 + (1 - U.uOp.value) * 0.25 : 0.6 + 0.4 * Math.min(1, d.t * 5);
+    d.m.scale.set(1.25 * sc, 1.1 * sc, 1.25 * sc);
+    if ((d.end && U.uOp.value <= 0) || d.u.dead) { d.m.parent && d.m.parent.remove(d.m); d.m.material.dispose(); continue; } DOMES[j++] = d; } DOMES.length = j; }
+// an electromagnetic shockwave rolling out from (x, z) to radius R: a bright core, two rings, sparks thrown out along the ground
+export function empWave(x, z, R) { if (!S.scene) return;
+  burst(x, 0.8, z, 0x9fe8ff, 3.2); flash(STAR, x, 0.9, z, 0xd8b0ff, 3.6, 0.22, { rot: Math.random() * 3, s0: 0.3, s1: 1.4, spin: 2, op: 0.9 });
+  for (const [c, w, d] of [[0x8fe8ff, 0.3, 0], [0xe4f8ff, 0.1, 0.06]]) { const rg = ring(0.75, 0.75 + w, c, 0.95); rg.position.set(x, 0.08 + d, z); S.scene.add(rg);
+    MARKS.push({ m: rg, t: -d, life: 0.42, kind: 'wave', parent: S.scene, R }); }
+  if (S.parts) for (let i = 0; i < 26; i++) { const a = i / 26 * Math.PI * 2; S.parts.emit(x + Math.cos(a) * 0.6, 0.35, z + Math.sin(a) * 0.6, 1, { col: i % 2 ? 0x9fe8ff : 0xe0c0ff, spd: 7, up: 0.4, grav: 1, life: 0.35, size: 0.2, spread: 0 }); }
+  shake(0.13, x, z); }
 
 // ---------- camera shake: amount in metres; fades with distance from the summoner ----------
 export function shake(a, x, z) { if (!shakeOn) return; const P = G.player; const k = P && x != null ? Math.max(0, 1 - Math.hypot(x - P.x, z - P.z) / 14) : 1; S.shakeA = Math.min(0.35, Math.max(S.shakeA, a * k)); }
@@ -139,5 +172,5 @@ export function updateFx(dt, units) {
     const e = 1 - (1 - k) * (1 - k); L.s.scale.setScalar(L.size * (L.s0 + (L.s1 - L.s0) * e)); L.s.material.opacity = L.op * (1 - k * k); L.s.material.rotation += L.spin * dt * (1 - k); LIVE[j++] = L; }
   LIVE.length = j;
   S.shakeT += dt; S.shakeA *= Math.exp(-dt * 11); if (S.shakeA < 0.002) S.shakeA = 0;
-  updateTrails(dt, units); updateMarks(dt); updateDebris(dt);
+  updateTrails(dt, units); updateMarks(dt); updateDebris(dt); updateDomes(dt);
 }
