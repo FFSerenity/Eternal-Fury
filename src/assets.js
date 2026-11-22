@@ -111,13 +111,17 @@ export function makeUnitMesh(kind, o = {}) {
   // equipped gear replaces the default weapon (right hand) and, for the warrior, the shield (left hand)
   const gear = o.gear || {}, wl = (def.weapons || []).map(([w, bone]) => [bone === 'handslot.r' && gear.w ? WEAPONS[gear.w.type].bases[gear.w.b].model : bone === 'handslot.l' && gear.a ? ARMORS[gear.a.b].model : w, bone,
     bone === 'handslot.r' ? gear.w : bone === 'handslot.l' ? gear.a : null]);
-  let gun = null;
+  let gun = null, blade = null;
   for (const [w, bone, it] of wl) { const gat = w === 'gatling', pg = propGeo(gat ? 'gatling_body' : w), b = findBone(model, bone); if (!pg || !b) continue; const shield = bone === 'handslot.l';
     const wm = new THREE.Mesh(pg.geo, matW(pg.map)); b.add(wm); adds.push([wm, new THREE.Mesh(pg.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
     if (gat) { // the barrel cluster is its own mesh so it can spin while firing; the muzzle marks where tracers start
       wm.rotation.set(0, 1.55, 0); wm.scale.setScalar(1.2); // the shooting poses hold the right-hand slot turned ~90°: this lines the barrels up with the aim
       const bp = propGeo('gatling_barrel'), bm = new THREE.Mesh(bp.geo, matW(bp.map)); bm.position.copy(bp.pivot); wm.add(bm); adds.push([bm, new THREE.Mesh(bp.geo, outlineMat(o.outline ?? 0x120a10, olW, u.uFade))]);
       const mz = new THREE.Object3D(); mz.position.set(bp.pivot.x, bp.pivot.y, bp.pivot.z + bp.muzzle + 0.04); wm.add(mz); gun = { barrel: bm, muzzle: mz, spin: 0 }; }
+    // the blade's edge, for swing trails: from a third of the way up to the tip (melee weapons only), coloured by gear quality / affix / side
+    if (!gat && !shield && (kind === 'imp' || kind === 'brute')) { const zm = (pg.box.max.z + pg.box.min.z) / 2, a = new THREE.Object3D(), b2 = new THREE.Object3D();
+      a.position.set(0, pg.box.max.y * 0.32, zm); b2.position.set(0, pg.box.max.y * 1.02, zm); wm.add(a, b2);
+      blade = { a, b: b2, col: it && it.q ? QUAL[it.q].hex : el ? el.col : o.soul ? 0x9ff8ee : 0xffe2c8 }; }
     if (it && it.q && !shield) { const t = new THREE.Object3D(); t.position.set(0, gat ? 0.13 : pg.box.max.y * 0.8, gat ? 0.2 : (pg.box.max.z + pg.box.min.z) / 2); wm.add(t);
       const gs = glowSprite(QUAL[it.q].hex, it.q >= 2 ? 1.1 : 0.8, it.q >= 2 ? 0.8 : 0.6); t.add(gs); glows.push(gs); }
   }
@@ -133,7 +137,7 @@ export function makeUnitMesh(kind, o = {}) {
   model.scale.setScalar(def.scale * (o.scale ?? 1) * (gunner ? 1.12 : 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
-  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, elem: el ? elems[0] : null, elems };
+  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, blade, elem: el ? elems[0] : null, elems };
 }
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current
@@ -145,5 +149,22 @@ export function play(m, name, o = {}) {
   a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.timeScale = o.speed ?? 1; a.setLoop(o.once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = !!(o.once && o.hold !== false);
   if (o.at) a.time = o.at * clip.duration;
   a.play(); if (prev && prev !== a) { if (o.fade === 0) prev.stop(); else prev.crossFadeTo(a, o.fade ?? 0.15, false); }
-  m.cur = a; m.curName = name; return a;
+  m.cur = a; m.curName = name;
+  if (m.curU && !name.endsWith('@lower')) { if (o.fade === 0) m.curU.stop(); else m.curU.fadeOut(o.fade ?? 0.15); m.curU = null; m.curUName = ''; } // a whole-body clip takes the arms back
+  return a;
+}
+// layered animation (the 机枪骷髅 walks with its legs while its arms keep the gun up): a clip split into the upper body
+// (spine, chest, head, arms) and the rest; play(m, partClip(walk, 'lower')) for the legs, playUpper(m, partClip(aim, 'upper')) for the arms
+const UPPER = new Set(['spine', 'chest', 'head', 'upperarml', 'lowerarml', 'wristl', 'handl', 'handslotl', 'upperarmr', 'lowerarmr', 'wristr', 'handr', 'handslotr']);
+export function partClip(name, part) {
+  const key = name + '@' + part; if (A.clips[key]) return key; const c = A.clips[name]; if (!c) return name;
+  A.clips[key] = new THREE.AnimationClip(key, c.duration, c.tracks.filter(t => UPPER.has(t.name.split('.')[0].replace(/[[\]\.:\/]/g, '')) === (part === 'upper'))); return key;
+}
+export function playUpper(m, name, o = {}) {
+  const clip = A.clips[name]; if (!clip) return null;
+  let a = m.actions[name]; if (!a) { a = m.mixer.clipAction(clip); m.actions[name] = a; }
+  if (m.curU === a && !o.restart) { if (o.speed != null) a.timeScale = o.speed; return a; }
+  const prev = m.curU; a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.timeScale = o.speed ?? 1; a.setLoop(o.once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = !!o.once;
+  a.play(); if (prev && prev !== a) prev.crossFadeTo(a, o.fade ?? 0.12, false); else if (!prev) a.fadeIn(o.fade ?? 0.12);
+  m.curU = a; m.curUName = name; return a;
 }

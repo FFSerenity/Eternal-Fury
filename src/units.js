@@ -4,7 +4,8 @@ import { G, save, bagPut } from './state.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase, GUNNER, makeGun, treeKey } from './data.js';
 import { glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
-import { makeUnitMesh, play, clipLen, CHARS, propMesh } from './assets.js';
+import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh } from './assets.js';
+import { slash, impact, burst, shake, trail, spinFx, slamMark } from './fx.js';
 import { S } from './audio.js';
 import { runeCircle } from './vfx.js';
 
@@ -74,22 +75,28 @@ export class Unit {
 }
 
 export const hostilesOf = u => u.side === 'enemy' ? G.friends : G.enemies;
-export function say(x, z, text, col = '#fff', size = 15, y = 1.7) { G.msgs.push({ x, y, z, text, col, size, t: 0, max: 1.0 }); }
+// floating text; num: 1 a damage number (pops in, drifts aside), 2 a crit (bigger pop, a shiver)
+export function say(x, z, text, col = '#fff', size = 15, y = 1.7, num = 0) { G.msgs.push({ x, y, z, text, col, size, t: 0, max: num ? 0.9 : 1.0, num, dx: num ? (Math.random() - 0.5) * 2 : 0 }); }
 
 // ---------- damage / death ----------
 export function damage(src, dst, amt, o = {}) {
   if (!dst || dst.dead) return 0;
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
-  dst.hp -= d; dst.flash = 1; dst.barT = 3; dst.lastHit = G.t;
+  dst.hp -= d; dst.flash = Math.max(dst.flash || 0, o.heavy || o.crit ? 1 : o.sum ? 0.5 : 0.75); dst.barT = 3; dst.lastHit = G.t;
   if (o.knock && !(dst.deployT > 0)) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
   if (dst.kind !== 'player' && !dst.noStun && !(dst.deployT > 0) && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
-  if (dst.kind === 'player') S.hurt(); else if (!o.dot && !o.sum) S.hit(Math.min(1, d / 20));
+  if (dst.kind === 'player') { S.hurt(); if (d > dst.maxHp * 0.08) shake(0.06); } else if (!o.dot && !o.sum) S.hit(Math.min(1, d / 20));
+  // feel of the blow: a blade leaves a slash and a flash; heavy blows and crits freeze both bodies for a few frames; the one hit jolts
+  if (!o.dot) { const heavy = o.heavy || o.crit; dst.jolt = Math.max(dst.jolt || 0, heavy ? 1 : o.sum ? 0.35 : 0.65);
+    if (o.melee && src) { slash(src, dst, src.mesh && src.mesh.blade ? src.mesh.blade.col : 0xfff0e0, { crit: o.crit, heavy: o.heavy });
+      if (heavy) { src.hitStop = Math.max(src.hitStop || 0, 0.075); dst.hitStop = Math.max(dst.hitStop || 0, 0.095); if (o.heavy) shake(o.crit ? 0.1 : 0.06, dst.x, dst.z); } else dst.hitStop = Math.max(dst.hitStop || 0, 0.045); }
+    else if (o.crit) dst.hitStop = Math.max(dst.hitStop || 0, 0.05); }
   if (src && src.champ && !o.noFx) for (const mod of src.mods) { const el = ELEM[mod]; if (!el) continue; C.parts.emit(dst.x, 0.7, dst.z, src.mods.length > 1 ? 6 : 11, el.hit); elemHit(mod, src, dst, d, o); }
   let shown = d; // machine-gun rounds: one number for every 3 (or at once on a crit / the killing round)
   if (o.sum) { dst.sumD = (dst.sumD || 0) + d; dst.sumN = (dst.sumN || 0) + 1; if (dst.sumN < 3 && !o.crit && dst.hp > 0) return d; shown = dst.sumD; dst.sumD = dst.sumN = 0; }
-  if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? tr('暴击 ', 'CRIT ') : '') + Math.round(shown), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 17 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4);
+  if (!o.dot || d >= 3) say(dst.x, dst.z, (o.crit ? tr('暴击 ', 'CRIT ') : '') + Math.round(shown), o.dot ? (o.dot === 'poison' ? '#8aff5a' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : '#ff6b6b', o.crit ? 18 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4, o.dot ? 0 : o.crit ? 2 : 1);
   if (dst.hp <= 0) kill(dst, src);
   return d;
 }
@@ -100,7 +107,7 @@ export function alertPack(u, t) {
 function kill(u, src) {
   u.dead = true; u.hp = 0; u.poison = null; u.chillT = 0; u.mesh.u.uStat.value.w = 0;
   if (u.side === 'enemy') {
-    S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 });
+    S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 }); C.parts.emit(u.x, 0.5, u.z, 8, { col: 0xd8ccb8, spd: 2.6, up: 2.4, grav: 8, life: 0.6, size: 0.16 }); if (u.champ) { shake(0.08, u.x, u.z); burst(u.x, 0.8, u.z, 0xffd8a0, 1.6); }
     const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(xp);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
     deathBlast(u, 0.7); const it = rollDrop(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
@@ -117,7 +124,7 @@ function kill(u, src) {
 function fadeOut(u) { const m = u.mesh; play(m, ANIM[u.kind].die, { once: true, speed: 1.3, fade: 0.08 }); if (u.ringMesh) m.root.remove(u.ringMesh); let lk = 0;
   G.fx.push({ t: 1.4, tick: (k) => { m.mixer.update((k - lk) * 1.4); lk = k; m.u.uFade.value = Math.min(1, (1 - k) * 2.2); for (const gs of m.glows) gs.material.opacity = 0.85 * Math.min(1, (1 - k) * 2.2); }, fn: () => u.remove() }); }
 function fireBlast(u) {
-  S.boom(); C.parts.emit(u.x, 0.4, u.z, 40, { col: 0xff8a2a, spd: 5, up: 2, life: 0.7, size: 0.35 });
+  S.boom(); C.parts.emit(u.x, 0.4, u.z, 40, { col: 0xff8a2a, spd: 5, up: 2, life: 0.7, size: 0.35 }); burst(u.x, 0.6, u.z, 0xff9a40, 3.2); shake(0.2, u.x, u.z);
   const rg = ring(0.2, 0.5, 0xff7a20, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
   G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * 5); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
   const lv = mlv(u, 'fire'); for (const h of (u.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && dist(h, u) < 2.4 + 0.3 * (lv - 1)) damage(u, h, u.dmg * 1.6 * (1 + 0.4 * (lv - 1)), { knock: 3, fx: u.x, fz: u.z, noFx: true });
@@ -352,8 +359,8 @@ export function updateShots(dt) {
     if (!dead) for (const u of (s.side === 'enemy' ? G.friends : G.enemies)) { if (u.dead || s.hit.has(u)) continue;
       if (Math.hypot(u.x - s.x, u.z - s.z) < u.r + 0.22) { s.hit.add(u);
         if (s.kind === 'fire') { dead = true; break; }
-        damage(s.src, u, s.dmg * rand(0.85, 1.15), { knock: s.kind === 'spear' ? 1.2 : 0 }); if (s.kind === 'spear') C.parts.emit(s.x, s.y, s.z, 5, { col: 0xe8e0d0, spd: 2, life: 0.3, size: 0.15 }); else if (s.pierce > 0) s.pierce--; else { dead = true; break; } } }
-    if (dead) { if (s.kind === 'fire') { S.boom(); C.parts.emit(s.x, 0.5, s.z, 22, { col: 0xff8a2a, spd: 3, up: 2, life: 0.5, size: 0.3 });
+        damage(s.src, u, s.dmg * rand(0.85, 1.15), { knock: s.kind === 'spear' ? 1.2 : 0 }); impact(s.x, s.y, s.z, s.kind === 'spear' ? 0xbff8ff : s.el ? s.el.col : 0xffe6c0, s.kind === 'spear' ? 0.9 : 0.7); if (s.kind === 'spear') C.parts.emit(s.x, s.y, s.z, 5, { col: 0xe8e0d0, spd: 2, life: 0.3, size: 0.15 }); else if (s.pierce > 0) s.pierce--; else { dead = true; break; } } }
+    if (dead) { if (s.kind === 'fire') { S.boom(); C.parts.emit(s.x, 0.5, s.z, 22, { col: 0xff8a2a, spd: 3, up: 2, life: 0.5, size: 0.3 }); burst(s.x, 0.6, s.z, 0xff9a3a, 1.8); shake(0.035, s.x, s.z);
         for (const u of (s.side === 'enemy' ? G.friends : G.enemies)) if (!u.dead && Math.hypot(u.x - s.x, u.z - s.z) < s.splash + u.r) damage(s.src, u, s.dmg, { knock: 1.5, fx: s.x, fz: s.z }); }
       C.scene.remove(s.root); continue; }
     G.shots[j++] = s;
@@ -370,21 +377,22 @@ function flee(u, fx, fz, spd) {
   u.wantX = u.wantZ = 0; return false;
 }
 const faceTo = (u, t) => { u.faceT = Math.atan2(t.x - u.x, t.z - u.z); };
-const GUN_CLIP = '2H_Ranged_Shoot'; // two-handed shooting stance for the gatling
 function startWindup(u, t) {
-  if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire)
-    if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); if (u.mesh.curName !== GUN_CLIP) play(u.mesh, GUN_CLIP, { once: true, at: 0.55, speed: 0.5, fade: 0.08 }); return; }
-    u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); play(u.mesh, GUN_CLIP, { once: true, restart: true, speed: 0.5, fade: 0.1 }); u.animLock = 1.1; return; }
-  u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind);
-  if (u.kind === 'brute') { const rg = ring(0.2, u.range + u.r + 0.3, u.side === 'enemy' ? 0xff3a2a : 0x3fe0d0, 0.0); rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
+  if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire); the arms are animated in gunnerAnim
+    if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
+    u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); return; }
+  u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind); if (MELEE(u.kind)) trail(u, u.wind + 0.3);
+  if (u.kind === 'brute') { const R = u.range + u.r + 0.3, en = u.side === 'enemy', col = en ? 0xff3a2a : 0x3fe0d0, rg = ring(en ? 0.2 : R - 0.1, R, col, 0.0);
+    if (en) { const edge = ring(R - 0.09, R, 0xff8a6a, 0); edge.position.y = 0.002; rg.add(edge); rg.userData.edge = edge; } rg.userData.en = en; rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
   const t = u.tgt; u.state = 'recover'; u.st = 0; u.cdT = u.cd * rand(0.9, 1.15); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
   if (!t || t.dead) return;
   if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
+  if (MELEE(u.kind)) { u.kx += Math.sin(u.face) * 1.3; u.kz += Math.cos(u.face) * 1.3; } // step into the blow
   if (u.kind === 'brute') { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 0.8, 0.2, u.z + Math.cos(u.face) * 0.8, 16, { col: 0xb8a890, spd: 3, up: 1.5, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d > u.range + u.r + h.r + 0.35) continue;
-      const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1), { knock: 4 }); } }
-  else if (u.kind === 'imp') { const lg = u.lungeHit; u.lungeHit = false; if (dist(u, t) < (u.range + u.r + t.r) * (lg ? 1.6 : 1.35)) { damage(u, t, u.dmg * rand(0.85, 1.15) * (lg ? 1.25 * (1 + 0.2 * rk(u, 'lunge')) : 1), { crit: u.side === 'ally' && (lg || Math.random() < 0.15 + 0.06 * rk(u, 'crit')), critX: 2 + 0.1 * rk(u, 'crit') });
+      const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1), { knock: 4, melee: true, heavy: true }); } }
+  else if (u.kind === 'imp') { const lg = u.lungeHit; u.lungeHit = false; if (dist(u, t) < (u.range + u.r + t.r) * (lg ? 1.6 : 1.35)) { damage(u, t, u.dmg * rand(0.85, 1.15) * (lg ? 1.25 * (1 + 0.2 * rk(u, 'lunge')) : 1), { crit: u.side === 'ally' && (lg || Math.random() < 0.15 + 0.06 * rk(u, 'crit')), critX: 2 + 0.1 * rk(u, 'crit'), melee: true });
       if (lg && u.chainLeft > 0) { let nx = null, nd = 5; for (const e of hostilesOf(u)) { if (e.dead || e === t) continue; const de = dist(u, e); if (de < nd && de > 0.8 && C.floor.los(u.x, u.z, e.x, e.z)) { nd = de; nx = e; } }
         if (nx) { u.chainLeft--; u.chainNext = nx; } } } }
   else if (u.kind === 'archer') { const lead = Math.min(0.5, dist(u, t) / 12), n = 1 + rk(u, 'multi'), tx = t.x + (t.vx || 0) * lead, tz = t.z + (t.vz || 0) * lead;
@@ -413,7 +421,7 @@ function gunSkills(u) {
     const R = 1.7 + 0.12 * rk(u, 'nade'); let best = null, bn = 0;
     for (const c of near) { if (dist(c, u) > 7.5 || dist(c, u) < 1.5) continue; let n = 0; for (const h of near) if (Math.hypot(h.x - c.x, h.z - c.z) < R) n += h.champ ? 2 : 1; if (n > bn) { bn = n; best = c; } }
     if (best && bn >= 2) { u.state = 'throw'; u.st = 0; u.wind = 0.32; u.thrown = false; u.nadeAt = { x: best.x, z: best.z }; faceTo(u, best); u.face = u.faceT; u.wantX = u.wantZ = 0;
-      play(u.mesh, 'Spellcast_Shoot', { once: true, restart: true, speed: 1.25, fade: 0.08 }); u.animLock = 0.7; u.nadeCD = 9 - 0.8 * rk(u, 'nade'); return true; }
+      playUpper(u.mesh, partClip('Throw', 'upper'), { once: true, restart: true, speed: 1.5, fade: 0.08 }); u.nadeCD = 9 - 0.8 * rk(u, 'nade'); return true; }
     u.nadeCD = 0.5; }
   return false;
 }
@@ -431,7 +439,7 @@ function updateNades(dt) { let j = 0;
     if (k >= 1) { C.scene.remove(n.m); explodeNade(n); continue; } NADES[j++] = n; }
   NADES.length = j; }
 function explodeNade(n) {
-  const { x1: x, z1: z, src, R } = n; S.boom(); if (!n.mini) S.smash();
+  const { x1: x, z1: z, src, R } = n; S.boom(); if (!n.mini) S.smash(); shake(n.mini ? 0.04 : 0.16, x, z); if (!n.mini) burst(x, 0.5, z, 0xffa850, R * 0.9);
   C.parts.emit(x, 0.4, z, n.mini ? 14 : 34, { col: 0xff9a3a, spd: n.mini ? 3 : 5.5, up: 2.2, life: 0.55, size: n.mini ? 0.26 : 0.38 });
   C.parts.emit(x, 0.5, z, n.mini ? 6 : 16, { col: 0xb46cff, spd: n.mini ? 2.5 : 4, up: 2.5, life: 0.7, size: 0.26 });
   C.parts.emit(x, 0.6, z, n.mini ? 4 : 12, { col: 0x3a3442, spd: 1.2, up: 1.6, grav: -0.6, life: 1.1, size: 0.45 });
@@ -562,19 +570,19 @@ function startLeap(u, t) {
   const d = dist(u, t), k = Math.max(0, d - (u.r + t.r + 0.25)) / (d || 1);
   u.state = 'leap'; u.st = 0; u.lx0 = u.x; u.lz0 = u.z; u.lx1 = u.x + (t.x - u.x) * k; u.lz1 = u.z + (t.z - u.z) * k; u.lh = 0.35 + d * 0.07; u.tgt = t;
   u.t0 = LEAP.up / LEAP.sp; u.t1 = LEAP.land / LEAP.sp; u.wantX = u.wantZ = u.vx = u.vz = u.kx = u.kz = 0; faceTo(u, t); u.face = u.faceT;
-  play(u.mesh, LEAP.clip, { once: true, restart: true, speed: LEAP.sp, fade: 0.06 }); u.animLock = clipLen(LEAP.clip) / LEAP.sp * 0.8;
+  play(u.mesh, LEAP.clip, { once: true, restart: true, speed: LEAP.sp, fade: 0.06 }); u.animLock = clipLen(LEAP.clip) / LEAP.sp * 0.8; trail(u, u.t1 + 0.25);
   u.moveCD = 6.5 - 0.6 * rk(u, 'leap'); say(u.x, u.z, tr('跳劈！', 'Leap Slam!'), '#8ff5ea', 14, 1.9);
 }
 function updateLeap(u, dt) {
   u.st += dt; u.wantX = u.wantZ = 0; u.vx = u.vz = u.kx = u.kz = 0;
   const k = Math.min(1, Math.max(0, (u.st - u.t0) / (u.t1 - u.t0))), e = k * k * (3 - 2 * k);
   u.x = u.lx0 + (u.lx1 - u.lx0) * e; u.z = u.lz0 + (u.lz1 - u.lz0) * e; u.y = Math.sin(Math.PI * k) * u.lh;
-  if (u.st >= u.t1 && !u.landed) { u.landed = true; u.y = 0; S.smash();
+  if (u.st >= u.t1 && !u.landed) { u.landed = true; u.y = 0; S.smash(); shake(0.15, u.x, u.z); burst(u.x, 0.35, u.z, 0x9ff8ee, 2.4); u.hitStop = 0.08; slamMark(u.x, u.z);
     C.parts.emit(u.x, 0.15, u.z, 26, { col: 0xc8bca8, spd: 4, up: 1.2, life: 0.55, size: 0.32 }); C.parts.emit(u.x, 0.3, u.z, 12, { col: 0x6ff7e8, spd: 3, up: 1.5, life: 0.5, size: 0.25 });
     const rg = ring(0.3, 0.55, 0x6ff7e8, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
     G.fx.push({ t: 0.4, tick: q => { rg.scale.setScalar(1 + q * 3.6); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) });
     const lr = rk(u, 'leap'); for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - u.x, h.z - u.z) > 1.9 + 0.15 * lr + h.r) continue;
-      damage(u, h, u.dmg * 0.55 * (1 + 0.12 * lr) * rand(0.9, 1.1), { knock: 3.2, fx: u.x, fz: u.z }); /* a gap closer, not a nuke */ h.stun = Math.max(h.stun, 0.6); if (!h.dead) { h.target = u; h.aggro = true; } } }
+      damage(u, h, u.dmg * 0.55 * (1 + 0.12 * lr) * rand(0.9, 1.1), { knock: 3.2, fx: u.x, fz: u.z, heavy: true }); /* a gap closer, not a nuke */ h.stun = Math.max(h.stun, 0.6); if (!h.dead) { h.target = u; h.aggro = true; } } }
   if (u.st >= u.t1 + 0.35) { u.state = 'recover'; u.st = 0.0; u.landed = false; u.y = 0; u.cdT = Math.max(u.cdT, 0.5); }
 }
 // 旋风斩: when surrounded, spin and hit everything around twice
@@ -582,19 +590,19 @@ function spinSkill(u) {
   const r = rk(u, 'spin'); if (u.kind !== 'brute' || !r || (u.spinCD || 0) > G.t || u.stun > 0) return false;
   let n = 0; for (const h of hostilesOf(u)) if (!h.dead && dist(u, h) < 1.9 + h.r) n++; if (n < 2) return false;
   u.state = 'spin'; u.st = 0; u.hits = 0; u.spinCD = G.t + 7 - r; u.wantX = u.wantZ = 0;
-  play(u.mesh, '2H_Melee_Attack_Spin', { once: true, restart: true, speed: 2.1, fade: 0.06 }); u.animLock = clipLen('2H_Melee_Attack_Spin') / 2.1 * 0.9; say(u.x, u.z, tr('旋风斩！', 'Whirlwind!'), '#8ff5ea', 14, 1.9); return true;
+  play(u.mesh, '2H_Melee_Attack_Spin', { once: true, restart: true, speed: 2.1, fade: 0.06 }); u.animLock = clipLen('2H_Melee_Attack_Spin') / 2.1 * 0.9; trail(u, 1.15); spinFx(u); say(u.x, u.z, tr('旋风斩！', 'Whirlwind!'), '#8ff5ea', 14, 1.9); return true;
 }
 function updateSpin(u, dt) {
   u.st += dt; u.wantX = u.wantZ = 0; const r = rk(u, 'spin');
   if ((u.hits === 0 && u.st > 0.35) || (u.hits === 1 && u.st > 0.75)) { u.hits++; S.smash(); C.parts.emit(u.x, 0.5, u.z, 14, { col: 0x8ff5ea, spd: 3.5, up: 0.6, life: 0.35, size: 0.22, grav: 0 });
-    for (const h of hostilesOf(u)) if (!h.dead && dist(u, h) < 2.0 + h.r) damage(u, h, u.dmg * (0.6 + 0.2 * r) * rand(0.9, 1.1), { knock: 1.6 }); }
+    for (const h of hostilesOf(u)) if (!h.dead && dist(u, h) < 2.0 + h.r) damage(u, h, u.dmg * (0.6 + 0.2 * r) * rand(0.9, 1.1), { knock: 1.6, melee: true }); }
   if (u.st > 1.1) { u.state = 'recover'; u.st = 0; }
 }
 // 突刺: a fast lunge into a stab that always crits
 function startLunge(u, t, chained) {
   u.state = 'lunge'; u.st = 0; u.tgt = t; faceTo(u, t); u.face = u.faceT; u.wantX = u.wantZ = 0;
   if (!chained) { u.moveCD = 4 - 0.4 * rk(u, 'lunge'); u.chainLeft = rk(u, 'chain'); } else say(u.x, u.z, tr('连刺！', 'Chain!'), '#8ff5ea', 13, 1.6);
-  play(u.mesh, 'Dodge_Forward', { once: true, restart: true, speed: 0.9, fade: 0.05 }); u.animLock = 0.3;
+  play(u.mesh, 'Dodge_Forward', { once: true, restart: true, speed: 0.9, fade: 0.05 }); u.animLock = 0.3; trail(u, 0.7);
 }
 function updateLunge(u, dt) {
   const t = u.tgt; u.st += dt; if (!t || t.dead) { u.state = 'idle'; return; }
@@ -606,14 +614,14 @@ function updateLunge(u, dt) {
 // ---------- per-frame unit update ----------
 export function updateUnit(u, dt) {
   if (u.dead) return;
-  u.flash = Math.max(0, u.flash - dt * 5); u.barT -= dt; u.cdT -= dt * slowK(u); dt *= slowK(u) < 1 ? 0.75 : 1;
+  u.flash = Math.max(0, u.flash - dt * 6.5); u.barT -= dt; u.cdT -= dt * slowK(u); dt *= slowK(u) < 1 ? 0.75 : 1;
   if (u.spawnT > 0) { u.spawnT -= dt; u.wantX = u.wantZ = 0; return; }
   if (u.burst > 0) gunTick(u, dt);
   if (u.shred && G.t - u.shredT > 3) u.shred = Math.max(0, u.shred - dt * 10);
   if (u.gun) { u.nadeCD = (u.nadeCD ?? 2.5) - dt; u.depCD = (u.depCD ?? 3) - dt; if (u.deployT > 0) { u.deployT -= dt; if (u.deployT <= 0) undeploy(u); } }
   if (u.stun > 0 && u.state !== 'leap') { u.stun -= dt; u.wantX = u.wantZ = 0; if (u.tele) { C.scene.remove(u.tele); u.tele = null; } }
   else if (u.state === 'windup') { u.st += dt; u.wantX = u.wantZ = 0; if (u.tgt && !u.tgt.dead && u.kind !== 'brute') faceTo(u, u.tgt);
-    if (u.tele) { const k = u.st / u.wind; u.tele.material.opacity = 0.15 + 0.45 * k; u.tele.position.set(u.x, 0.04, u.z); }
+    if (u.tele) { const k = Math.min(1, u.st / u.wind), T = u.tele; if (T.userData.en) { T.material.opacity = 0.1 + 0.25 * k; T.userData.edge.material.opacity = 0.35 + 0.6 * k; } else T.material.opacity = 0.12 + 0.28 * k; T.position.set(u.x, 0.04, u.z); }
     if (u.st >= u.wind) strike(u); }
   else if (u.state === 'recover') { u.st += dt; u.wantX = u.wantZ = 0; if (u.chainNext && u.st > 0.1) { const n = u.chainNext; u.chainNext = null; if (!n.dead) { startLunge(u, n, true); return; } } if (u.st > 0.22 / PACE.act) u.state = 'idle'; }
   else if (u.state === 'spin') updateSpin(u, dt);
@@ -654,6 +662,8 @@ export function integrate(units, dt) {
     const sp = Math.hypot(u.vx, u.vz); if (sp > 0.4 && u.state !== 'windup' && u.state !== 'leap') u.faceT = Math.atan2(u.vx, u.vz);
     if (u.faceT != null) { let d = u.faceT - u.face; d = ((d + Math.PI * 3) % TAU) - Math.PI; u.face += d * Math.min(1, dt * 14); }
     const m = u.mesh; m.root.position.set(u.x, (u.y || 0) + (F.lift ? F.lift(u.x, u.z) : 0), u.z); m.root.rotation.y = u.face;
+    if (u.jolt > 0.03) { const j = u.jolt; m.root.position.x += (Math.random() - 0.5) * 0.09 * j; m.root.position.z += (Math.random() - 0.5) * 0.09 * j; m.root.scale.set(1 + 0.09 * j, 1 - 0.12 * j, 1 + 0.09 * j); u.jolt *= Math.exp(-dt * 13); u.jolted = true; }
+    else if (u.jolted) { u.jolted = false; u.jolt = 0; m.root.scale.set(1, 1, 1); }
     animate(u, dt, sp); m.u.uFlash.value = u.flash * 0.7; if (u.ringMesh) u.ringMesh.rotation.y += dt;
     if (m.soul) { const f = 1 + Math.sin(G.t * 9 + u.id) * 0.08 + Math.sin(G.t * 23 + u.id * 3) * 0.05; m.soul.scale.setScalar(f); m.soul.position.x = Math.sin(G.t * 2 + u.id) * 0.06;
       if (Math.random() < dt * 2.5) { m.soul.getWorldPosition(WP); C.parts.emit(WP.x, WP.y, WP.z, 1, { col: 0x5ff6e6, spd: 0.1, up: 0.5, grav: -0.4, life: 0.6, size: 0.12, spread: 0.08 }); } }
@@ -663,6 +673,7 @@ export function integrate(units, dt) {
       const t = m.tips[Math.floor(Math.random() * m.tips.length)]; if (t) { t.getWorldPosition(WP); C.parts.emit(WP.x, WP.y, WP.z, 1, el.part); }
       if (m.elem === 'fast' && sp > 1.5) C.parts.emit(u.x, 0.6, u.z, 1, { col: 0x8fe0ff, spd: 0.05, up: 0, grav: 0, life: 0.22, size: 0.42, spread: 0.3 }); }
     // animation level of detail: far units update their skeleton every other frame
+    if (u.hitStop > 0) { u.hitStop -= dt; continue; } // hit-stop: the pose holds for a few frames
     u.mixAcc += dt * (u.chillT > 0 ? 0.6 : 1); if (Math.hypot(u.x - camX, u.z - camZ) > 13 && (frame + u.id) % 2) continue; m.mixer.update(u.mixAcc); u.mixAcc = 0;
   }
 }
@@ -678,13 +689,14 @@ export function updateCorpses(dt) {
 // ---------- animation ----------
 export const ANIM = {
   player: { idle: 'Idle', walk: 'Walking_A', run: 'Running_A', atk: ['Spellcast_Shoot'], cast: 'Spellcasting', hit: 'Hit_A', die: 'Death_A', runAt: 2.0 },
-  imp:    { idle: 'Idle_Combat', walk: 'Walking_D_Skeletons', run: 'Running_A', atk: ['1H_Melee_Attack_Stab', '1H_Melee_Attack_Chop'], hit: 'Hit_B', die: 'Death_C_Skeletons', runAt: 2.4 },
-  brute:  { idle: 'Idle_Combat', walk: 'Walking_A', run: 'Running_B', atk: ['2H_Melee_Attack_Chop'], hit: 'Hit_A', die: 'Death_C_Skeletons', runAt: 2.2 },
+  imp:    { idle: 'Idle_Combat', walk: 'Walking_D_Skeletons', run: 'Running_A', atk: ['1H_Melee_Attack_Stab', '1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Slice_Horizontal'], hit: 'Hit_B', die: 'Death_C_Skeletons', runAt: 2.4 },
+  brute:  { idle: 'Idle_Combat', walk: 'Walking_A', run: 'Running_B', atk: ['2H_Melee_Attack_Chop', '2H_Melee_Attack_Slice'], hit: 'Hit_A', die: 'Death_C_Skeletons', runAt: 2.2 },
   archer: { idle: 'Idle_Combat', walk: 'Walking_A', run: 'Running_A', atk: ['1H_Ranged_Shoot'], hit: 'Hit_B', die: 'Death_C_Skeletons', runAt: 2.4 },
   shaman: { idle: 'Idle', walk: 'Walking_D_Skeletons', run: 'Running_A', atk: ['Spellcast_Shoot'], cast: 'Spellcast_Summon', hit: 'Hit_A', die: 'Death_C_Skeletons', runAt: 2.6 },
 };
-// fraction of each attack clip at which the blow lands (used to line the swing up with the windup)
-const HIT_AT = { '1H_Melee_Attack_Stab': 0.38, '1H_Melee_Attack_Chop': 0.42, '2H_Melee_Attack_Chop': 0.45, '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4 };
+// fraction of each attack clip at which the blow lands (used to line the swing up with the windup; measured from where the blade moves fastest / reaches furthest)
+const HIT_AT = { '1H_Melee_Attack_Stab': 0.4, '1H_Melee_Attack_Chop': 0.56, '1H_Melee_Attack_Slice_Diagonal': 0.42, '1H_Melee_Attack_Slice_Horizontal': 0.26, '2H_Melee_Attack_Chop': 0.52, '2H_Melee_Attack_Slice': 0.36,
+  '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4 };
 // stride references (world units per second at model scale 0.5)
 const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running_B: 3.4 };
 export function attackAnim(u, wind) {
@@ -697,10 +709,22 @@ export function playerAnim(u, kind) {
   else if (kind === 'revive') { play(u.mesh, 'Idle', { restart: true, fade: 0 }); u.animLock = 0; }
 }
 function rise(u, name, sp) { play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clipLen(name) / sp * 0.92; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
+// 机枪骷髅: legs walk / run / stand, arms always hold the gatling up with both hands (aiming, firing with recoil, or throwing a grenade)
+function gunnerAnim(u, sp) {
+  const m = u.mesh, a = ANIM.imp;
+  if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
+  u.stunAnim = false; const k = CHARS.imp.scale * 1.12 / 0.5;
+  if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? 'Running_A' : 'Walking_A'; play(m, partClip(name, 'lower'), { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }
+  else play(m, partClip('2H_Ranged_Aiming', 'lower'), { fade: 0.2 });
+  if (u.state === 'throw' && m.curUName === 'Throw@upper') return;
+  const firing = u.state === 'windup' || u.burst > 0 || (u.lastShot && G.t - u.lastShot < 0.2);
+  playUpper(m, partClip(firing ? '2H_Ranged_Shooting' : '2H_Ranged_Aiming', 'upper'), { fade: firing ? 0.06 : 0.2, speed: firing ? 1.4 : 1 });
+}
 function animate(u, dt, sp) {
   const m = u.mesh, a = ANIM[u.kind];
   if (m.gun) { m.gun.barrel.rotation.z += m.gun.spin * dt; m.gun.spin = Math.max(0, m.gun.spin - dt * 22); }
   if (u.spawnT > 0) return;
+  if (m.gun && u.state !== 'leap') { gunnerAnim(u, sp); return; }
   if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover' || u.state === 'leap' || u.state === 'lunge') return; }
   if (u.state === 'leap') return;
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }

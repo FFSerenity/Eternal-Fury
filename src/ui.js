@@ -6,6 +6,7 @@ import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, affix
 import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed, canFuse, fusionOdds, fuse } from './units.js';
 import { openGear, closeGear, gearOpen, toggleBag } from './gearui.js';
 import { portrait } from './icons.js';
+import { shakeEnabled, setShake } from './fx.js';
 import { tr, ZH, LANG, setLang, SP } from './i18n.js';
 import { cycleMap } from './minimap.js';
 import { S } from './audio.js';
@@ -113,6 +114,8 @@ function bindButtons() {
   hold($('#bStairs'), () => { IN.stairs = true; });
   const sfxLabel = () => { $('#bSfx').textContent = sfxOn() ? '🔊 ' + tr('开', 'On') : '🔇 ' + tr('关', 'Off'); };
   hold($('#bSfx'), () => { setSfx(!sfxOn()); sfxLabel(); }); sfxLabel();
+  const shLabel = () => { $('#bShake').textContent = '📳 ' + (shakeEnabled() ? tr('开', 'On') : tr('关', 'Off')); };
+  hold($('#bShake'), () => { setShake(!shakeEnabled()); shLabel(); }); shLabel();
   const fsLabel = () => { $('#bFull').textContent = fsEl() ? '⛶ ' + tr('退出全屏', 'Exit fullscreen') : '⛶ ' + tr('全屏', 'Fullscreen'); };
   if (fsOK) { $('#bFull').addEventListener('click', e => { e.stopPropagation(); goFull(!fsEl()); }); document.addEventListener('fullscreenchange', fsLabel); document.addEventListener('webkitfullscreenchange', fsLabel); fsLabel(); }
   else { $('#bFull').style.display = 'none';
@@ -308,7 +311,11 @@ export function drawOverlay() {
       for (const [w, c] of [[7, 'rgba(255,230,90,.35)'], [3, 'rgba(255,248,190,.95)'], [1.2, '#ffffff']]) { g.lineWidth = w; g.strokeStyle = c; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); } }
     g.restore(); }
   // floating numbers / words
-  let j = 0; for (const m of G.msgs) { m.t += 1 / 60; if (m.t > m.max) continue; G.msgs[j++] = m; const [x, y, vis] = toScreen(m.x, m.y + m.t * 1.2, m.z); if (!vis) continue;
-    g.globalAlpha = Math.min(1, (m.max - m.t) * 3); g.font = `800 ${m.size}px system-ui,sans-serif`; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(m.text, x, y); g.fillStyle = m.col; g.fillText(m.text, x, y); }
+  // damage numbers pop in (crits more, with a shiver), then drift up and aside and ease out; words just float up
+  const now = performance.now(), dt = Math.min(0.05, (now - (drawOverlay.last || now)) / 1000) || 1 / 60; drawOverlay.last = now;
+  let j = 0; for (const m of G.msgs) { m.t += dt; if (m.t > m.max) continue; G.msgs[j++] = m; const k = m.t / m.max, e = 1 - (1 - k) * (1 - k);
+    const [x0, y, vis] = toScreen(m.x, m.y + (m.num ? e * 1.1 : m.t * 1.2), m.z); if (!vis) continue;
+    const pop = m.num ? 1 + (m.num === 2 ? 0.75 : 0.4) * Math.max(0, 1 - m.t / 0.13) ** 2 : 1, x = x0 + m.dx * 14 * e + (m.num === 2 && m.t < 0.25 ? (Math.random() - 0.5) * 3 : 0);
+    g.globalAlpha = Math.min(1, (m.max - m.t) * 3.5); g.font = `800 ${Math.round(m.size * pop)}px system-ui,sans-serif`; g.lineWidth = m.num === 2 ? 4 : 3; g.strokeStyle = 'rgba(0,0,0,.72)'; g.strokeText(m.text, x, y); g.fillStyle = m.col; g.fillText(m.text, x, y); }
   G.msgs.length = j; g.globalAlpha = 1;
 }

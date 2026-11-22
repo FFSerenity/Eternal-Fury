@@ -47,6 +47,12 @@ Champion affixes (captured champions keep them): Swift, Fire-enchanted (explodes
 movement, attacks and animation; frost nova on death), Poison (damage over time; poison cloud on death) and Lightning-enchanted
 (chain lightning on hit; thunder burst on death). Affixes show on the weapon (glow, particles) and on hits and projectiles.
 Packs alert each other; hard hits stagger.
+**Combat feel**: blades leave a swing trail (in the weapon's quality colour, the affix colour on champions); blows land on the
+frame the swing connects, with a slash arc, a flash and bone chips; heavy blows and crits freeze both bodies for a few frames
+(hit-stop), whoever is hit jolts and squashes, and big impacts (Leap Slam, grenades, champion deaths) shake the camera
+(Settings → Screen shake). Warriors and Minions vary their swings; Leap Slam cracks the ground, Whirlwind spins a ring of blade
+light; enemy warriors telegraph their chop with a red ring. Damage numbers pop in (crits bigger, with a shiver) and drift aside.
+The 机枪骷髅 holds the gatling up with both hands while it walks, aims and fires (its legs and arms animate separately).
 
 ## World
 You start in a small graveyard camp; the crypt's door is a glowing portal — walk up its steps into it (or click anywhere on the building) to go down to the deepest floor you have reached.

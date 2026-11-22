@@ -8,6 +8,8 @@ import './forest.js';
 import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
+import { initFx, updateFx, shakeOffset } from './fx.js';
+import * as FXM from './fx.js';
 import { Floor, setNavTime } from './world.js';
 import { openCoffin, setGear } from './units.js';
 import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
@@ -21,7 +23,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPrefer
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace; renderer.setClearColor(0x07060a);
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(40, 1, 0.5, 80);
 const shadows = new Shadows(scene), parts = new Particles(scene);
-C.scene = scene; C.parts = parts; C.say = (t, big, ms) => message(t, big, ms);
+C.scene = scene; C.parts = parts; C.say = (t, big, ms) => message(t, big, ms); initFx(scene, parts);
 
 // ---------- quality: pixel ratio steps down if frames keep arriving late ----------
 const DPR = Math.min(devicePixelRatio || 1, 2), RS_STEPS = [DPR, Math.max(1, DPR * 0.75), Math.max(1, DPR * 0.6), 1];
@@ -39,11 +41,12 @@ function perf(ms) { PM.ft += ms; PM.fn++; if (PM.ft > 500) { PM.fps = Math.round
   PM.t += ms; PM.n++; if (ms > 24) PM.slow++; if (PM.t > 2500) { if (PM.n > 20 && PM.slow > PM.n * 0.25 && qLvl < 3) { qLvl++; RS = RS_STEPS[qLvl]; resize(); PM.cool = 3000; } PM.t = PM.n = PM.slow = 0; } }
 
 // ---------- camera: fixed diagonal view that follows the summoner ----------
-const YAW = Math.PI / 4, PITCH = QS.has('pitch') ? +QS.get('pitch') : 0.8, CAM_D = QS.has('cam') ? +QS.get('cam') : 14.5; const camT = new THREE.Vector3();
+const YAW = Math.PI / 4, PITCH = QS.has('pitch') ? +QS.get('pitch') : 0.8, CAM_D = QS.has('cam') ? +QS.get('cam') : 14.5; const camT = new THREE.Vector3(), camB = new THREE.Vector3();
 function placeCamera(snap) {
   const P = G.player; const D = CAM_D * (VW < VH ? 1.35 : 1); camT.set(P.x, 0, P.z);
   const target = new THREE.Vector3(P.x + Math.sin(YAW) * Math.cos(PITCH) * D, Math.sin(PITCH) * D, P.z + Math.cos(YAW) * Math.cos(PITCH) * D);
-  if (snap) camera.position.copy(target); else camera.position.lerp(target, 0.12); camera.lookAt(camera.position.x - Math.sin(YAW) * Math.cos(PITCH) * D, 0.6, camera.position.z - Math.cos(YAW) * Math.cos(PITCH) * D);
+  if (snap) camB.copy(target); else camB.lerp(target, 0.12); camera.position.copy(camB); camera.lookAt(camB.x - Math.sin(YAW) * Math.cos(PITCH) * D, 0.6, camB.z - Math.cos(YAW) * Math.cos(PITCH) * D);
+  camera.position.add(shakeOffset()); // camera shake moves the view without turning it
 }
 const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 function groundAt(cx, cy) { ndc.set(cx / VW * 2 - 1, -(cy / VH) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(plane, hit) ? { x: hit.x, z: hit.z } : null; }
@@ -204,7 +207,7 @@ function loop(now) {
     const active = [];
     for (const u of G.units) { if (u.dead || u === P) continue; if (u.side === 'enemy' && !u.aggro && Math.hypot(u.x - P.x, u.z - P.z) > 26) { u.mesh.root.visible = false; continue; } u.mesh.root.visible = true; updateUnit(u, dt); active.push(u); }
     if (!P.dead) active.push(P); integrate(active, dt);
-    updateShots(dt); updateCorpses(dt); updateGhosts(dt); updateHazards(dt); updateLoot(dt);
+    updateShots(dt); updateCorpses(dt); updateGhosts(dt); updateHazards(dt); updateLoot(dt); updateFx(dt, active);
     let j = 0; for (const f of G.fx) { f.t -= dt; f.k = (f.k || 0) + dt; if (f.tick) f.tick(Math.min(1, f.k / (f.k + Math.max(0, f.t)))); if (f.t <= 0) { f.fn && f.fn(); continue; } G.fx[j++] = f; } G.fx.length = j;
     G.units = G.units.filter(u => !u.dead || u === P);
     // revive timers (a shaman in the party speeds them up)
@@ -226,4 +229,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, PropBatch, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, PropBatch, fx: FXM, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
