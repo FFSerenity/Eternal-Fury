@@ -2,11 +2,11 @@
 export const TYPES = {
   imp: {
     name: '骷髅小兵', role: '快攻', icon: '🗡️', hp: 20, dmg: 3.5, speed: 4.4, range: 0.85, cd: 0.8, windup: 0.16, armor: 0, r: 0.32, xp: 6, capture: 0.75,
-    desc: '速度快，成群结队。看到同伴散架会惊慌逃跑，过一会儿再冲回来。', ally: '速度快的近战输出，攻击有几率暴击。',
+    desc: '速度快，成群结队。看到同伴散架会惊慌逃跑，过一会儿再冲回来。', ally: '速度快的近战输出，会突刺冲向敌人（必定暴击），平时攻击也有几率暴击。',
   },
   brute: {
     name: '骷髅战士', role: '坦克', icon: '🪓', hp: 75, dmg: 12, speed: 2.5, range: 1.3, cd: 1.7, windup: 0.62, armor: 20, r: 0.5, xp: 16, capture: 0.5,
-    desc: '慢，但蓄力重击会把人打退。被重击打断时会踉跄。', ally: '吸引附近敌人攻击它，替你扛伤害。',
+    desc: '慢，但蓄力重击会把人打退。被重击打断时会踉跄。', ally: '会跳劈砸进敌群，把被砸中的敌人引到自己身上，替你扛伤害。',
   },
   archer: {
     name: '骷髅弩手', role: '远程', icon: '🏹', hp: 26, dmg: 6, speed: 3.3, range: 7, cd: 1.5, windup: 0.38, armor: 5, r: 0.32, xp: 10, capture: 0.6,

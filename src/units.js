@@ -25,12 +25,12 @@ export class Unit {
     this.mesh = makeUnitMesh(kind, {
       scale: champ ? 1.25 : 1,
       tint: this.mods.includes('stone') ? 0xb8b4ac : this.mods.includes('fire') && champ ? 0xffc8a8 : 0xffffff,
-      emis: ally ? 0x0b2426 : champ && mod0 ? new THREE.Color(mod0.col).multiplyScalar(0.12).getHex() : 0x000000,
-      outline: ally ? 0x2fd6c6 : champ && mod0 ? mod0.col : 0x120a10, outlineW: ally || champ ? 0.07 : 0.05,
+      emis: ally ? 0x061718 : champ && mod0 ? new THREE.Color(mod0.col).multiplyScalar(0.12).getHex() : 0x000000,
+      outline: ally ? 0x3aa89f : champ && mod0 ? mod0.col : 0x120a10, outlineW: champ ? 0.07 : ally ? 0.04 : 0.05,
     });
     this.mesh.root.position.set(x, 0, z); this.mesh.root.rotation.y = this.face; C.scene.add(this.mesh.root);
     this.spawnT = 0; this.animLock = 0; this.mixAcc = 0; play(this.mesh, ANIM[kind].idle, { at: Math.random() });
-    if (ally) { const rg = ring(0.42, 0.55, 0x3fe0d0, 0.5); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
+    if (ally) { const rg = ring(0.42, 0.52, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
     if (champ && mod0) { const rg = ring(0.5, 0.75, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
   get name() { return (this.champ && this.mods[0] ? MODS[this.mods[0]].name : '') + (this.T ? this.T.name : '召唤师'); }
@@ -184,7 +184,7 @@ function strike(u) {
   if (u.kind === 'brute') { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 0.8, 0.2, u.z + Math.cos(u.face) * 0.8, 16, { col: 0xb8a890, spd: 3, up: 1.5, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d > u.range + u.r + h.r + 0.35) continue;
       const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1), { knock: 4 }); } }
-  else if (u.kind === 'imp') { if (dist(u, t) < (u.range + u.r + t.r) * 1.35) damage(u, t, u.dmg * rand(0.85, 1.15), { crit: u.side === 'ally' && Math.random() < 0.15 }); }
+  else if (u.kind === 'imp') { const lg = u.lungeHit; u.lungeHit = false; if (dist(u, t) < (u.range + u.r + t.r) * (lg ? 1.6 : 1.35)) damage(u, t, u.dmg * rand(0.85, 1.15) * (lg ? 1.25 : 1), { crit: u.side === 'ally' && (lg || Math.random() < 0.15) }); }
   else if (u.kind === 'archer') { const lead = Math.min(0.5, dist(u, t) / 12); shoot(u, 'arrow', t.x + (t.vx || 0) * lead, t.z + (t.vz || 0) * lead, { life: 0.9 }); }
   else if (u.kind === 'shaman') shoot(u, 'fire', t.x, t.z, { life: 1.1 });
 }
@@ -235,43 +235,88 @@ function enemyThink(u, dt) {
     rangedLogic(u, t, dt, 4.5, 7.5);
   }
 }
+// summons fight up front: they pick fights near the summoner on their own, peel enemies off the summoner,
+// and the melee ones close the gap with a move skill (warrior: leap slam, minion: lunge)
+const MELEE = k => k === 'brute' || k === 'imp';
+function allyScore(u, e, P) { const de = dist(e, P); return dist(e, u) + de * 0.35 - (e.target === P ? 3 : 0) - (e === G.focus ? 2.5 : 0) - (e.champ ? 0.5 : 0); }
 function allyThink(u, dt) {
   const P = G.player; if (P.dead) { u.wantX = u.wantZ = 0; return; }
   const dp = dist(u, P);
   if (dp > 20 || (dp > 9 && !C.floor.los(u.x, u.z, P.x, P.z) && u.state === 'idle' && Math.random() < dt * 0.5)) { // catch up
     const a = rand(0, TAU); u.x = P.x + Math.cos(a) * 1.2; u.z = P.z + Math.sin(a) * 1.2; if (!C.floor.walk(u.x, u.z)) { u.x = P.x; u.z = P.z; } u.target = null;
     C.parts.emit(u.x, 0.5, u.z, 10, { col: 0x6ff7e8, spd: 1, up: 2, life: 0.5 }); return; }
-  u.scanT -= dt;
-  if (u.scanT <= 0) { u.scanT = 0.3; let t = null;
-    if (G.focus && !G.focus.dead && dist(G.focus, P) < 13) t = G.focus;
-    else { let bd = 1e9; for (const e of G.enemies) { if (e.dead) continue; const de = dist(e, P); if (de > 10) continue; if (!(e.aggro || de < 7)) continue; if (!C.floor.los(P.x, P.z, e.x, e.z) && !C.floor.los(u.x, u.z, e.x, e.z)) continue;
-      const s = dist(e, u) + de * 0.5; if (s < bd) { bd = s; t = e; } } }
-    u.target = t; }
-  if (u.target && (u.target.dead || dist(u.target, P) > 14)) u.target = null;
+  u.scanT -= dt; u.moveCD = (u.moveCD || 0) - dt;
+  if (u.scanT <= 0) { u.scanT = 0.25; let best = null, bs = 1e9;
+    for (const e of G.enemies) { if (e.dead) continue; const de = dist(e, P); if (de > 12) continue; if (!(e.aggro || de < 11)) continue;
+      if (!C.floor.los(P.x, P.z, e.x, e.z) && !C.floor.los(u.x, u.z, e.x, e.z)) continue; const sc = allyScore(u, e, P); if (sc < bs) { bs = sc; best = e; } }
+    const cur = u.target && !u.target.dead && dist(u.target, P) < 15 ? u.target : null;
+    u.target = cur && best && allyScore(u, cur, P) < bs + 1.5 ? cur : best || cur; }
+  if (u.target && (u.target.dead || dist(u.target, P) > 15)) u.target = null;
   if (u.kind === 'shaman') { u.healCD -= dt;
     if (u.healCD <= 0) { let lo = null, lr = 0.75; for (const f of G.friends) { if (f.dead || dist(f, u) > 8) continue; const r = f.hp / f.maxHp; if (r < lr) { lr = r; lo = f; } }
       if (lo) { u.state = 'cast'; u.st = 0; u.castH = lo; u.wantX = u.wantZ = 0; faceTo(u, lo); u.healCD = 3.5; return; } u.healCD = 0.6; } }
-  if (!u.target || dp > 13) { // follow in a loose formation behind the summoner
-    const allies = G.friends.filter(f => f.side === 'ally'), idx = allies.indexOf(u), n = allies.length;
-    const ang = P.face + Math.PI + (idx - (n - 1) / 2) * 0.75, tx = P.x + Math.sin(ang) * 1.9, tz = P.z + Math.cos(ang) * 1.9, d = Math.hypot(tx - u.x, tz - u.z);
-    if (d > 0.5) seek(u, tx, tz, u.speed * Math.min(1.25, 0.35 + d / 2.5)); else { u.wantX = u.wantZ = 0; }
+  if (!u.target || dp > 15) { // formation: melee summons walk ahead of the summoner, ranged ones beside / behind
+    const allies = G.friends.filter(f => f.side === 'ally'), mine = allies.filter(f => MELEE(f.kind) === MELEE(u.kind)), idx = mine.indexOf(u), n = mine.length;
+    const ang = MELEE(u.kind) ? P.face + (idx - (n - 1) / 2) * 0.8 : P.face + Math.PI + (idx - (n - 1) / 2) * 0.9, r = MELEE(u.kind) ? 1.7 : 1.6;
+    let tx = P.x + Math.sin(ang) * r, tz = P.z + Math.cos(ang) * r; if (!C.floor.walk(tx, tz)) { tx = P.x; tz = P.z; } const d = Math.hypot(tx - u.x, tz - u.z);
+    if (d > 0.5) seek(u, tx, tz, u.speed * Math.min(1.3, 0.35 + d / 2.5)); else { u.wantX = u.wantZ = 0; }
     return; }
   const t = u.target;
-  if (u.kind === 'brute' || u.kind === 'imp') meleeLogic(u, t);
+  if (MELEE(u.kind)) { if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 3.5, 6.5);
   else rangedLogic(u, t, dt, 4.5, 7);
 }
-
+function moveSkill(u, t) {
+  if (u.moveCD > 0 || u.stun > 0) return false; const d = dist(u, t); if (!C.floor.los(u.x, u.z, t.x, t.z)) return false;
+  if (u.kind === 'brute' && d > 2.6 && d < 8) { startLeap(u, t); return true; }
+  if (u.kind === 'imp' && d > 2.2 && d < 6.5) { startLunge(u, t); return true; }
+  return false;
+}
+// 跳劈: jump onto the target, slam on landing (area damage, knock-back, stagger) and pull the enemies hit onto the warrior
+const LEAP = { clip: '1H_Melee_Attack_Jump_Chop', sp: 1.15, up: 0.13, land: 0.72 };
+function startLeap(u, t) {
+  const d = dist(u, t), k = Math.max(0, d - (u.r + t.r + 0.25)) / (d || 1);
+  u.state = 'leap'; u.st = 0; u.lx0 = u.x; u.lz0 = u.z; u.lx1 = u.x + (t.x - u.x) * k; u.lz1 = u.z + (t.z - u.z) * k; u.lh = 0.35 + d * 0.07; u.tgt = t;
+  u.t0 = LEAP.up / LEAP.sp; u.t1 = LEAP.land / LEAP.sp; u.wantX = u.wantZ = u.vx = u.vz = u.kx = u.kz = 0; faceTo(u, t); u.face = u.faceT;
+  play(u.mesh, LEAP.clip, { once: true, restart: true, speed: LEAP.sp, fade: 0.06 }); u.animLock = clipLen(LEAP.clip) / LEAP.sp * 0.8;
+  u.moveCD = 6.5; say(u.x, u.z, '跳劈！', '#8ff5ea', 14, 1.9);
+}
+function updateLeap(u, dt) {
+  u.st += dt; u.wantX = u.wantZ = 0; u.vx = u.vz = u.kx = u.kz = 0;
+  const k = Math.min(1, Math.max(0, (u.st - u.t0) / (u.t1 - u.t0))), e = k * k * (3 - 2 * k);
+  u.x = u.lx0 + (u.lx1 - u.lx0) * e; u.z = u.lz0 + (u.lz1 - u.lz0) * e; u.y = Math.sin(Math.PI * k) * u.lh;
+  if (u.st >= u.t1 && !u.landed) { u.landed = true; u.y = 0; S.smash();
+    C.parts.emit(u.x, 0.15, u.z, 26, { col: 0xc8bca8, spd: 4, up: 1.2, life: 0.55, size: 0.32 }); C.parts.emit(u.x, 0.3, u.z, 12, { col: 0x6ff7e8, spd: 3, up: 1.5, life: 0.5, size: 0.25 });
+    const rg = ring(0.3, 0.55, 0x6ff7e8, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
+    G.fx.push({ t: 0.4, tick: q => { rg.scale.setScalar(1 + q * 3.6); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) });
+    for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - u.x, h.z - u.z) > 1.9 + h.r) continue;
+      damage(u, h, u.dmg * 1.3 * rand(0.9, 1.1), { knock: 3.2, fx: u.x, fz: u.z }); h.stun = Math.max(h.stun, 0.6); if (!h.dead) { h.target = u; h.aggro = true; } } }
+  if (u.st >= u.t1 + 0.35) { u.state = 'recover'; u.st = 0.0; u.landed = false; u.y = 0; u.cdT = Math.max(u.cdT, 0.5); }
+}
+// 突刺: a fast lunge into a stab that always crits
+function startLunge(u, t) {
+  u.state = 'lunge'; u.st = 0; u.tgt = t; faceTo(u, t); u.face = u.faceT; u.wantX = u.wantZ = 0; u.moveCD = 4;
+  play(u.mesh, 'Dodge_Forward', { once: true, restart: true, speed: 0.9, fade: 0.05 }); u.animLock = 0.3;
+}
+function updateLunge(u, dt) {
+  const t = u.tgt; u.st += dt; if (!t || t.dead) { u.state = 'idle'; return; }
+  const dx = t.x - u.x, dz = t.z - u.z, d = Math.hypot(dx, dz) || 1, reach = u.range + u.r + t.r;
+  u.wantX = dx / d * 11; u.wantZ = dz / d * 11; u.vx = u.wantX; u.vz = u.wantZ; faceTo(u, t);
+  if (Math.random() < 0.7) C.parts.emit(u.x, 0.5, u.z, 1, { col: 0x6ff7e8, spd: 0.3, up: 0.3, life: 0.35, size: 0.3, grav: 0 });
+  if (d < reach || u.st > 0.45) { u.vx *= 0.2; u.vz *= 0.2; u.wantX = u.wantZ = 0; u.lungeHit = true; startWindup(u, t); u.wind = 0.1; attackAnim(u, 0.1); }
+}
 // ---------- per-frame unit update ----------
 export function updateUnit(u, dt) {
   if (u.dead) return;
   u.flash = Math.max(0, u.flash - dt * 5); u.barT -= dt; u.cdT -= dt;
   if (u.spawnT > 0) { u.spawnT -= dt; u.wantX = u.wantZ = 0; return; }
-  if (u.stun > 0) { u.stun -= dt; u.wantX = u.wantZ = 0; if (u.tele) { C.scene.remove(u.tele); u.tele = null; } }
+  if (u.stun > 0 && u.state !== 'leap') { u.stun -= dt; u.wantX = u.wantZ = 0; if (u.tele) { C.scene.remove(u.tele); u.tele = null; } }
   else if (u.state === 'windup') { u.st += dt; u.wantX = u.wantZ = 0; if (u.tgt && !u.tgt.dead && u.kind !== 'brute') faceTo(u, u.tgt);
     if (u.tele) { const k = u.st / u.wind; u.tele.material.opacity = 0.15 + 0.45 * k; u.tele.position.set(u.x, 0.04, u.z); }
     if (u.st >= u.wind) strike(u); }
   else if (u.state === 'recover') { u.st += dt; u.wantX = u.wantZ = 0; if (u.st > 0.22) u.state = 'idle'; }
+  else if (u.state === 'leap') updateLeap(u, dt);
+  else if (u.state === 'lunge') updateLunge(u, dt);
   else if (u.state === 'cast') { u.st += dt; u.wantX = u.wantZ = 0;
     if (u.castC) { if (!G.corpses.includes(u.castC)) { u.state = 'idle'; u.castC = null; } else { if (Math.random() < 0.5) C.parts.emit(u.castC.x, 0.3, u.castC.z, 1, { col: 0xc070ff, spd: 0.5, up: 2, life: 0.6, grav: -1 });
       if (u.st > 1.0) { resurrect(u, u.castC); u.castC = null; u.state = 'recover'; u.st = 0; u.resCD = rand(5, 7); } } }
@@ -293,16 +338,16 @@ let frame = 0, camX = 0, camZ = 0;
 export function integrate(units, dt) {
   const F = C.floor; frame++; if (G.player) { camX = G.player.x; camZ = G.player.z; }
   for (const u of units) { if (u.dead) continue; const a = Math.min(1, dt * 10); u.vx += (u.wantX - u.vx) * a; u.vz += (u.wantZ - u.vz) * a; }
-  for (let i = 0; i < units.length; i++) { const a = units[i]; if (a.dead) continue;
-    for (let j = i + 1; j < units.length; j++) { const b = units[j]; if (b.dead) continue; const dx = b.x - a.x, dz = b.z - a.z, rr = a.r + b.r; if (Math.abs(dx) > rr || Math.abs(dz) > rr) continue;
+  for (let i = 0; i < units.length; i++) { const a = units[i]; if (a.dead || a.state === 'leap') continue;
+    for (let j = i + 1; j < units.length; j++) { const b = units[j]; if (b.dead || b.state === 'leap') continue; const dx = b.x - a.x, dz = b.z - a.z, rr = a.r + b.r; if (Math.abs(dx) > rr || Math.abs(dz) > rr) continue;
       const d = Math.hypot(dx, dz); if (d >= rr || d < 1e-5) continue; const push = (rr - d) * 0.5, nx = dx / d, nz = dz / d;
       const wa = a.kind === 'player' ? 0.3 : a.kind === 'brute' ? 0.6 : 1, wb = b.kind === 'player' ? 0.3 : b.kind === 'brute' ? 0.6 : 1, sw = wa + wb;
       a.x -= nx * push * 2 * wa / sw; a.z -= nz * push * 2 * wa / sw; b.x += nx * push * 2 * wb / sw; b.z += nz * push * 2 * wb / sw; } }
   for (const u of units) { if (u.dead) continue;
     u.x += (u.vx + u.kx) * dt; u.z += (u.vz + u.kz) * dt; const kd = Math.exp(-dt * 7); u.kx *= kd; u.kz *= kd; F.collide(u);
-    const sp = Math.hypot(u.vx, u.vz); if (sp > 0.4 && u.state !== 'windup') u.faceT = Math.atan2(u.vx, u.vz);
+    const sp = Math.hypot(u.vx, u.vz); if (sp > 0.4 && u.state !== 'windup' && u.state !== 'leap') u.faceT = Math.atan2(u.vx, u.vz);
     if (u.faceT != null) { let d = u.faceT - u.face; d = ((d + Math.PI * 3) % TAU) - Math.PI; u.face += d * Math.min(1, dt * 14); }
-    const m = u.mesh; m.root.position.set(u.x, 0, u.z); m.root.rotation.y = u.face;
+    const m = u.mesh; m.root.position.set(u.x, u.y || 0, u.z); m.root.rotation.y = u.face;
     animate(u, dt, sp); m.u.uFlash.value = u.flash * 0.7; if (u.ringMesh) u.ringMesh.rotation.y += dt;
     // animation level of detail: far units update their skeleton every other frame
     u.mixAcc += dt; if (Math.hypot(u.x - camX, u.z - camZ) > 13 && (frame + u.id) % 2) continue; m.mixer.update(u.mixAcc); u.mixAcc = 0;
@@ -341,7 +386,8 @@ function rise(u, name, sp) { play(u.mesh, name, { once: true, restart: true, spe
 function animate(u, dt, sp) {
   const m = u.mesh, a = ANIM[u.kind];
   if (u.spawnT > 0) return;
-  if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover') return; }
+  if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover' || u.state === 'leap' || u.state === 'lunge') return; }
+  if (u.state === 'leap') return;
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }

@@ -78,7 +78,8 @@ for (const [n, f] of [['sk_minion', 'Skeleton_Minion'], ['sk_warrior', 'Skeleton
 await anims(`${CL}/Skeleton_Minion.glb`, ['Idle', 'Idle_Combat', 'Unarmed_Idle', 'Walking_A', 'Walking_D_Skeletons', 'Running_A', 'Running_B',
   '1H_Melee_Attack_Chop', '1H_Melee_Attack_Stab', '1H_Melee_Attack_Slice_Diagonal', '2H_Melee_Attack_Chop', '2H_Melee_Attack_Spin', '1H_Ranged_Shoot', '2H_Ranged_Shoot',
   'Spellcast_Shoot', 'Spellcast_Raise', 'Spellcast_Summon', 'Spellcasting', 'Spellcast_Long', 'Hit_A', 'Hit_B', 'Death_A', 'Death_A_Pose', 'Death_C_Skeletons', 'Death_C_Pose',
-  'Death_C_Skeletons_Resurrect', 'Skeletons_Awaken_Floor', 'Skeletons_Inactive_Floor_Pose', 'Spawn_Ground_Skeletons', 'Taunt', 'Cheer']);
+  'Death_C_Skeletons_Resurrect', 'Skeletons_Awaken_Floor', 'Skeletons_Inactive_Floor_Pose', 'Spawn_Ground_Skeletons', 'Taunt', 'Cheer',
+  '1H_Melee_Attack_Jump_Chop', 'Dodge_Forward', 'Running_C']);
 const SA = `${SK}/Assets/gltf`, AA = `${AD}/Assets/gltf`;
 await props('weapons', [['sk_axe', `${SA}/Skeleton_Axe.gltf`], ['sk_blade', `${SA}/Skeleton_Blade.gltf`], ['sk_crossbow', `${SA}/Skeleton_Crossbow.gltf`], ['sk_staff', `${SA}/Skeleton_Staff.gltf`],
   ['sk_shield', `${SA}/Skeleton_Shield_Small_A.gltf`], ['sk_arrow', `${SA}/Skeleton_Arrow.gltf`], ['mage_staff', `${AA}/staff.gltf`], ['spellbook', `${AA}/spellbook_open.gltf`]]);
