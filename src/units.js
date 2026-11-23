@@ -349,7 +349,8 @@ export function addXP(xp) {
   if (!up) return; const P = G.player, before = P.level; P.level = G.level; P.stats(); P.hp = P.maxHp; P.mp = P.maxMp; S.level();
   C.parts.emit(P.x, 1, P.z, 40, { col: 0xffe58a, spd: 2, up: 4, life: 1.1, size: 0.3, grav: -1 });
   C.say(tr(`升级！Lv ${G.level}`, `Level up! Lv ${G.level}`), true);
-  if (partySize(G.level) > partySize(before)) { C.say(tr(`可出战召唤物 +1（${partySize(G.level)} 只）`, `Party size +1 (${partySize(G.level)})`), true);
+  // 魂契 has one skeleton: no party slots
+  if (!PACT && partySize(G.level) > partySize(before)) { C.say(tr(`可出战召唤物 +1（${partySize(G.level)} 只）`, `Party size +1 (${partySize(G.level)})`), true);
     const rest = G.crypt.filter(e => !e.active).sort((a, b) => b.level - a.level)[0]; if (rest && P && !P.dead) { rest.active = true; if (rest.reviveT <= 0) spawnAlly(rest); } }
   save();
 }

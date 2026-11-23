@@ -21,6 +21,7 @@ export async function loadAll(onProgress = () => {}) {
     if (kind === 'char') A.chars[name] = g.scene;
     else if (kind === 'anims') for (const c of g.animations) A.clips[c.name] = c;
     else if (kind === 'hero') { const fingers = heroFists(g.scene); for (const c of g.animations) { c.tracks = c.tracks.filter(t => !fingers.has(t.name.split('.')[0])); A.heroClips[c.name] = c; }
+      if (A.heroClips.Stand) spreadArms(g.scene, A.heroClips.Stand, ...(globalThis.__spread || ARM_SPREAD));
       A.hero = { scene: g.scene, clips: A.heroClips }; }
     else if (kind === 'heropack') for (const c of g.animations) A.heroClips[c.name] = c; // weapon-style clip packs: rig + clips only, same bone names
     else if (kind === 'heroweap') for (const n of g.scene.children) A.heroWeap[n.name] = n;
@@ -228,6 +229,26 @@ function makeHeroMesh(o) {
   const root = new THREE.Group(); root.add(model);
   return { root, model, pivot: model, mixer: new THREE.AnimationMixer(model), actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u,
     tips: [], glows, soul: null, gun: null, muz: null, drill: null, rod: null, blade: null, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? o.wset : null, atk: set ? set.atk : ['Attack'], atkI: 0, weap };
+}
+// the dazed stand (Mixamo Idle) holds the arms close against the body: swing each arm out sideways (about the facing axis, in world
+// space so it is the same turn on every key) and the forearm a little more, so the hands hang clear of the hips. Baked into the clip once.
+const ARM_SPREAD = [7, 6]; // degrees: upper arm, forearm (tests: globalThis.__spread)
+function spreadArms(scene, clip, armDeg, foreDeg) {
+  const bones = []; scene.traverse(o => { if (o.isBone) bones.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]); });
+  const mixer = new THREE.AnimationMixer(scene), act = mixer.clipAction(clip); act.play();
+  const Q = THREE.Quaternion, fwd = new THREE.Vector3(0, 0, 1), jobs = [];
+  for (const side of ['Left', 'Right']) {
+    const arm = findBone(scene, `mixamorig:${side}Arm`), fore = findBone(scene, `mixamorig:${side}ForeArm`); if (!arm || !fore) continue;
+    scene.updateMatrixWorld(true); const out = Math.sign(arm.getWorldPosition(new THREE.Vector3()).x) || (side === 'Left' ? 1 : -1);
+    const R = new Q().setFromAxisAngle(fwd, out * THREE.MathUtils.degToRad(armDeg)), R2 = new Q().setFromAxisAngle(fwd, out * THREE.MathUtils.degToRad(foreDeg));
+    for (const [b, rot, parentOf] of [[arm, R, () => arm.parent.getWorldQuaternion(new Q())], [fore, R2, () => R.clone().multiply(arm.getWorldQuaternion(new Q()))]]) {
+      const tr = clip.tracks.find(t => t.name === b.name + '.quaternion'); if (!tr) continue;
+      const P = []; for (const t of tr.times) { act.time = Math.min(t, clip.duration - 1e-4); mixer.update(0); scene.updateMatrixWorld(true); P.push(parentOf()); }
+      jobs.push([tr, rot, P]); }
+  }
+  for (const [tr, rot, P] of jobs) { const v = tr.values, q = new Q();
+    P.forEach((p, i) => { q.fromArray(v, i * 4); q.premultiply(p.clone().invert().multiply(rot).multiply(p)); q.toArray(v, i * 4); }); }
+  act.stop(); mixer.uncacheRoot(scene); for (const [o, p, q, s] of bones) { o.position.copy(p); o.quaternion.copy(q); o.scale.copy(s); }
 }
 // put a weapon in a fist. Worked out on the rest pose (A-pose, palms forward, fingers already curled): the grip runs across the
 // knuckles through the middle of the curled fingers, the blade comes out on the thumb side, its edges line up with the fingers.

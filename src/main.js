@@ -14,7 +14,7 @@ import { initFx, updateFx, shakeOffset, clearFx } from './fx.js';
 import { clearTechFx, droneShadows } from './drones.js';
 import * as FXM from './fx.js';
 import { Floor, setNavTime } from './world.js';
-import { openCoffin, setGear } from './units.js';
+import { openCoffin, setGear, addXP } from './units.js';
 import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt, goFull } from './ui.js';
 import { initMap, updateMap } from './minimap.js';
@@ -251,4 +251,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, PropBatch, fx: FXM, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, PropBatch, fx: FXM, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, addXP }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

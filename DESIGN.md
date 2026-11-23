@@ -70,7 +70,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3. Skill level L → L+1 costs 10·L^1.45.
 - Skeleton at level L: life (230 + 40(L−1)) × style, damage (16 + 4.5(L−1)) × style, armour 18 + 3(L−1) + style; taunts within 6 m; never staggered.
   Sword & Shield: life ×1.3, armour +14, evasion 32%, attack every ~1.4 s, narrow arc. Greatsword: damage ×1.5, evasion 16%, ~2 s, wide arc, knock-back.
-- Bearing: a dazed stand (Mixamo Idle), a brutal walk with sword & shield, the briefcase walk with the greatsword — no guard stance (that waits
+- Bearing: a dazed stand (Mixamo Idle, arms eased a little off the body), a brutal walk with sword & shield, the briefcase walk with the greatsword — no guard stance (that waits
   for a defence skill) and no run yet, straight from the walk into its swings;
   it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the shield hangs point-down along the leg when the arm is lowered;
   the greatsword drags along the floor behind it (sparks), and no blade sinks into the ground. It cannot be shoved or knocked back by anyone.
