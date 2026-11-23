@@ -1,5 +1,6 @@
 # Retarget Mixamo "without skin" FBX clips onto the hero rig (dec.glb) and export a glb.
-# usage: python3 bl_retarget.py -- <out.glb> <full|anim> <meta.json> Name=path.fbx ...
+# usage: YBOT="<Y Bot.fbx>" python3 bl_retarget.py -- <out.glb> <full|anim> <meta.json> Name=path.fbx ...
+# (clips downloaded from Mixamo with Y Bot as the character, 'without skin', 30 fps; without YBOT they are taken as made for our rig)
 # full: mesh + rig + the clips already in dec.glb + the new clips; anim: rig + new clips only (an animation pack).
 # The Mixamo files have their own rest pose, so the copy is done on world-space bone rotations, not local curves.
 # Horizontal root travel is taken off the hips (smoothed curve) and written to meta.json, so the game can move the unit itself.
@@ -49,6 +50,14 @@ rel = {b.name: (rest[b.parent.name].inverted() @ rest[b.name]) if b.parent else 
 
 sc = bpy.context.scene
 meta = {}
+import os
+# YBOT=<Y Bot.fbx>: the clips are Mixamo's for the standard Y Bot; map them through both T-poses (see bl_ybot.py)
+YB = None
+if os.environ.get('YBOT'):
+    from bl_ybot import ybot_tpose, ours_tpose
+    YR, YP = ybot_tpose(os.environ['YBOT']); OT, HO = ours_tpose(arm, YP); SCALE = HO / YP['mixamorig:Hips'].z
+    YB = {n: YR[n].inverted() @ OT[n] for n in KEEP}
+    print('YBOT standing hip height ours', round(HO, 3), 'ybot', round(YP['mixamorig:Hips'].z, 3), 'scale', round(SCALE, 3))
 SMOOTH = 5  # half window (frames) for the root travel curve
 
 for name, path in clips:
@@ -62,8 +71,12 @@ for name, path in clips:
     for fr in frames:
         sc.frame_set(fr)
         mw = farm.matrix_world
-        rots.append({n: (mw @ farm.pose.bones[n].matrix).to_quaternion() for n in KEEP})
-        hips.append((mw @ farm.pose.bones['mixamorig:Hips'].matrix).translation.copy())
+        if YB:
+            rots.append({n: (mw @ farm.pose.bones[n].matrix).to_quaternion() @ YB[n] for n in KEEP})
+            hips.append((mw @ farm.pose.bones['mixamorig:Hips'].matrix).translation * SCALE)
+        else:
+            rots.append({n: (mw @ farm.pose.bones[n].matrix).to_quaternion() for n in KEEP})
+            hips.append((mw @ farm.pose.bones['mixamorig:Hips'].matrix).translation.copy())
     # root travel: moving average of the hips' ground position, relative to the first frame
     n = len(frames)
     root = []

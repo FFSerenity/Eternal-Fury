@@ -832,7 +832,7 @@ export const ANIM = {
 const HIT_AT = { '1H_Melee_Attack_Stab': 0.4, '1H_Melee_Attack_Chop': 0.56, '1H_Melee_Attack_Slice_Diagonal': 0.42, '1H_Melee_Attack_Slice_Horizontal': 0.26, '2H_Melee_Attack_Chop': 0.52, '2H_Melee_Attack_Slice': 0.36,
   '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4,
   // the 魂契 skeleton's Mixamo swings (peak hand speed, measured on the retargeted clips)
-  SNS_Atk1: 0.43, SNS_Atk2: 0.4, SNS_Atk3: 0.48, GS_Atk1: 0.39, GS_Atk2: 0.45, GS_Atk3: 0.44 };
+  SNS_Atk1: 0.43, SNS_Atk2: 0.4, SNS_Atk3: 0.53, GS_Atk1: 0.39, GS_Atk2: 0.45, GS_Atk3: 0.44 };
 // stride references (world units per second at model scale 0.5)
 const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running_B: 3.4, Walking_Backwards: 1.2, Running_Strafe_Left: 2.6, Running_Strafe_Right: 2.6 };
 export function attackAnim(u, wind) {
@@ -872,7 +872,7 @@ function animate(u, dt, sp) {
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
-  if (m.hero) { const ref = m.wset === 'GS' ? 1.68 : 1.29; // walk only (no run yet); strides from the clips' root travel, world m/s
+  if (m.hero) { const ref = m.wset === 'GS' ? 2.02 : 1.56; // walk only (no run yet); strides from the clips' root travel, world m/s
     if (sp > 0.3) play(m, 'Walk_' + (m.wset || 'SNS'), { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Stand', { fade: 0.3 }); return; } // by name: the styles' own guarded Idle must not win
   const k = CHARS[u.kind].scale * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }

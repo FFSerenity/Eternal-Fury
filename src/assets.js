@@ -234,6 +234,7 @@ function makeHeroMesh(o) {
 // The shield is strapped to the forearm instead (see below). Lengths are world sizes.
 const WEAP_FIT = { sword: { len: 1.15, back: 0 }, greatsword: { len: 1.75, back: 0 }, shield: { len: 0.95, back: 0.12, at: 0.55 }, axe: { len: 1.05, back: 0 }, spear: { len: 2.2, back: 0 }, mace: { len: 1.0, back: 0 } };
 const MAT_W = new Map();
+const GRIP_F = [0.565, 0.82, -0.092]; // blade direction in the grip frame (fingers, thumb side, palm); fitted on the two-handed clips (tests: globalThis.__gripF)
 function heroGrip(model, side, name, u, outline) {
   const src = A.heroWeap[name], hand = findBone(model, side === 'r' ? 'mixamorig:RightHand' : 'mixamorig:LeftHand'), palm = findBone(model, side === 'r' ? 'Bone_019' : 'Bone_024');
   if (!src || !hand) return null;
@@ -258,7 +259,7 @@ function heroGrip(model, side, name, u, outline) {
   } else { X = d.clone().sub(Y.clone().multiplyScalar(d.dot(Y))).normalize(); Z = new V().crossVectors(X, Y).normalize();
     // the handle lies diagonally across the palm, so the blade leans from the thumb side toward the knuckles. Measured on the
     // two-handed great sword clips (where the left hand holds the same handle lower down): ~52 deg toward the fingers
-    const F = X.clone().multiplyScalar(0.772).add(Y.clone().multiplyScalar(0.611)).add(Z.clone().multiplyScalar(side === 'r' ? -0.177 : 0.177)).normalize();
+    const gf = globalThis.__gripF || GRIP_F, F = X.clone().multiplyScalar(gf[0]).add(Y.clone().multiplyScalar(gf[1])).add(Z.clone().multiplyScalar(side === 'r' ? gf[2] : -gf[2])).normalize();
     const Zw = Z.clone().sub(F.clone().multiplyScalar(Z.dot(F))).normalize(); W = new THREE.Matrix4().makeBasis(new V().crossVectors(F, Zw), F, Zw); at = ring.clone(); }
   W = new THREE.Quaternion().setFromRotationMatrix(W);
   const g = new THREE.Group();
@@ -279,8 +280,21 @@ function heroGrip(model, side, name, u, outline) {
 // after the skeleton is posed each frame: a blade never sinks into the floor, and out of a swing the greatsword is dragged along the
 // ground behind it (tip on the floor, a little to its right; sparks while it walks) instead of hanging straight down through it
 const _V = THREE.Vector3, _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
+const _n = new _V(), _c = new _V(), _zA = new _V(0, 0, 1), _qz = new THREE.Quaternion();
+// the shield turns in its own plane (so the forearm stays behind the board) to keep its point down: a lowered arm carries it upright
+// along the leg instead of sticking out like a wing, and a raised guard (thumb up) needs almost no turn. Slightly short of full and
+// eased, so it sways a little with the arm
+function shieldHang(g, dt) {
+  g.quaternion.copy(g.userData.q0); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.userData.q0);
+  _n.copy(_zA).applyQuaternion(_qw); _ax.copy(_up).applyQuaternion(_qw); _d.copy(_up).addScaledVector(_n, -_n.y);
+  let a = g.userData.hang ?? 0;
+  if (_d.lengthSq() > 0.06) { _d.normalize(); const t = Math.atan2(_c.crossVectors(_ax, _d).dot(_n), _ax.dot(_d)) * 0.85;
+    const dd = Math.atan2(Math.sin(t - a), Math.cos(t - a)); a += dd * Math.min(1, dt * 10); a = Math.atan2(Math.sin(a), Math.cos(a)); g.userData.hang = a; }
+  g.quaternion.multiply(_qz.setFromAxisAngle(_zA, a));
+}
 export function heroWeaponPose(u, dt, emit) {
-  const m = u.mesh, g = m.weap && m.weap.r; if (!g || !g.userData.q0) return;
+  const m = u.mesh, sh = m.weap && m.weap.l; if (sh && sh.userData.q0) shieldHang(sh, dt);
+  const g = m.weap && m.weap.r; if (!g || !g.userData.q0) return;
   const swing = /Atk|Death|Dead|Rise|Dodge/.test(m.curName || '') && m.cur && m.cur.isRunning(), drag = m.wset === 'GS' && !swing && !(u.spawnT > 0) ? 1 : 0;
   m.dragW = (m.dragW ?? drag) + (drag - (m.dragW ?? drag)) * Math.min(1, dt * 8);
   g.quaternion.copy(g.userData.q0); g.updateMatrixWorld(true); g.getWorldPosition(_p); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.userData.q0);

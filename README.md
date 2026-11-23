@@ -110,8 +110,8 @@ torches, near walls cut down and a see-through circle around the hero, flow-fiel
 
 Build: `npm install && npm run build`
 Assets: `node tools/build-assets.mjs <path to the KayKit packs>` rebuilds `assets/*.glb` (merged skinned meshes, meshopt-compressed).
-Soul Pact skeleton: `tools/bl_retarget.py` (Blender as a Python module) copies the Mixamo clips onto the Meshy rig in world space and strips
-root travel into `tools/hero-meta/*.json`; `tools/bl_weapons.py` splits the weapon sheet; `node tools/build-hero.mjs` compresses each glb
+Soul Pact skeleton: `tools/bl_retarget.py` (Blender as a Python module) copies Mixamo clips made for the standard Y Bot onto the Meshy rig in
+world space, through both T-poses (`tools/bl_ybot.py`; Mixamo's own retarget bent our knees sideways), and strips root travel into `tools/hero-meta/*.json`; `tools/bl_weapons.py` splits the weapon sheet; `node tools/build-hero.mjs` compresses each glb
 (`hero.glb` model + rise/dodges, `hero_sns.glb` / `hero_gs.glb` clip packs, `hero_weapons.glb`). They load only in Soul Pact mode.
 
 ## Credits
