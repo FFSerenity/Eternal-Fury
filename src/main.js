@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { G, save, load, wipe, bagPut } from './state.js';
+import { G, save, load, wipe, bagPut, PACT, MODE, setMode } from './state.js';
+import { pactPlayer, pactFloor, pactTick, harvest } from './pact.js';
 import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch } from './assets.js';
@@ -71,6 +72,7 @@ function makeFloor(depth) {
   if (!G.player) { G.player = new Unit('player', 'player', st.cx, st.cy, { level: G.level }); G.units.push(G.player); }
   const P = G.player; P.x = st.cx; P.z = st.cy; P.vx = P.vz = 0; P.dead = false; P.state = 'idle'; P.level = G.level; P.stats(); P.hp = P.maxHp; P.mp = P.maxMp; P.face = Math.PI * 1.25;
   for (const en of G.crypt) { en.unit = null; if (en.active && en.reviveT <= 0) spawnAlly(en); }
+  if (PACT) pactFloor(P); // 魂契: the skeleton comes along
   // monster packs in every other room; some packs get a champion with an affix
   const byDist = F.rooms.slice(1).sort((a, b) => Math.hypot(a.cx - st.cx, a.cy - st.cy) - Math.hypot(b.cx - st.cx, b.cy - st.cy));
   if (depth > 0) for (const r of byDist) { const near = byDist.indexOf(r), n = r.w * r.h > 90 ? 2 : 1;
@@ -137,12 +139,13 @@ function updatePlayer(dt) {
   P.mp = Math.min(P.maxMp, P.mp + (fighting ? 4 : 8) * dt); P.hp = Math.min(P.maxHp, P.hp + P.maxHp * (fighting ? 0.004 : 0.03) * dt);
   P.spearCD = (P.spearCD || 0) - dt * slowK(P); P.mendCD = (P.mendCD || 0) - dt; P.atkT = (P.atkT || 0) - dt;
   const moving = IN.joy || (IN.hold && IN.moveTo);
+  if (PACT && pactPlayer(P, dt, IN)) return; // 魂契: the summon cast / the E key
   // channelling 唤魂 on every corpse in the circle at once
   if (P.state === 'channel') { P.wantX = P.wantZ = 0; P.st += dt; const T = SKILLS.raise.channel / PACE.act;
     for (const c of P.chanList.slice()) if (!G.corpses.includes(c)) { P.chanList.splice(P.chanList.indexOf(c), 1); P.chanFx.drop(c); }
     if (!P.chanList.length || moving) endChannel(P);
     else { P.chanFx.update(dt, P, Math.min(1, P.st / T), parts);
-      if (P.st >= T) { const list = P.chanList.slice(); endChannel(P); list.forEach((c, i) => G.fx.push({ t: 0.05 + i * 0.16, fn: () => finishRaise(c) })); } }
+      if (P.st >= T) { const list = P.chanList.slice(); endChannel(P); list.forEach((c, i) => G.fx.push({ t: 0.05 + i * 0.16, fn: () => PACT ? harvest(c) : finishRaise(c) })); } }
     return; }
   // 唤魂 request: walk toward a clicked corpse if it is out of reach, then raise everything around
   if (IN.raiseKey) { IN.raiseKey = false; IN.raise = 'area'; }
@@ -185,8 +188,16 @@ function updatePlayer(dt) {
 // ---------- start screen ----------
 let started = false;
 const hasSave = load();
-$('#startMsg').textContent = hasSave ? tr(`继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · ${G.crypt.length} in the Crypt · floor ${G.deep}`) : tr('第一次进入墓穴', 'A new descent');
-$('#help').innerHTML = touchUI ? tr('左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服身边所有尸体　·　「墓典」编辑出战', 'Drag on the left half to move · hold Bone Spear to fire (auto-aim)<br>After a fight, tap Raise to capture every corpse around you · Crypt: pick your party') :
+document.body.classList.toggle('pact', PACT);
+$('#startMsg').textContent = PACT ? (hasSave ? tr(`继续：Lv ${G.level} · 召唤 Lv ${G.pact.lvl} · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · Summon Lv ${G.pact.lvl} · floor ${G.deep}`) : tr('缔结第一份魂契', 'A new pact'))
+  : hasSave ? tr(`继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · ${G.crypt.length} in the Crypt · floor ${G.deep}`) : tr('第一次进入墓穴', 'A new descent');
+// two modes, each with its own save: switching reloads the page in the other one
+$('#modeDesc').textContent = PACT ? tr('只召唤一具骸骨卫士：它亲手杀敌积攒战魂越战越强，战死就清零重来。唤魂化尸为魂能，用来强化召唤。', 'Bind a single Bone Sentinel: it grows stronger with every kill of its own, and loses it all when it falls. Raise turns corpses into soul energy that strengthens the summon.')
+  : tr('收服倒下的怪物，组一支骷髅军团。', 'Capture fallen monsters and build a skeleton army.');
+for (const b of document.querySelectorAll('#modeRow .md')) { b.classList.toggle('cur', b.dataset.m === MODE);
+  b.addEventListener('click', () => { if (b.dataset.m === MODE) return; setMode(b.dataset.m); location.href = location.pathname; }); }
+$('#help').innerHTML = PACT ? (touchUI ? tr('左半屏拖动：移动　·　「召唤」施法召出骸骨卫士　·　「唤魂」把尸体化成魂能<br>「愈合」给骸骨卫士回血　·　「魂契」面板里强化召唤、切换武器流派', 'Drag on the left half to move · Summon calls the Bone Sentinel · Raise turns corpses into soul energy<br>Mend heals the Sentinel · the Pact panel: strengthen the summon, switch weapon style')
+  : tr('左键：移动 / 点怪攻击　·　右键：骨矛　·　E：召唤骸骨卫士（施法 1.5 秒）<br>Q：唤魂（尸体化成魂能）　·　W：愈合　·　Tab：魂契面板（强化召唤、切换武器流派）　·　I：背包', 'Left click: move / attack · Right click: Bone Spear · E: summon the Bone Sentinel (1.5 s cast)<br>Q: Raise (corpses become soul energy) · W: Mend · Tab: the Pact (strengthen the summon, weapon style) · I: Bag')) : touchUI ? tr('左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服身边所有尸体　·　「墓典」编辑出战', 'Drag on the left half to move · hold Bone Spear to fire (auto-aim)<br>After a fight, tap Raise to capture every corpse around you · Crypt: pick your party') :
   tr('左键：移动 / 点怪攻击　·　右键：朝鼠标方向放骨矛（Shift+左键同效）<br>Q：唤魂（收服身边一圈内的所有尸体）　·　W：愈合　·　Tab：墓典　·　I：背包　·　走到楼梯点击或按 Enter 下楼', 'Left click: move / attack · Right click: Bone Spear toward the cursor (or Shift + left)<br>Q: Raise (capture every corpse around you) · W: Mend · Tab: Crypt · I: Bag · Enter on the stairs to go down');
 $('#bStart').addEventListener('click', () => { if (!A.ready) return; unlock(); if (touchUI) goFull(); $('#start').classList.add('hide'); started = true; });
 $('#bNew').addEventListener('click', () => { if (!confirm(tr('清除存档重新开始？', 'Delete the save and start over?'))) return; wipe(); location.reload(); });
@@ -214,7 +225,7 @@ function loop(now) {
   if (started) { G.t += dt; setNavTime(G.t);
     const P = G.player;
     G.enemies = []; G.friends = []; for (const u of G.units) { if (u.dead) continue; if (u.side === 'enemy') G.enemies.push(u); else G.friends.push(u); }
-    updatePlayer(dt); updateWilds(P);
+    updatePlayer(dt); updateWilds(P); if (PACT) pactTick(dt);
     const active = [];
     for (const u of G.units) { if (u.dead || u === P) continue; if (u.side === 'enemy' && !u.aggro && Math.hypot(u.x - P.x, u.z - P.z) > 26) { u.mesh.root.visible = false; continue; } u.mesh.root.visible = true; updateUnit(u, dt); active.push(u); }
     if (!P.dead) active.push(P); integrate(active, dt);

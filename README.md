@@ -14,6 +14,14 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 - **Language:** English by default. ⚙ (top right) → Language → 中文 switches to Chinese (and back); the game saves and reloads.
   The same menu holds the sound toggle and the testing resets (dungeon reset / wipe everything).
 
+## Soul Pact mode (魂契, new)
+Picked on the start screen (its own save). One summoned skeleton — the realistic **Bone Sentinel** — does the fighting:
+- **E** (or 💀) summons it: a 1.5 s cast, no cooldown; it climbs out of a rune circle at the summon skill's level.
+- It builds **Fury** (战魂) from kills by its own hand: each stack adds damage, attack speed, move speed and life. When it falls, all Fury is lost — summon it again.
+- **Q** 唤魂 turns corpses into **soul energy**; spend it in the Pact panel (**Tab** / 💀 Pact) to strengthen the summon.
+- Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes) or **Greatsword** (heavy cleaves that knock back, less evasion).
+- Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
+
 ## Summons
 - Kill monsters, then cast **唤魂**: it channels on every corpse within 6 m at once (corpses stay 30 s; each extra corpse costs a little more mana). Capture chance depends on the monster (normal > champion) and your level.
   Enemy shamans resurrect corpses too, so grab them first.
@@ -102,7 +110,12 @@ torches, near walls cut down and a see-through circle around the hero, flow-fiel
 
 Build: `npm install && npm run build`
 Assets: `node tools/build-assets.mjs <path to the KayKit packs>` rebuilds `assets/*.glb` (merged skinned meshes, meshopt-compressed).
+Soul Pact skeleton: `tools/bl_retarget.py` (Blender as a Python module) copies the Mixamo clips onto the Meshy rig in world space and strips
+root travel into `tools/hero-meta/*.json`; `tools/bl_weapons.py` splits the weapon sheet; `node tools/build-hero.mjs` compresses each glb
+(`hero.glb` model + rise/dodges, `hero_sns.glb` / `hero_gs.glb` clip packs, `hero_weapons.glb`). They load only in Soul Pact mode.
 
 ## Credits
 3D models and animations: **KayKit** by Kay Lousberg (www.kaylousberg.com) — Character Pack: Skeletons, Character Pack: Adventurers,
 Dungeon Remastered, Halloween Bits and Forest Nature Pack. Licensed CC0 1.0; thank you, Kay!
+The Soul Pact skeleton ("Boneforged Sentinel") and its weapons ("Runebound Armory") were generated with **Meshy** (meshy.ai), licensed
+CC BY 4.0. Its animations are from **Mixamo** (Adobe): Pro Sword and Shield Pack, Great Sword Pack, Zombie Stand Up, Dodging.

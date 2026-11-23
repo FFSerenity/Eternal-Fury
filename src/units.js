@@ -1,6 +1,6 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
-import { G, save, bagPut } from './state.js';
+import { G, save, bagPut, PACT } from './state.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
 import { auraMat, glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
@@ -11,6 +11,8 @@ import { runeCircle } from './vfx.js';
 import { engTick, clearDrones, rodBeam, orbitalSkill, updateCall, updateTechFx } from './drones.js';
 
 export const C = { scene: null, parts: null, floor: null, say: () => {} };
+// 魂契 hooks (filled in by pact.js, which imports this module): stats, name, strike, evade, kill, death of the pact skeleton
+export const PH = {};
 const rand = (a, b) => a + Math.random() * (b - a), TAU = Math.PI * 2, tmp = { x: 0, z: 0 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // rank of a summon skill (enemies have none)
@@ -36,21 +38,23 @@ export class Unit {
       emis: 0x000000, rim: 0x000000, elems: champ && mod0 ? this.mods.slice() : null, soul: ally,
       outline: 0x120a10, outlineW: champ ? 0.06 : 0.05,
     };
-    this.mesh = makeUnitMesh(kind, { ...this.meshOpts, gear: this.entry && this.entry.gear });
+    this.mesh = makeUnitMesh(kind, { ...this.meshOpts, gear: this.entry && this.entry.gear, hero: this.entry && this.entry.hero, wset: this.entry && this.entry.wset });
     this.mesh.root.position.set(x, 0, z); this.mesh.root.rotation.y = this.face; C.scene.add(this.mesh.root);
     this.spawnT = 0; this.animLock = 0; this.mixAcc = 0; play(this.mesh, ANIM[kind].idle, { at: Math.random() });
     if (ally) { const rg = ring(0.45, 0.5, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
     if (champ && mod0) { const rg = ring(0.56, 0.685, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
-  get name() { return affixName(this.mods, this.champ) + (this.tech ? this.tech.name : this.T ? this.T.name : tr('召唤师', 'Summoner')); }
+  get name() { if (this.pact && PH.name) return PH.name(this); return affixName(this.mods, this.champ) + (this.tech ? this.tech.name : this.T ? this.T.name : tr('召唤师', 'Summoner')); }
   stats() { Unit.prototype._stats.call(this); this.speed *= PACE.move; if (this.cd) this.cd /= PACE.act; if (this.gun) this.rof = this.cd / 6; }
   _stats() {
     const L = this.level;
-    if (this.kind === 'player') { this.maxHp = 90 + 10 * (L - 1); this.maxMp = 40 + 5 * (L - 1); this.speed = 4.6; this.r = 0.36; this.armor = 8 + 2 * L; this.dmg = 10 + 2.5 * (L - 1); return; }
+    if (this.kind === 'player') { this.maxHp = 90 + 10 * (L - 1); this.maxMp = 40 + 5 * (L - 1); this.speed = 4.6; this.r = 0.36; this.armor = 8 + 2 * L; this.dmg = 10 + 2.5 * (L - 1); if (PACT) this.dmg *= 0.5; return; } // 魂契: the summoner supports, the skeleton kills
+    if (this.entry && this.entry.pact && PH.stats) { PH.stats(this); return; }
     const T = this.T, ally = this.side === 'ally', k = ally ? 0.15 : 0.28, kd = ally ? 0.15 : 0.18;
     this.maxHp = T.hp * (1 + k * (L - 1)) * (ally ? 1.35 : 1); this.dmg = T.dmg * (1 + kd * (L - 1)) * (ally ? 1.15 : 1);
     this.armor = T.armor + 2 * (L - 1); this.speed = T.speed * (ally ? 1.08 : 1); this.range = T.range; this.cd = T.cd; this.r = T.r; this.noStun = false;
     if (ally && this.kind === 'brute') this.speed = TYPES.imp.speed * 1.08 * 0.92;
+    if (PACT && !ally) this.speed *= 0.6; // 魂契: monsters are slow, fights stand still around the skeleton
     if (this.champ) { this.maxHp *= 2.4; this.dmg *= 1.35; this.r *= ally ? 1.08 : 1.2; }
     if (this.mods.includes('fast')) { const l = mlv(this, 'fast'); this.speed *= 1.35 + 0.1 * l; this.cd *= 0.75 - 0.05 * l; }
     if (this.mods.includes('stone')) { const l = mlv(this, 'stone'); this.armor += 35 + 25 * l; this.maxHp *= 1.2 + 0.1 * l; this.speed *= 0.85; this.noStun = true; }
@@ -75,7 +79,7 @@ export class Unit {
   remove() { C.scene.remove(this.mesh.root); if (this.dr) clearDrones(this); }
   // new weapon / shield in hand after an equipment change
   rebuildMesh() {
-    const old = this.mesh; this.mesh = makeUnitMesh(this.kind, { ...this.meshOpts, gear: this.entry && this.entry.gear });
+    const old = this.mesh; this.mesh = makeUnitMesh(this.kind, { ...this.meshOpts, gear: this.entry && this.entry.gear, hero: this.entry && this.entry.hero, wset: this.entry && this.entry.wset });
     this.mesh.root.position.copy(old.root.position); this.mesh.root.rotation.y = this.face; if (this.ringMesh) { old.root.remove(this.ringMesh); this.mesh.root.add(this.ringMesh); }
     C.scene.remove(old.root); C.scene.add(this.mesh.root); play(this.mesh, ANIM[this.kind].idle, {}); this.mesh.mixer.update(0);
   }
@@ -88,6 +92,7 @@ export function say(x, z, text, col = '#fff', size = 15, y = 1.7, num = 0) { G.m
 // ---------- damage / death ----------
 export function damage(src, dst, amt, o = {}) {
   if (!dst || dst.dead) return 0;
+  if (dst.evade && !o.dot && Math.random() < dst.evade && PH.evade) { PH.evade(src, dst); return 0; } // 魂契 skeleton: evasion
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
@@ -117,13 +122,15 @@ function kill(u, src) {
   u.dead = true; u.hp = 0; u.poison = null; u.chillT = 0; u.mesh.u.uStat.value.w = 0;
   if (u.side === 'enemy') {
     S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 }); C.parts.emit(u.x, 0.5, u.z, 8, { col: 0xd8ccb8, spd: 2.6, up: 2.4, grav: 8, life: 0.6, size: 0.16 }); if (u.champ) { shake(0.08, u.x, u.z); burst(u.x, 0.8, u.z, 0xffd8a0, 1.6); const P = G.player; if (P && Math.hypot(P.x - u.x, P.z - u.z) < 12 && !(G.slowCD > G.t)) { G.slowT = 0.22; G.slowCD = G.t + 1.5; } }
-    const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(xp);
+    const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(PACT ? xp * 0.6 : xp); if (src && src.pact && PH.kill) PH.kill(src, u);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
     deathBlast(u, 0.7); const it = rollDrop(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
     if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
     makeCorpse(u);
   } else if (u.side === 'ally') {
-    S.die(); if (u.dr) clearDrones(u, true); const en = u.entry; if (en) { en.unit = null; en.reviveT = en.reviveMax = 10 + 1.5 * en.level; } if (u.dieHard && u.mesh.root.visible) debris(u.x, 0.7, u.z, u.dieDx || 1, u.dieDz || 0, 3, 3.5);
+    S.die(); if (u.dr) clearDrones(u, true); const en = u.entry;
+    if (en && en.pact) { if (u.dieHard && u.mesh.root.visible) debris(u.x, 0.7, u.z, u.dieDx || 1, u.dieDz || 0, 3, 3.5); PH.death && PH.death(u); fadeOut(u); return; } // no revive timer: summon it again
+    if (en) { en.unit = null; en.reviveT = en.reviveMax = 10 + 1.5 * en.level; } if (u.dieHard && u.mesh.root.visible) debris(u.x, 0.7, u.z, u.dieDx || 1, u.dieDz || 0, 3, 3.5);
     deathBlast(u, 0.5);
     C.say(tr(`${u.name} 倒下了，${Math.round(en ? en.reviveT : 10)} 秒后复原`, `${u.name} fell — back in ${Math.round(en ? en.reviveT : 10)}s`)); fadeOut(u);
   } else { // player
@@ -258,7 +265,7 @@ function soulToSummoner(c) {
   const name = 'Death_C_Skeletons_Resurrect', sp = 1.6; play(m, name, { once: true, restart: true, speed: sp, fade: 0 }); m.mixer.update(0);
   G.ghosts.push({ m, t: 0, rise: clipLen(name) / sp * 0.9, x: c.x, z: c.z, orb: null });
 }
-function soulOrb(x, y, z, to, onHit, col = 0x6ff7e8) {
+export function soulOrb(x, y, z, to, onHit, col = 0x6ff7e8) {
   const orb = new THREE.Group(); orb.add(glowSprite(col, 1.1, 0.95), glowSprite(0xffffff, 0.4, 0.9)); orb.position.set(x, y, z); C.scene.add(orb);
   G.ghosts.push({ orb, t: 0, fly: 0.65, x0: x, y0: y, z0: z, to, onHit, col });
 }
@@ -334,7 +341,7 @@ export function spawnAlly(en, x, z, how = 'ground') {
   C.parts.emit(x, 0.4, z, 18, { col: 0x6ff7e8, spd: 1.6, up: 2, life: 0.7, size: 0.25 }); return u;
 }
 export function dismissAlly(en) { if (en.unit && !en.unit.dead) { const u = en.unit; u.dead = true; C.parts.emit(u.x, 0.5, u.z, 14, { col: 0x6ff7e8, spd: 1.2, up: 2, life: 0.6 }); u.remove(); } en.unit = null; }
-function allyXP(a, xp) { const en = a.entry; if (!en) return; en.xp += xp;
+function allyXP(a, xp) { const en = a.entry; if (!en || en.pact) return; en.xp += xp;
   while (en.xp >= xpNeed(en.level) * 0.8) { en.xp -= xpNeed(en.level) * 0.8; en.level++; const f = a.hp / a.maxHp; a.level = en.level; a.stats(); a.hp = a.maxHp * Math.max(f, 0.5);
     C.parts.emit(a.x, 0.8, a.z, 20, { col: 0xffe58a, spd: 1.2, up: 3, life: 0.9, size: 0.25, grav: -1 }); C.say(tr(`${a.name} 升到 Lv ${en.level}`, `${a.name} reached Lv ${en.level}`)); save(); } }
 export function addXP(xp) {
@@ -396,7 +403,7 @@ function startWindup(u, t) {
   if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire); the arms are animated in gunnerAnim
     if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
     u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); return; }
-  u.state = 'windup'; u.st = 0; u.wind = u.T.windup * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind); if (MELEE(u.kind)) trail(u, u.wind + 0.3);
+  u.state = 'windup'; u.st = 0; u.wind = (u.windup ?? u.T.windup) * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind); if (MELEE(u.kind)) trail(u, u.wind + 0.3);
   if (u.kind === 'brute') { const R = u.range + u.r + 0.3, en = u.side === 'enemy', col = en ? 0xff3a2a : 0x3fe0d0, rg = ring(en ? 0.2 : R - 0.1, R, col, 0.0);
     if (en) { const edge = ring(R - 0.09, R, 0xff8a6a, 0); edge.position.y = 0.002; rg.add(edge); rg.userData.edge = edge; } rg.userData.en = en; rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
@@ -405,6 +412,7 @@ function strike(u) {
   if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
   if (u.mortar) { fireShell(u, shellTarget(u, t)); return; }
   if (MELEE(u.kind)) { u.kx += Math.sin(u.face) * 1.3; u.kz += Math.cos(u.face) * 1.3; } // step into the blow
+  if (u.pact && PH.strike) { PH.strike(u, t); return; }
   if (u.mech) { u.grind = 3; u.grindT = 0; return; } // the drill bites: three grinding hits (drillTick)
   if (u.kind === 'brute') { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 0.8, 0.2, u.z + Math.cos(u.face) * 0.8, 16, { col: 0xb8a890, spd: 3, up: 1.5, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d > u.range + u.r + h.r + 0.35) continue;
@@ -610,7 +618,7 @@ function allyThink(u, dt) {
   else rangedLogic(u, t, dt, 4.5, 7);
 }
 function moveSkill(u, t) {
-  if (u.moveCD > 0 || u.stun > 0) return false; const d = dist(u, t); if (!C.floor.los(u.x, u.z, t.x, t.z)) return false;
+  if (u.moveCD > 0 || u.stun > 0 || u.pact) return false; const d = dist(u, t); if (!C.floor.los(u.x, u.z, t.x, t.z)) return false;
   if (u.mech) { if (d > 3 && d < 9) { startRocket(u, t); return true; } return false; }
   if (u.kind === 'brute' && d > 2.6 && d < 8) { startLeap(u, t); return true; }
   if (u.kind === 'imp' && d > 2.2 && d < 6.5) { startLunge(u, t); return true; }
@@ -814,10 +822,13 @@ export const ANIM = {
 };
 // fraction of each attack clip at which the blow lands (used to line the swing up with the windup; measured from where the blade moves fastest / reaches furthest)
 const HIT_AT = { '1H_Melee_Attack_Stab': 0.4, '1H_Melee_Attack_Chop': 0.56, '1H_Melee_Attack_Slice_Diagonal': 0.42, '1H_Melee_Attack_Slice_Horizontal': 0.26, '2H_Melee_Attack_Chop': 0.52, '2H_Melee_Attack_Slice': 0.36,
-  '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4 };
+  '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4,
+  // the 魂契 skeleton's Mixamo swings (peak hand speed, measured on the retargeted clips)
+  SNS_Atk1: 0.43, SNS_Atk2: 0.4, SNS_Atk3: 0.48, GS_Atk1: 0.39, GS_Atk2: 0.45, GS_Atk3: 0.44 };
 // stride references (world units per second at model scale 0.5)
 const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running_B: 3.4, Walking_Backwards: 1.2, Running_Strafe_Left: 2.6, Running_Strafe_Right: 2.6 };
 export function attackAnim(u, wind) {
+  if (u.mesh.hero) { const m = u.mesh, name = m.atk[m.atkI++ % m.atk.length], len = m.clips[name].duration, sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.42) / Math.max(0.05, wind))); play(m, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85; return; }
   const list = u.mech ? ['1H_Melee_Attack_Stab'] : ANIM[u.kind].atk, name = list[Math.floor(Math.random() * list.length)], len = clipLen(name), sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.4) / Math.max(0.05, wind)));
   play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
 }
@@ -852,7 +863,9 @@ function animate(u, dt, sp) {
   if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload' || u.state === 'call') return;
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
-  if (u.state === 'cast' || u.state === 'channel') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
+  if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
+  if (m.hero) { const run = sp > 2.6, ref = run ? (m.wset === 'GS' ? 4.5 : 4.3) : (m.wset === 'GS' ? 1.15 : 1.55); // its own strides (world m/s)
+    if (sp > 0.35) play(m, run ? a.run : a.walk, { speed: Math.max(0.55, Math.min(1.8, sp / ref)), fade: 0.18 }); else play(m, a.idle, { fade: 0.22 }); return; }
   const k = CHARS[u.kind].scale * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }
   else play(m, a.idle, { fade: 0.22 });

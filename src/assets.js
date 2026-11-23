@@ -3,14 +3,16 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
-import { toonMat, outlineMat, charUniforms, glowSprite, auraMat } from './gfx.js';
+import { toonMat, outlineMat, charUniforms, glowSprite, auraMat, realMat } from './gfx.js';
 import { ELEM, WEAPONS, ARMORS, QUAL } from './data.js';
+import { PACT } from './state.js';
 
-export const A = { chars: {}, clips: {}, props: {}, ready: false };
+export const A = { chars: {}, clips: {}, props: {}, hero: null, heroClips: {}, heroWeap: {}, ready: false };
 const CHAR_FILES = ['mage', 'sk_minion', 'sk_warrior', 'sk_rogue', 'sk_mage'], PROP_FILES = ['weapons', 'dungeon', 'graveyard', 'forest'];
 export async function loadAll(onProgress = () => {}) {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
-  const jobs = [...CHAR_FILES.map(f => ['char', f]), ['anims', 'anims'], ...PROP_FILES.map(f => ['props', f])];
+  const jobs = [...CHAR_FILES.map(f => ['char', f]), ['anims', 'anims'], ...PROP_FILES.map(f => ['props', f]),
+    ...(PACT ? [['hero', 'hero'], ['heropack', 'hero_sns'], ['heropack', 'hero_gs'], ['heroweap', 'hero_weapons']] : [])]; // the realistic skeleton: 魂契 only
   let done = 0;
   await Promise.all(jobs.map(async ([kind, name]) => {
     const g = await loader.loadAsync(`assets/${name}.glb`);
@@ -18,6 +20,10 @@ export async function loadAll(onProgress = () => {}) {
     g.scene.traverse(o => { if (o.material && o.material.map) o.material.map.colorSpace = THREE.NoColorSpace; });
     if (kind === 'char') A.chars[name] = g.scene;
     else if (kind === 'anims') for (const c of g.animations) A.clips[c.name] = c;
+    else if (kind === 'hero') { const fingers = heroFists(g.scene); for (const c of g.animations) { c.tracks = c.tracks.filter(t => !fingers.has(t.name.split('.')[0])); A.heroClips[c.name] = c; }
+      A.hero = { scene: g.scene, clips: A.heroClips }; }
+    else if (kind === 'heropack') for (const c of g.animations) A.heroClips[c.name] = c; // weapon-style clip packs: rig + clips only, same bone names
+    else if (kind === 'heroweap') for (const n of g.scene.children) A.heroWeap[n.name] = n;
     else for (const n of g.scene.children) A.props[n.name] = n;
     onProgress(++done / jobs.length);
   }));
@@ -96,6 +102,7 @@ const SOUL_Y = { imp: 1.2, brute: 1.45, archer: 1.3, shaman: 1.6 };
 const SPHERE = new THREE.Sphere(new THREE.Vector3(0, 1.2, 0), 2.4);
 // a unit's visual: root (position / facing, unscaled: rings live here) -> model (scaled KayKit character)
 export function makeUnitMesh(kind, o = {}) {
+  if (o.hero && A.hero) return makeHeroMesh(o);
   const def = CHARS[kind], model = skClone(A.chars[def.file]), u = charUniforms(o), mats = new Map();
   const olW = o.outlineW ?? 0.05, olSk = outlineMat(o.outline ?? 0x120a10, olW, u.uFade), adds = [];
   const matFor = map => { if (!mats.has(map)) mats.set(map, toonMat({ u, map, vc: false })); return mats.get(map); };
@@ -156,10 +163,122 @@ export function makeUnitMesh(kind, o = {}) {
   const mixer = new THREE.AnimationMixer(model);
   return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, muz, drill, rod, blade, aura, elem: el ? elems[0] : null, elems };
 }
+// ---------- the realistic hero skeleton (魂契 mode; modelled with Meshy, Mixamo rig, CC BY 4.0) ----------
+// its own model and clips; the game asks for KayKit clip names, heroClip() maps them onto the few the hero has
+const HERO_H = 2.25; // world height (realistic proportions are slim: it has to stand a head taller than the chunky KayKit warriors to read as the hero)
+// weapon sets: a prefix on the pack's clip names (SNS_Idle, GS_Atk1 ...) and the weapons held in each hand
+export const HERO_SETS = {
+  SNS: { r: 'sword', l: 'shield', atk: ['SNS_Atk1', 'SNS_Atk2', 'SNS_Atk3'] },
+  GS: { r: 'greatsword', atk: ['GS_Atk1', 'GS_Atk2', 'GS_Atk3'] },
+};
+export function heroClip(n, set) {
+  const C = A.heroClips, p = set ? set + '_' : '#', pick = (...ks) => ks.find(k => C[k]) || null;
+  if (C[p + n]) return p + n; if (C[n]) return n;
+  if (/Death|Die/.test(n)) return pick(p + 'Death', 'Dead');
+  if (/Attack|Chop|Slice|Stab|Spin|Melee/.test(n)) return pick(p + 'Atk1', 'Attack');
+  if (/Running|Run/.test(n)) return pick(p + 'Run', 'Running');
+  if (/Walk/.test(n)) return pick(p + 'Walk', 'Walking');
+  if (/Hit/.test(n)) return null; // no flinch: keep what's playing (it shrugs hits off)
+  return pick(p + 'Idle', 'Idle');
+}
+// the model came with open, spread hands: curl the fingers into a fist (in the rest pose, so every clone has it) and keep the clips
+// off the finger bones. The auto-rig hung some fingers on a palm bone (Bone_024 / Bone_019, reparented under the hands at build time),
+// so chains are collected from both. Palms face forward (+z) in the A-pose and each finger bends about cross(finger direction, palm
+// normal). The thumb (the chain that starts nearest the wrist) bends toward the index and middle fingers' middle joints, so it ends
+// across the front of the fist instead of sticking out.
+function heroChains(hand, palm) {
+  const chains = [];
+  for (const p of [hand, palm]) if (p) for (const c of p.children) if (c.isBone && c !== palm) { const ch = []; let b = c; while (b) { ch.push(b); b = b.children.find(k => k.isBone); } chains.push(ch); }
+  return chains;
+}
+function heroFists(scene) {
+  const names = new Set(), V = THREE.Vector3, Q = THREE.Quaternion; scene.updateMatrixWorld(true);
+  const wp = b => b.getWorldPosition(new V()), n = new V(0, 0, 1);
+  const turn = (b, axW, ang) => { b.quaternion.multiply(new Q().setFromAxisAngle(axW.clone().applyQuaternion(b.getWorldQuaternion(new Q()).invert()), ang)); b.updateMatrixWorld(true); };
+  for (const [hand, palm] of [['mixamorig:LeftHand', 'Bone_024'], ['mixamorig:RightHand', 'Bone_019']]) {
+    const chains = heroChains(findBone(scene, hand), findBone(scene, palm)); if (!chains.length) continue;
+    const top = Math.max(...chains.map(ch => wp(ch[0]).y)), thumb = chains.find(ch => wp(ch[0]).y >= top - 1e-4), fingers = chains.filter(ch => ch !== thumb);
+    for (const ch of fingers) { const d = wp(ch[ch.length - 1]).sub(wp(ch[0])).normalize(), ax = new V().crossVectors(d, n).normalize();
+      ch.forEach((b, i) => { names.add(b.name); turn(b, ax, [1.4, 1.55, 1.1, 0.5][i] ?? 0.4); }); }
+    if (!thumb) continue;
+    const t0 = wp(thumb[0]), near = fingers.slice().sort((a, b) => wp(a[0]).distanceTo(t0) - wp(b[0]).distanceTo(t0)).slice(0, 2);
+    const aim = near.reduce((s, ch) => s.add(wp(ch[Math.min(1, ch.length - 1)])), new V()).divideScalar(near.length).add(n.clone().multiplyScalar(0.012));
+    thumb.forEach((b, i) => { names.add(b.name); const nx = thumb[i + 1]; if (!nx) return;
+      const h = wp(b), dir = wp(nx).sub(h).normalize(), to = aim.clone().sub(h).normalize(), ang = dir.angleTo(to) * ([0.5, 0.65, 0.8][i] ?? 0.6);
+      if (ang > 1e-3) turn(b, new V().crossVectors(dir, to).normalize(), ang); });
+  }
+  return names;
+}
+function makeHeroMesh(o) {
+  const model = skClone(A.hero.scene), u = charUniforms(o), adds = []; let mat = null;
+  model.traverse(obj => { if (!obj.isMesh) return; const sm = obj.material;
+    mat = mat || realMat({ u, map: sm.map, nmap: sm.normalMap, mr: sm.roughnessMap || sm.metalnessMap });
+    obj.material = mat; obj.frustumCulled = false;
+    if (obj.isSkinnedMesh) { const ol = new THREE.SkinnedMesh(obj.geometry, outlineMat(o.outline ?? 0x0c080c, 0.012, u.uFade)); ol.bind(obj.skeleton, obj.bindMatrix); ol.frustumCulled = false; adds.push([obj.parent, ol]); } });
+  for (const [p, ol] of adds) p.add(ol);
+  const box = new THREE.Box3().setFromObject(model), h = Math.max(0.1, box.max.y - box.min.y);
+  model.scale.setScalar(HERO_H / h * (o.scale ?? 1));
+  // the soul fire in its eye sockets, as a glow that carries across the room (hung on the head bone so it follows the animation)
+  const glows = [], head = findBone(model, 'mixamorig:Head');
+  if (head) { model.updateMatrixWorld(true); const hp = head.getWorldPosition(new THREE.Vector3()), ws = head.getWorldScale(new THREE.Vector3()).x || 1;
+    const g = glowSprite(0x5ff2ff, 0.42 / ws, 0.75); g.position.copy(head.worldToLocal(hp.add(new THREE.Vector3(0, 0.09 * HERO_H / 1.85, 0.1 * HERO_H / 1.85)))); head.add(g); glows.push(g); }
+  const set = HERO_SETS[o.wset], weap = {};
+  if (set) for (const side of ['r', 'l']) if (set[side]) weap[side] = heroGrip(model, side, set[side], u, o.outline);
+  const root = new THREE.Group(); root.add(model);
+  return { root, model, pivot: model, mixer: new THREE.AnimationMixer(model), actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u,
+    tips: [], glows, soul: null, gun: null, muz: null, drill: null, rod: null, blade: null, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? o.wset : null, atk: set ? set.atk : ['Attack'], atkI: 0, weap };
+}
+// put a weapon in a fist. Worked out on the rest pose (A-pose, palms forward, fingers already curled): the grip runs across the
+// knuckles through the middle of the curled fingers, the blade comes out on the thumb side, its edges line up with the fingers.
+// The shield is strapped to the forearm instead (see below). Lengths are world sizes.
+const WEAP_FIT = { sword: { len: 1.15, back: 0 }, greatsword: { len: 1.75, back: 0 }, shield: { len: 0.95, back: 0.12, at: 0.55 }, axe: { len: 1.05, back: 0 }, spear: { len: 2.2, back: 0 }, mace: { len: 1.0, back: 0 } };
+const MAT_W = new Map();
+function heroGrip(model, side, name, u, outline) {
+  const src = A.heroWeap[name], hand = findBone(model, side === 'r' ? 'mixamorig:RightHand' : 'mixamorig:LeftHand'), palm = findBone(model, side === 'r' ? 'Bone_019' : 'Bone_024');
+  if (!src || !hand) return null;
+  const V = THREE.Vector3; model.updateMatrixWorld(true);
+  const hp = hand.getWorldPosition(new V()), chains = heroChains(hand, palm);
+  const top = Math.max(...chains.map(ch => ch[0].getWorldPosition(new V()).y)), thumb = chains.find(ch => ch[0].getWorldPosition(new V()).y >= top - 1e-4);
+  const fingers = chains.filter(ch => ch !== thumb), knuck = new V(), ring = new V(); let nr = 0;
+  for (const ch of fingers) { knuck.add(ch[0].getWorldPosition(new V())); for (const b of ch) { ring.add(b.getWorldPosition(new V())); nr++; } }
+  knuck.divideScalar(fingers.length); ring.divideScalar(Math.max(1, nr));
+  const n = new V(0, 0, 1), d = knuck.clone().sub(hp).normalize(), Y = new V().crossVectors(n, d).normalize();
+  if (thumb && Y.dot(thumb[0].getWorldPosition(new V()).sub(ring)) < 0) Y.negate();
+  const fit = WEAP_FIT[name] || { len: 1, back: 0 };
+  let X, Z, W, at, bone = hand;
+  if (name === 'shield') {
+    // strapped to the outside of the forearm (not the fist: wrist turns made it cut into the arm). Board parallel to the forearm, facing
+    // out of its back, top toward the thumb side (upright when the forearm is raised across the chest), standing clear of the bracer
+    const fa = findBone(model, side === 'r' ? 'mixamorig:RightForeArm' : 'mixamorig:LeftForeArm'), el = fa.getWorldPosition(new V()), A = hp.clone().sub(el).normalize();
+    Z = n.clone().negate(); Z.sub(A.clone().multiplyScalar(Z.dot(A))).normalize();
+    const U = Y.clone().sub(A.clone().multiplyScalar(Y.dot(A))); U.sub(Z.clone().multiplyScalar(U.dot(Z))).normalize();
+    X = new V().crossVectors(U, Z).normalize(); W = new THREE.Matrix4().makeBasis(X, U, Z);
+    at = el.clone().lerp(hp, fit.at).add(Z.clone().multiplyScalar(fit.back)); bone = fa;
+  } else { X = d.clone().sub(Y.clone().multiplyScalar(d.dot(Y))).normalize(); Z = new V().crossVectors(X, Y).normalize();
+    // the handle lies diagonally across the palm, so the blade leans from the thumb side toward the knuckles. Measured on the
+    // two-handed great sword clips (where the left hand holds the same handle lower down): ~52 deg toward the fingers
+    const F = X.clone().multiplyScalar(0.772).add(Y.clone().multiplyScalar(0.611)).add(Z.clone().multiplyScalar(side === 'r' ? -0.177 : 0.177)).normalize();
+    const Zw = Z.clone().sub(F.clone().multiplyScalar(Z.dot(F))).normalize(); W = new THREE.Matrix4().makeBasis(new V().crossVectors(F, Zw), F, Zw); at = ring.clone(); }
+  W = new THREE.Quaternion().setFromRotationMatrix(W);
+  const g = new THREE.Group();
+  let mat = MAT_W.get(u); if (!mat) { let sm = null; src.traverse(o => { if (o.isMesh && !sm) sm = o.material; });
+    mat = realMat({ u, map: sm.map, nmap: sm.normalMap, mr: sm.roughnessMap || sm.metalnessMap }); MAT_W.set(u, mat); }
+  // a clone keeps the node transforms (the quantized meshes carry their de-quantization offset/scale there)
+  const w = src.clone(true); w.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(w), meshes = [];
+  w.traverse(o => { if (o.isMesh) meshes.push(o); });
+  for (const o of meshes) { o.material = mat; o.frustumCulled = false; const ol = new THREE.Mesh(o.geometry, outlineMat(outline ?? 0x0c080c, 0.006, u.uFade)); ol.frustumCulled = false; o.add(ol); }
+  g.add(w);
+  // the model is already scaled to HERO_H here, so world sizes are game sizes; the group sits under the hand bone
+  g.scale.setScalar(fit.len / (box.max.y - box.min.y) / bone.getWorldScale(new V()).x);
+  g.position.copy(bone.worldToLocal(at.clone()));
+  g.quaternion.copy(bone.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(W));
+  bone.add(g); return g;
+}
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current
 export function play(m, name, o = {}) {
-  const clip = A.clips[name]; if (!clip) return null;
+  if (m.hero) { name = heroClip(name, m.wset); if (!name) return null; }
+  const clip = (m.clips || A.clips)[name]; if (!clip) return null;
   let a = m.actions[name]; if (!a) { a = m.mixer.clipAction(clip); m.actions[name] = a; }
   if (m.cur === a && !o.restart) { if (o.speed != null) a.timeScale = o.speed; return a; }
   const prev = m.cur;

@@ -94,6 +94,57 @@ export function toonMat(o = {}) {
   m.defines = {}; if (o.map) m.defines.HAS_MAP = ''; if (o.leaf) m.defines.LEAFTINT = '';
   return m;
 }
+// ---------- the realistic hero (魂契 mode): smooth PBR-ish shading under the same lights as the toon world ----------
+// same uniforms as the toon material (tint / flash / fade / rim / status / see-through cut), plus a normal map and metal-rough map;
+// the sky key and ambient are the toon's bands made smooth, the summoner's light and the torches give wrapped diffuse + a highlight,
+// and the cyan soul fire painted in the eye sockets glows on its own
+const REAL_F = `
+#define TN ${TORCH_N}
+uniform vec3 uTint; uniform float uFlash; uniform vec3 uEmis; uniform float uFade; uniform vec3 uRim; uniform vec4 uStat;
+uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC;
+uniform vec4 uTL[TN]; uniform vec3 uTC;
+uniform float uCut; uniform vec2 uCutC; uniform float uCutR; uniform float uCutZ;
+uniform sampler2D uMap; uniform sampler2D uNMap; uniform sampler2D uMR;
+varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
+float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+vec3 perturb(vec3 N, vec3 p, vec2 uv, vec3 tn){
+  vec3 dp1 = dFdx(p), dp2 = dFdy(p); vec2 du1 = dFdx(uv), du2 = dFdy(uv);
+  vec3 a = cross(dp2, N), b = cross(N, dp1), T = a * du1.x + b * du2.x, B = a * du1.y + b * du2.y;
+  float im = inversesqrt(max(max(dot(T, T), dot(B, B)), 1e-12)); return normalize(mat3(T * im, B * im, N) * tn); }
+void light(vec3 N, vec3 V, vec3 L, vec3 c, float f, float rough, inout vec3 dif, inout vec3 spe){
+  L = normalize(L); float w = max(dot(N, L) * 0.6 + 0.4, 0.0); dif += c * f * w;
+  vec3 H = normalize(L + V); spe += c * f * pow(max(dot(N, H), 0.0), mix(70.0, 8.0, rough)) * (1.0 - rough); }
+void main(){
+  if (uCut > 0.5) { vec2 d = gl_FragCoord.xy - uCutC; float k = length(d) / uCutR;
+    if (vVZ > uCutZ + 0.8 && k < 1.0 && (k < 0.8 || h21(gl_FragCoord.xy) > (k - 0.8) / 0.2)) discard; }
+  if (uFade < 0.999 && h21(gl_FragCoord.xy) > uFade) discard;
+  vec3 base = texture2D(uMap, vUv).rgb * uTint * 1.3; // the scan's albedo is dark next to KayKit's bright palette
+  vec3 tn = texture2D(uNMap, vUv).xyz * 2.0 - 1.0; tn.xy *= 0.85;
+  vec3 N = perturb(normalize(vN), vW, vUv, tn), V = normalize(cameraPosition - vW);
+  vec4 mr = texture2D(uMR, vUv); float rough = clamp(mr.g, 0.18, 1.0), metal = mr.b;
+  float nk = dot(N, normalize(vec3(-0.45, 1.0, 0.3)));
+  vec3 dif = uAmb * (0.75 + 0.55 * smoothstep(-0.2, 0.7, nk)), spe = vec3(0.0);
+  float dl = length(vW.xz - uLight.xz), fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;
+  light(N, V, uLight - vW, uLightC, fall * 0.85, rough, dif, spe);
+  for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue;
+    float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; light(N, V, t.xyz - vW, uTC, f * 0.8, rough, dif, spe); }
+  dif = min(dif, vec3(1.15));
+  vec3 F0 = mix(vec3(0.05), base, metal);
+  vec3 col = base * (1.0 - metal * 0.55) * dif + spe * F0 * 3.0 + uEmis;
+  float eye = smoothstep(0.18, 0.4, min(base.g, base.b) - base.r) * smoothstep(0.45, 0.7, base.b); col += base * eye * 1.8;
+  float fr = 1.0 - max(dot(N, V), 0.0);
+  col += vec3(0.5, 0.62, 0.85) * pow(fr, 2.5) * 0.34;               // a cool edge so the silhouette reads on dark floors
+  float rs = max(uRim.r, max(uRim.g, uRim.b));
+  if (rs > 0.0) col = mix(col, uRim / rs * 1.05, smoothstep(0.42, 0.9, fr) * rs * 0.85);
+  col = mix(col, uStat.rgb * (dot(col, vec3(0.3, 0.59, 0.11)) * 1.3 + 0.12), uStat.a);
+  col = mix(col, vec3(1.0, 0.96, 0.9), uFlash);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+export function realMat(o = {}) {
+  const u = o.u || charUniforms(o);
+  return new THREE.ShaderMaterial({ vertexShader: TOON_V, fragmentShader: REAL_F,
+    uniforms: { ...SH, ...u, uCut: { value: o.cut ? 1 : 0 }, uMap: { value: o.map }, uNMap: { value: o.nmap }, uMR: { value: o.mr } } });
+}
 const OUT_V = `
 #include <common>
 #include <skinning_pars_vertex>

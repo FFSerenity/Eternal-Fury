@@ -59,3 +59,16 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
   damage taken from everyone, up to 8/rank, fades 3 s after the firing stops), Dig In (unlock: with 3+ enemies or an elite
   close, becomes a turret — sandbags, tripod, rune ring — immobile, unstoppable, faster fire, more damage and range, less
   damage taken), Cluster Grenade (unlock: bomblets). Base: life +40%, armour +8 over a minion of the same level.
+
+## 魂契 / Soul Pact mode (first playable, Nov 2026)
+A separate mode with its own save (start screen). The fun to find: one summon you raise by hand and that is the centre of every fight.
+- Monsters move at 60% speed; the summoner (3.45 m/s) outruns everything, the fresh skeleton (~2.2 m/s) is about as quick as a minion.
+- 召唤 (E): no cooldown, 10 mana, 1.5 s cast (rune circle), then the skeleton rises (Mixamo Zombie Stand Up, ×1.9). Its level = the skill level.
+- 战魂 (Fury): kills by the skeleton's own hand (elite 4, warrior 2, others 1); stack n needs 3 + ⌊0.6n⌋ kills. Per stack: +6% damage,
+  +4% attack speed, +3.5% move speed (cap +60%), +2.5% life, +0.4% evasion (cap +12%). Death: all stacks gone, summon again.
+- 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3. Skill level L → L+1 costs 10·L^1.45.
+- Skeleton at level L: life (230 + 40(L−1)) × style, damage (16 + 4.5(L−1)) × style, armour 18 + 3(L−1) + style; taunts within 6 m; never staggered.
+  Sword & Shield: life ×1.3, armour +14, evasion 32%, attack every ~1.4 s, narrow arc. Greatsword: damage ×1.5, evasion 16%, ~2 s, wide arc, knock-back.
+- The summoner's Bone Spear does half damage here and the summoner levels at 60% speed: support, heal (Mend), harvest.
+- Not yet: the skeleton wearing gear (drops / bag / forge still work), more weapon styles (axe, spear, mace are modelled), skills of its own,
+  a second skeleton, using the extracted root motion (lunges / leaps that travel).

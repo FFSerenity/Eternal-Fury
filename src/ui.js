@@ -1,6 +1,8 @@
 // HUD, overlay text/bars, input (mouse + keyboard, touch joystick + buttons) and the crypt (墓典) panel
 import * as THREE from 'three';
-import { G, save } from './state.js';
+import { G, save , PACT } from './state.js';
+import { pactHUD, renderPact, bindPact } from './pactui.js';
+import { soulOf } from './pact.js';
 import { techOf, techName, treeKey, TECH, makeTech } from './data.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, affixName, ROMAN, QUAL, WEAPONS, BAG_MAX, itemName, itemLines, itemIcon, itemScore, itemFits, furnaceOdds, furnaceRoll, rollItem } from './data.js';
 import { captureChance, activeCount, spawnAlly, dismissAlly, Unit, absorb, learn, canFeed, canFuse, fusionOdds, fuse } from './units.js';
@@ -91,7 +93,7 @@ function bindInput(cv) {
     clickAt = null; IN.hold = false; IN.castHold = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   addEventListener('keydown', e => { if (e.repeat && e.key !== 'Shift') return; const k = e.key.toLowerCase(); unlock();
-    if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleBag(); }
+    if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'e') IN.summon = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleBag(); }
     else if (k === 'm') cycleMap(); else if (k === 'enter') IN.stairs = true; else if (k === 'escape') { closeCrypt(); closeGear(); } });
   addEventListener('keyup', e => { if (e.key === 'Shift') IN.shift = false; });
 }
@@ -106,6 +108,7 @@ function bindButtons() {
   hold($('#sAtk'), () => { IN.autoAtk = true; }, () => { IN.autoAtk = false; });
   hold($('#sRaise'), () => { IN.raiseKey = true; });
   hold($('#sMend'), () => { IN.mend = true; });
+  hold($('#sSummon'), () => { IN.summon = true; }); if (PACT) bindPact();
   hold($('#bCrypt'), () => toggleCrypt());
   hold($('#bGear'), () => toggleBag());
   // party cards (top left): tap a summon to open its equipment, an empty slot to open the 墓典
@@ -142,7 +145,7 @@ let sel = null, armed = null, sig = '', feedTab = 'eat';
 export function toggleCrypt() { cryptOpen ? closeCrypt() : openCrypt(); }
 export function closeCrypt() { cryptOpen = false; sel = null; $('#crypt').classList.remove('open'); }
 function inCombat() { const P = G.player; return G.enemies.some(e => !e.dead && e.aggro && Math.hypot(e.x - P.x, e.z - P.z) < 10); }
-export function openCrypt() { closeGear(); cryptOpen = true; sel = null; $('#crypt').classList.add('open'); renderCrypt(true); }
+export function openCrypt() { closeGear(); cryptOpen = true; sel = null; $('#crypt').classList.add('open'); if (PACT) renderPact(true); else renderCrypt(true); }
 const tName = en => techName(en);
 const enName = en => (en.champ && en.mods.length ? `<span class="mod">${affixName(en.mods)}</span>` : '') + tName(en);
 // coloured affix chips with their level
@@ -271,18 +274,18 @@ export function updateHUD(dt, fps) {
   $('#lvl').textContent = tr(`Lv ${G.level} 召唤师`, `Lv ${G.level} Summoner`); $('#hpT').textContent = `${Math.ceil(P.hp)} / ${Math.round(P.maxHp)}`; $('#mpT').textContent = `${Math.floor(P.mp)} / ${Math.round(P.maxMp)}`;
   $('#floorTag').textContent = G.depth === 0 ? (G.wild ? tr('墓园荒野', 'The Wilds') : tr('墓园营地', 'Graveyard Camp')) : tr(`墓穴 · 第 ${G.depth} 层`, `Crypt · Floor ${G.depth}`); $('#cryptN').textContent = G.crypt.length; $('#gearN').textContent = G.bag.length; if (fps != null) $('#fps').textContent = fps;
   // party cards: rebuilt only when something on them changes (so taps are not lost), hp bars updated in place
-  const party = $('#party'), act = G.crypt.filter(e => e.active), psig = JSON.stringify([partySize(G.level), act.map(en => [en.id, en.level, en.sp, Math.ceil(en.reviveT), en.mods, treeKey(en)])]);
+  if (PACT) pactHUD(); else { const party = $('#party'), act = G.crypt.filter(e => e.active), psig = JSON.stringify([partySize(G.level), act.map(en => [en.id, en.level, en.sp, Math.ceil(en.reviveT), en.mods, treeKey(en)])]);
   if (psig !== partySig) { partySig = psig; party.innerHTML = '';
     for (const en of act) { const T = TYPES[en.type], d = document.createElement('div'); d.className = 'pc' + (en.reviveT > 0 ? ' dead' : '');
       d.dataset.id = en.id; d.title = tr('点开装备', 'Open equipment'); d.innerHTML = `<span class="ic">${portrait(en)}</span><div class="pi"><div class="pn">${ZH ? `<span class="pnn">${affixName(en.mods, en.champ)}${techOf(en) ? techOf(en).name : T.name}</span>` : `<span class="pnn${en.champ && en.mods.length ? ' elite' : ''}">${techOf(en) ? techOf(en).short : T.short}</span>${dots(en)}`}<small>Lv${en.level}</small>${en.sp ? `<span class="spb">✦${en.sp}</span>` : ''}</div><div class="ph"><i></i></div></div>${en.reviveT > 0 ? `<b class="rv">${Math.ceil(en.reviveT)}</b>` : ''}`;
       party.appendChild(d); }
     for (let i = act.length; i < partySize(G.level); i++) { const d = document.createElement('div'); d.className = 'pc empty'; d.title = tr('打开墓典', 'Open the Crypt'); d.innerHTML = `<span class="ic">＋</span><div class="pi"><div class="pn">${tr('空位', 'Empty slot')}</div></div>`; party.appendChild(d); } }
-  for (const d of party.querySelectorAll('.pc[data-id]')) { const en = act.find(e => e.id === +d.dataset.id), u = en && en.unit, i = d.querySelector('.ph i'); if (i) i.style.width = (u && !u.dead ? u.hp / u.maxHp * 100 : 0) + '%'; }
+  for (const d of party.querySelectorAll('.pc[data-id]')) { const en = act.find(e => e.id === +d.dataset.id), u = en && en.unit, i = d.querySelector('.ph i'); if (i) i.style.width = (u && !u.dead ? u.hp / u.maxHp * 100 : 0) + '%'; } }
   const near = G.corpses.filter(c => !c.claim && Math.hypot(c.x - P.x, c.z - P.z) < SKILLS.raise.range).length; const rb = $('#sRaise');
   rb.classList.toggle('ready', near > 0); $('#raiseN').textContent = near || ''; $('#raiseN').style.display = near ? 'flex' : 'none';
   const mc = Math.max(0, P.mendCD || 0); $('#sMend').style.setProperty('--cd', (mc / SKILLS.mend.cd * 100) + '%');
   const ns = G.floor && Math.hypot(P.x - G.floor.stairs.x, P.z - G.floor.stairs.z) < 1.3; $('#bStairs').classList.toggle('show', !!ns); if (ns) $('#bStairs').textContent = G.depth === 0 ? tr(`⬇ 进入墓穴${G.deep > 1 ? ' · 第 ' + G.deep + ' 层' : ''}`, `⬇ Enter the crypt${G.deep > 1 ? ' · floor ' + G.deep : ''}`) : tr('⬇ 下楼', '⬇ Descend');
-  if (cryptOpen) renderCrypt();
+  if (cryptOpen) { if (PACT) renderPact(); else renderCrypt(); }
 }
 export function drawOverlay() {
   const c = $('#ov'), g = c.getContext('2d'); g.setTransform(ovScale, 0, 0, ovScale, 0, 0); g.clearRect(0, 0, W, H); const P = G.player; if (!P) return;
@@ -292,6 +295,8 @@ export function drawOverlay() {
     const w = e.champ ? 56 : 38; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - w / 2 - 1, y - 3, w + 2, 6); g.fillStyle = e.champ ? '#ffb347' : '#e0413a'; g.fillRect(x - w / 2, y - 2, w * Math.max(0, e.hp / e.maxHp), 4);
     if (e.champ) { g.font = '700 12px system-ui,sans-serif'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(e.name, x, y - 11); g.fillStyle = '#ffd58a'; g.fillText(e.name, x, y - 11); }
     if (e.shred >= 1) { const t = '⬇' + Math.floor(e.shred); g.font = '800 11px system-ui,sans-serif'; g.textAlign = 'left'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(t, x + w / 2 + 4, y + 4); g.fillStyle = '#d9a8ff'; g.fillText(t, x + w / 2 + 4, y + 4); g.textAlign = 'center'; } }
+  if (PACT) for (const a of G.friends) { if (!a.pact || a.dead || !G.pact.stacks) continue; const [x, y, vis] = toScreen(a.x, 2.55, a.z); if (!vis) continue; // the skeleton's Fury
+    const t = '✦' + G.pact.stacks; g.font = '800 13px system-ui,sans-serif'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(t, x, y); g.fillStyle = '#ffd27a'; g.fillText(t, x, y); }
   for (const a of G.friends) { if (a.side !== 'ally' || a.dead || a.hp >= a.maxHp) continue; const [x, y, vis] = toScreen(a.x, 1.55, a.z); if (!vis) continue;
     g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x - 17, y - 2, 34, 4); g.fillStyle = '#3fe0d0'; g.fillRect(x - 16, y - 1.5, 32 * a.hp / a.maxHp, 3); }
   // loot names
@@ -301,7 +306,7 @@ export function drawOverlay() {
   // capturable corpses near the summoner
   g.font = '700 12px system-ui,sans-serif';
   for (const cp of G.corpses) { if (cp.claim) continue; const d = Math.hypot(cp.x - P.x, cp.z - P.z); if (d > SKILLS.raise.range + 2) continue; const [x, y, vis] = toScreen(cp.x, 0.5, cp.z); if (!vis) continue;
-    const inR = d <= SKILLS.raise.range, txt = `${tr('唤魂', 'Raise')} ${Math.round(captureChance(cp) * 100)}%`; g.globalAlpha = inR ? 1 : 0.45; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(txt, x, y - 4);
+    const inR = d <= SKILLS.raise.range, txt = PACT ? `${tr('唤魂', 'Raise')} +${soulOf(cp)}` : `${tr('唤魂', 'Raise')} ${Math.round(captureChance(cp) * 100)}%`; g.globalAlpha = inR ? 1 : 0.45; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText(txt, x, y - 4);
     g.fillStyle = inR ? '#8ff7ea' : '#cfc6d8'; g.fillText(txt, x, y - 4); g.globalAlpha = 1; }
   // lightning bolts: jagged, flickering polylines between units
   if (G.bolts.length) { g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
