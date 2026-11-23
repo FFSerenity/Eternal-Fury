@@ -412,7 +412,6 @@ function startWindup(u, t) {
     if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
     u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); return; }
   u.state = 'windup'; u.st = 0; u.wind = (u.windup ?? u.T.windup) * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind); if (MELEE(u.kind)) trail(u, u.wind + (u.pact ? 0.55 : 0.3));
-  if (u.pact) S.swoosh(u.wset === 'GS' || (u.entry && u.entry.wset === 'GS'), Math.max(0, u.wind - (u.entry && u.entry.wset === 'GS' ? 0.24 : 0.16))); // the whoosh peaks just before the blade lands
   if (u.kind === 'brute') { const R = u.range + u.r + 0.3, en = u.side === 'enemy', col = en ? 0xff3a2a : 0x3fe0d0, rg = ring(en ? 0.2 : R - 0.1, R, col, 0.0);
     if (en) { const edge = ring(R - 0.09, R, 0xff8a6a, 0); edge.position.y = 0.002; rg.add(edge); rg.userData.edge = edge; } rg.userData.en = en; rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
@@ -847,10 +846,12 @@ const HIT_AT = { '1H_Melee_Attack_Stab': 0.4, '1H_Melee_Attack_Chop': 0.56, '1H_
   '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4,
   // the 魂契 skeleton's Mixamo swings: when the blade passes closest to a body 1.5 m in front (measured on the retargeted clips)
   SNS_Atk2: 0.41, SNS_Atk3: 0.52, GS_Atk2: 0.51, GS_Atk3: 0.51, GS_Atk4: 0.44 };
+const SWING_AT = { SNS_Atk2: 0.4, SNS_Atk3: 0.51, GS_Atk2: 0.5, GS_Atk3: 0.5, GS_Atk4: 0.39 }; // and its blade at full speed: the swish (the cut sounds at the hit)
 // stride references (world units per second at model scale 0.5)
 const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running_B: 3.4, Walking_Backwards: 1.2, Running_Strafe_Left: 2.6, Running_Strafe_Right: 2.6 };
 export function attackAnim(u, wind) {
-  if (u.mesh.hero) { const m = u.mesh, name = m.atk[m.atkI++ % m.atk.length], len = m.clips[name].duration, sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.42) / Math.max(0.05, wind))); play(m, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85; return; }
+  if (u.mesh.hero) { const m = u.mesh, name = m.atk[m.atkI++ % m.atk.length], len = m.clips[name].duration, sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.42) / Math.max(0.05, wind))); play(m, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
+    S.swoosh(m.wset === 'GS', (SWING_AT[name] ?? HIT_AT[name] ?? 0.42) * len / sp); return; }
   const list = u.mech ? ['1H_Melee_Attack_Stab'] : ANIM[u.kind].atk, name = list[Math.floor(Math.random() * list.length)], len = clipLen(name), sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.4) / Math.max(0.05, wind)));
   play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
 }

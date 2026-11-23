@@ -352,7 +352,8 @@ function plumeMask(scene) {
   const c = new THREE.Vector3(); for (const q of fin) c.add(q.p); c.divideScalar(fin.length);
   return { pts: out, n: fin.length, c };
 }
-// tiers by skill level: the crest as it is, then the gear colours blue, gold, purple, and red, each brighter, the later ones on fire
+// tiers by 战魂 (the stacks the skeleton earns with its own kills, all lost when it falls): the crest as it is, then the gear colours
+// blue, gold, purple and red, each brighter, the later ones on fire
 const PLUME_TIERS = [ // dye colour, dye amount, glow, flame, sparks a second, swing trail colour, halo size and strength
   { c: 0x000000, a: 0, glow: 0, flame: 0, sp: 0, trail: 0xbfe6ff, halo: 0 },
   { c: 0x3f86ff, a: 0.9, glow: 0.35, flame: 0, sp: 0, trail: 0x5f9cff, halo: 0 },
@@ -365,7 +366,7 @@ export const plumeTier = L => PLUME_AT.filter(l => L >= l).length;
 const _pc = new THREE.Color();
 function plumeTick(u, dt, emit) {
   const m = u.mesh, uf = m.u && m.u.uPlFx; if (!uf) return; uf.value.x += dt;
-  const tier = Math.min(PLUME_TIERS.length - 1, plumeTier(globalThis.__plumeL ?? (u.entry ? u.entry.level : u.level) ?? 1)), T = PLUME_TIERS[tier];
+  const tier = Math.min(PLUME_TIERS.length - 1, plumeTier(globalThis.__plumeL ?? u.fury ?? 0)), T = PLUME_TIERS[tier]; // u.fury: its 战魂 stacks (pact.js)
   if (m.plumeT !== tier) { const up = m.plumeT != null && tier > m.plumeT; m.plumeT = tier; _pc.setHex(T.c); m.u.uPl.value.set(_pc.r, _pc.g, _pc.b, T.a); uf.value.y = T.glow; uf.value.z = T.flame;
     if (m.blade) m.blade.col = T.trail; if (m.plumeGlow) { m.plumeGlow.visible = T.halo > 0; m.plumeGlow.material.color.setHex(T.c); }
     if (up && emit) for (const d of m.plumePts) { d.getWorldPosition(_p); for (let k = 0; k < 4; k++) emit(_p.x, _p.y, _p.z, { col: T.c, spd: 1.2, up: 1.6, grav: -0.5, life: 0.9, size: 0.2, spread: 0.1 }); } }

@@ -1,4 +1,4 @@
-// 魂契: the Bone Sentinel's own skills, one at each crest tier (Lv 5 / 10 / 15 / 20). It uses them by itself (PH.skillAI is
+// 魂契: the Bone Sentinel's own skills, one at each crest tier (5 / 10 / 15 / 20 战魂 stacks, lost with them when it falls). It uses them by itself (PH.skillAI is
 // asked first in its melee thinking); each runs as the 'pskill' state (PH.skillTick), on the style's own Mixamo clips.
 import * as THREE from 'three';
 import { G } from './state.js';
@@ -44,9 +44,10 @@ function start(u, id, t) {
   const st = styleOf(u), mv = MOVES[st][id]; u.skCD = u.skCD || {}; u.skCD[id] = G.t + SK[id].cd;
   u.state = 'pskill'; u.st = 0; u.wantX = u.wantZ = 0; u.sk = { id, mv, st, t: 0, tgt: t, hits: 0 }; faceAt(u, t, true);
   say(u.x, u.z, SK[id].name, '#' + colOf(u).toString(16).padStart(6, '0'), 16, 2.2);
-  if (id === 'charge') { play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.08 }); trail(u, clipDur(mv.clip) / mv.sp); S.swoosh(st === 'GS', 0.15); }
+  if (id === 'charge') { play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.08 }); trail(u, clipDur(mv.clip) / mv.sp); S.swoosh(st === 'GS', mv.hit * clipDur(mv.clip) / mv.sp - 0.02); }
   else if (id === 'guard') { play(u.mesh, mv.clip, { restart: true, fade: 0.12 }); u.guardT = G.t + GUARD_T; u.guardK = 1 - mv.red; S.clank(); guardFx(u); }
-  else if (id === 'whirl') { play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.08 }); trail(u, clipDur(mv.clip) / mv.sp); }
+  else if (id === 'whirl') { play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.08 }); trail(u, clipDur(mv.clip) / mv.sp);
+    for (const h of mv.hits) S.swoosh(st === 'GS', h * clipDur(mv.clip) / mv.sp - 0.02); }
   else if (id === 'sunder') { play(u.mesh, mv.pre, { once: true, restart: true, speed: mv.preSp, fade: 0.1 }); chargeFx(u); S.raise(); }
   return true;
 }
@@ -55,7 +56,7 @@ function end(u) { u.state = 'idle'; u.sk = null; u.guardT = 0; u.cdT = Math.max(
 // ---------- when to use what ----------
 PH.skillAI = (u, t) => {
   if (u.state !== 'idle' || !u.entry) return false;
-  const L = u.entry.level, cd = u.skCD || {}, has = id => L >= SK[id].at && !(cd[id] > G.t);
+  const L = u.fury || 0, cd = u.skCD || {}, has = id => L >= SK[id].at && !(cd[id] > G.t); // unlocked by its 战魂 stacks
   const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 2.6 + h.r), hurt = u.hp < u.maxHp * 0.6;
   if (hurt && near.length && has('guard')) return start(u, 'guard', near[0]);
   if (near.length >= 3 && has('whirl')) return start(u, 'whirl', t || near[0]);
@@ -84,7 +85,7 @@ PH.skillTick = (u, dt) => {
   } else if (sk.id === 'guard') {
     if (!sk.counter) { const n = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 4).sort((a, b) => dist(a, u) - dist(b, u))[0]; if (n) faceAt(u, n);
       if (sk.t >= GUARD_T || G.t > u.guardT) { u.guardT = 0; sk.counter = true; sk.ct = 0; sk.cHit = 0.38; const L = clipDur(mv.counter);
-        play(u.mesh, mv.counter, { once: true, restart: true, speed: Math.max(0.8, Math.min(2.6, L * mv.chit / sk.cHit)), fade: 0.08 }); trail(u, 0.8); S.swoosh(sk.st === 'GS', 0.2); sk.cLen = L / Math.max(0.8, Math.min(2.6, L * mv.chit / sk.cHit)); } }
+        play(u.mesh, mv.counter, { once: true, restart: true, speed: Math.max(0.8, Math.min(2.6, L * mv.chit / sk.cHit)), fade: 0.08 }); trail(u, 0.8); S.swoosh(sk.st === 'GS', sk.cHit - 0.02); sk.cLen = L / Math.max(0.8, Math.min(2.6, L * mv.chit / sk.cHit)); } }
     else { sk.ct += dt; if (!sk.hits && sk.ct >= sk.cHit) { sk.hits = 1; arcHit(u, u.range + u.r + 0.6, 1.0, 1.5, { knock: 2.6, stun: 0.6 }); } if (sk.ct >= Math.min(sk.cLen * 0.8, sk.cHit + 0.45)) end(u); }
   } else if (sk.id === 'whirl') {
     const L = clipDur(mv.clip), len = L / mv.sp;
@@ -93,7 +94,7 @@ PH.skillTick = (u, dt) => {
   } else if (sk.id === 'sunder') {
     if (!sk.strike) { if (t) faceAt(u, t);
       if (sk.t >= mv.preT) { sk.strike = true; sk.st0 = sk.t; const L = clipDur(mv.clip), sp = Math.max(0.6, Math.min(2.5, L * mv.hit / 0.42)); sk.tHit = L * mv.hit / sp; sk.len = L / sp;
-        play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06 }); trail(u, sk.len); S.swoosh(true, Math.max(0, sk.tHit - 0.24)); } }
+        play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06 }); trail(u, sk.len); S.swoosh(sk.st === 'GS', sk.tHit - 0.02); } }
     else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; sunderHit(u, mv); } if (s >= Math.min(sk.len * 0.8, sk.tHit + 0.6)) end(u); }
   }
 };
@@ -111,12 +112,12 @@ function chargeHit(u, mv) {
     if (n) S.blade(true, false); S.smash(); shake(0.14, fx, fz); burst(fx, 0.3, fz, colOf(u), 1.8); shock(fx, fz, colOf(u), mv.aoe, 0.45);
     C.parts.emit(fx, 0.2, fz, 22, { col: 0xb8a890, spd: 3.2, up: 1.6, life: 0.55, size: 0.3, grav: 6 });
   } else { // sword & shield: the first in the way is knocked down
-    const n = arcHit(u, u.range + u.r + 0.7, 0.6, mv.mult, { knock: 3.2, stun: mv.stun }); shake(0.08, fx, fz); burst(fx, 0.9, fz, colOf(u), 1.1); if (!n) S.swoosh(false); }
+    arcHit(u, u.range + u.r + 0.7, 0.6, mv.mult, { knock: 3.2, stun: mv.stun }); shake(0.08, fx, fz); burst(fx, 0.9, fz, colOf(u), 1.1); }
 }
 function whirlHit(u, mv) {
   let n = 0, cr = false; for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > 2.7 + h.r) continue; const crit = Math.random() < 0.12; cr = cr || crit;
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 2, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); n++; }
-  S.swoosh(styleOf(u) === 'GS'); if (n) S.blade(styleOf(u) === 'GS', cr); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
+  if (n) S.blade(styleOf(u) === 'GS', cr); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
   for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; C.parts.emit(u.x + Math.cos(a) * 2, 0.7, u.z + Math.sin(a) * 2, 1, { col: colOf(u), spd: 0.8, up: 0.4, grav: 0, life: 0.35, size: 0.2, spread: 0.1 }); }
 }
 function sunderHit(u, mv) {

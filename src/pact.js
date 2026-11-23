@@ -7,13 +7,13 @@ import * as THREE from 'three';
 import { G, save, PACT } from './state.js';
 import { tr } from './i18n.js';
 import { C, PH, say, damage, hostilesOf, removeCorpse, soulOrb, spawnAlly } from './units.js';
-import { A, play, plumeTier } from './assets.js';
+import { A, play, PLUME_AT } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
 import { S, loadSamples } from './audio.js';
 import { SKILLS } from './pactskills.js';
-if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2']);
+if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2']);
 
 // ---------- tunables ----------
 export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1 };
@@ -48,7 +48,7 @@ function makeEntry() {
 // ---------- hooks the unit code calls (see PH in units.js) ----------
 PH.stats = u => {
   const en = u.entry, W = SETS[en.wset] || SETS.SNS, b = heroBase(en.level, P8.stacks, en.wset);
-  Object.assign(u, b); u.range = W.range; u.r = 0.42; u.windup = W.wind; u.noStun = true; u.taunt = true; u.tauntR = 6; u.pact = true;
+  Object.assign(u, b); u.range = W.range; u.r = 0.42; u.windup = W.wind; u.noStun = true; u.taunt = true; u.tauntR = 6; u.pact = true; u.fury = P8.stacks; // (crest and skills go by it)
 };
 PH.name = () => heroName();
 // a swing: the target and whatever else stands in the arc in front (narrow for the sword, wide for the greatsword)
@@ -80,7 +80,11 @@ PH.kill = (u, v) => {
   const f = u.hp / u.maxHp; u.stats(); u.hp = Math.min(u.maxHp, u.maxHp * f + u.maxHp * 0.08);
   S.level(); C.parts.emit(u.x, 1.0, u.z, 26, { col: 0xffd27a, spd: 1.8, up: 3, life: 0.9, size: 0.28, grav: -1.2 }); C.parts.emit(u.x, 0.6, u.z, 16, { col: 0x8ff7ea, spd: 1.2, up: 2, life: 0.7, size: 0.24, grav: -1 });
   say(u.x, u.z, tr(`战魂 ${P8.stacks}`, `Fury ${P8.stacks}`), '#ffd27a', 17, 2.3);
-  if (P8.stacks % 5 === 0) { shock(u.x, u.z, 0xffd27a, 2.4); C.say(tr(`骸骨卫士 战魂 ${P8.stacks} 层：伤害 +${P8.stacks * 6}%，攻速 +${P8.stacks * 4}%`, `Bone Sentinel at ${P8.stacks} Fury: +${P8.stacks * 6}% damage, +${P8.stacks * 4}% attack speed`)); }
+  // every 5 stacks up to 20: the crest changes colour and a skill wakes (both gone again when it falls)
+  for (let s = P8.stacks - up + 1; s <= P8.stacks; s++) { const k = PLUME_AT.indexOf(s), sk = SKILLS.find(q => q.at === s);
+    if (k >= 0) { shock(u.x, u.z, 0xffd27a, 2.8); C.say(tr(['骸骨卫士的鬃毛染上了幽蓝', '骸骨卫士的鬃毛化为鎏金', '骸骨卫士的鬃毛燃起紫焰', '骸骨卫士的鬃毛燃起赤焰'][k],
+      ['The Sentinel\'s crest turns azure', 'The Sentinel\'s crest turns to gold', 'The Sentinel\'s crest kindles violet fire', 'The Sentinel\'s crest bursts into crimson fire'][k]) + (sk ? tr(` · 觉醒技能 ${sk.icon} ${sk.name}`, ` · it wakes ${sk.icon} ${sk.name}`) : ''), true); }
+    else if (s % 5 === 0) { shock(u.x, u.z, 0xffd27a, 2.4); C.say(tr(`骸骨卫士 战魂 ${s} 层：伤害 +${s * 6}%，攻速 +${s * 4}%`, `Bone Sentinel at ${s} Fury: +${s * 6}% damage, +${s * 4}% attack speed`)); } }
   save();
 };
 // it falls: every stack is gone; summon it again
@@ -157,9 +161,6 @@ export function pactTick(dt) {
 // spend 魂能 on the summon skill; a skeleton already out gets the new level at once (keeps its stacks)
 export function levelUp() {
   const c = lvlCost(P8.lvl); if (G.soul < c) return false; G.soul -= c; P8.lvl++;
-  if (plumeTier(P8.lvl) > plumeTier(P8.lvl - 1)) C.say(tr(['', '骸骨卫士的鬃毛染上了幽蓝', '骸骨卫士的鬃毛化为鎏金', '骸骨卫士的鬃毛燃起紫焰', '骸骨卫士的鬃毛燃起赤焰'][plumeTier(P8.lvl)],
-    ['', 'The Sentinel\'s crest turns azure', 'The Sentinel\'s crest turns to gold', 'The Sentinel\'s crest kindles violet fire', 'The Sentinel\'s crest bursts into crimson fire'][plumeTier(P8.lvl)]), true);
-  for (const s of SKILLS) if (s.at === P8.lvl) C.say(tr(`习得技能：${s.icon} ${s.name}`, `New skill: ${s.icon} ${s.name}`), true);
   const u = heroUnit(); if (u) { u.entry.level = P8.lvl; u.level = P8.lvl; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; C.parts.emit(u.x, 0.9, u.z, 30, { col: 0x8ff7ea, spd: 1.6, up: 3, life: 0.9, size: 0.28, grav: -1 }); }
   S.level(); save(); return true;
 }
