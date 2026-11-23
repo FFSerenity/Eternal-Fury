@@ -176,10 +176,11 @@ export function heroClip(n, set) {
   if (C[p + n]) return p + n; if (C[n]) return n;
   if (/Death|Die/.test(n)) return pick(p + 'Death', 'Dead');
   if (/Attack|Chop|Slice|Stab|Spin|Melee/.test(n)) return pick(p + 'Atk1', 'Attack');
-  if (/Running|Run/.test(n)) return pick(p + 'Run', 'Running');
-  if (/Walk/.test(n)) return pick(p + 'Walk', 'Walking');
+  // moving and standing: the plain walk cycle whatever it holds — no guard stance (the styles' guarded idle / walk / run wait for a defence skill)
+  if (/Running|Run/.test(n)) return pick('Running');
+  if (/Walk/.test(n)) return pick('Walking');
   if (/Hit/.test(n)) return null; // no flinch: keep what's playing (it shrugs hits off)
-  return pick(p + 'Idle', 'Idle');
+  return pick('Idle');
 }
 // the model came with open, spread hands: curl the fingers into a fist (in the rest pose, so every clone has it) and keep the clips
 // off the finger bones. The auto-rig hung some fingers on a palm bone (Bone_024 / Bone_019, reparented under the hands at build time),
@@ -272,7 +273,27 @@ function heroGrip(model, side, name, u, outline) {
   g.scale.setScalar(fit.len / (box.max.y - box.min.y) / bone.getWorldScale(new V()).x);
   g.position.copy(bone.worldToLocal(at.clone()));
   g.quaternion.copy(bone.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(W));
+  g.userData.q0 = g.quaternion.clone(); g.userData.tip = fit.len * box.max.y / (box.max.y - box.min.y); // world length from the grip to the point
   bone.add(g); return g;
+}
+// after the skeleton is posed each frame: a blade never sinks into the floor, and out of a swing the greatsword is dragged along the
+// ground behind it (tip on the floor, a little to its right; sparks while it walks) instead of hanging straight down through it
+const _V = THREE.Vector3, _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
+export function heroWeaponPose(u, dt, emit) {
+  const m = u.mesh, g = m.weap && m.weap.r; if (!g || !g.userData.q0) return;
+  const swing = /Atk|Death|Dead|Rise|Dodge/.test(m.curName || '') && m.cur && m.cur.isRunning(), drag = m.wset === 'GS' && !swing && !(u.spawnT > 0) ? 1 : 0;
+  m.dragW = (m.dragW ?? drag) + (drag - (m.dragW ?? drag)) * Math.min(1, dt * 8);
+  g.quaternion.copy(g.userData.q0); g.updateMatrixWorld(true); g.getWorldPosition(_p); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.userData.q0);
+  _ax.copy(_up).applyQuaternion(_qw); _d.copy(_ax);
+  const L = g.userData.tip, floor = m.root.position.y + 0.04;
+  if (m.dragW > 0.002) { const f = u.face, h = Math.max(0.05, _p.y - floor), hor = Math.sqrt(Math.max(0.0025, L * L - h * h)), bx = -Math.sin(f) * 0.85 - Math.cos(f) * 0.45, bz = -Math.cos(f) * 0.85 + Math.sin(f) * 0.45, bl = Math.hypot(bx, bz);
+    const tx = bx / bl * hor, tz = bz / bl * hor, ty = L > h ? -h : -L * 0.97, tl = Math.hypot(tx, ty, tz);
+    _d.lerp(new _V(tx / tl, ty / tl, tz / tl), m.dragW).normalize(); }
+  const tipY = _p.y + _d.y * L; // the floor stops the blade
+  if (tipY < floor) { const y = Math.max(-1, (floor - _p.y) / L), hl = Math.hypot(_d.x, _d.z) || 1, k = Math.sqrt(1 - y * y) / hl; _d.set(_d.x * k, y, _d.z * k); }
+  if (_d.distanceToSquared(_ax) > 1e-6) { _qr.setFromUnitVectors(_ax, _d); g.quaternion.copy(_qh.invert().multiply(_qr.multiply(_qw))); }
+  if (emit && m.dragW > 0.7 && Math.hypot(u.vx, u.vz) > 0.6 && Math.random() < dt * 14) { const x = _p.x + _d.x * L, z = _p.z + _d.z * L;
+    emit(x, floor + 0.02, z, Math.random() < 0.6 ? { col: 0xffb35a, spd: 1.4, up: 1.2, grav: 6, life: 0.3, size: 0.09 } : { col: 0x9a8f86, spd: 0.4, up: 0.4, grav: 0, life: 0.6, size: 0.22 }); }
 }
 export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current

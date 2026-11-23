@@ -4,7 +4,7 @@ import { G, save, bagPut, PACT } from './state.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
 import { auraMat, glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
-import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo } from './assets.js';
+import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose } from './assets.js';
 import { slash, impact, burst, shake, trail, spinFx, slamMark, debris, shieldDome, domeHit, domeEnd, empWave } from './fx.js';
 import { S } from './audio.js';
 import { runeCircle } from './vfx.js';
@@ -97,7 +97,7 @@ export function damage(src, dst, amt, o = {}) {
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
   dst.hp -= d; dst.flash = Math.max(dst.flash || 0, o.heavy || o.crit ? 1 : o.sum ? 0.5 : 0.75); dst.barT = 3; dst.lastHit = G.t;
-  if (o.knock && !(dst.deployT > 0)) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
+  if (o.knock && !(dst.deployT > 0) && !dst.pact) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
   if (dst.kind !== 'player' && !dst.noStun && !(dst.deployT > 0) && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
   if (dst.kind === 'player') { S.hurt(); if (d > dst.maxHp * 0.08) shake(0.06); } else if (!o.dot && !o.sum) S.hit(Math.min(1, d / 20));
@@ -775,7 +775,9 @@ export function integrate(units, dt) {
     for (let j = i + 1; j < units.length; j++) { const b = units[j]; if (b.dead || b.state === 'leap' || b.state === 'rocket') continue; const dx = b.x - a.x, dz = b.z - a.z, rr = (a.r + b.r) * (a.side !== 'enemy' && b.side !== 'enemy' ? 0.45 : 1); if (Math.abs(dx) > rr || Math.abs(dz) > rr) continue;
       const d = Math.hypot(dx, dz); if (d >= rr || d < 1e-5) continue; const push = (rr - d) * 0.5, nx = dx / d, nz = dz / d;
       const pa = a.kind === 'player' && b.side === 'ally', pb = b.kind === 'player' && a.side === 'ally';
-      const wa = pa ? 0 : pb ? 1 : a.kind === 'player' ? 0.3 : a.kind === 'brute' ? 0.6 : 1, wb = pb ? 0 : pa ? 1 : b.kind === 'player' ? 0.3 : b.kind === 'brute' ? 0.6 : 1, sw = wa + wb;
+      let wa = pa ? 0 : pb ? 1 : a.kind === 'player' ? 0.3 : a.kind === 'brute' ? 0.6 : 1, wb = pb ? 0 : pa ? 1 : b.kind === 'player' ? 0.3 : b.kind === 'brute' ? 0.6 : 1;
+      if (a.pact) { wa = 0; wb = 1; } else if (b.pact) { wb = 0; wa = 1; } // the 魂契 skeleton is never shoved (not even by the summoner)
+      const sw = wa + wb;
       a.x -= nx * push * 2 * wa / sw; a.z -= nz * push * 2 * wa / sw; b.x += nx * push * 2 * wb / sw; b.z += nz * push * 2 * wb / sw; } }
   for (const u of units) { if (u.dead) continue;
     u.x += (u.vx + u.kx) * dt; u.z += (u.vz + u.kz) * dt; const kd = Math.exp(-dt * 7); u.kx *= kd; u.kz *= kd; F.collide(u);
@@ -796,6 +798,7 @@ export function integrate(units, dt) {
     // animation level of detail: far units update their skeleton every other frame
     if (u.hitStop > 0) { u.hitStop -= dt; continue; } // hit-stop: the pose holds for a few frames
     u.mixAcc += dt * (u.chillT > 0 ? 0.6 : 1); if (Math.hypot(u.x - camX, u.z - camZ) > 13 && (frame + u.id) % 2) continue; m.mixer.update(u.mixAcc); u.mixAcc = 0;
+    if (m.hero) heroWeaponPose(u, dt, (x, y, z, o) => C.parts.emit(x, y, z, 1, o));
   }
 }
 export function updateCorpses(dt) {
@@ -864,8 +867,8 @@ function animate(u, dt, sp) {
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
-  if (m.hero) { const run = sp > 2.6, ref = run ? (m.wset === 'GS' ? 4.5 : 4.3) : (m.wset === 'GS' ? 1.15 : 1.55); // its own strides (world m/s)
-    if (sp > 0.35) play(m, run ? a.run : a.walk, { speed: Math.max(0.55, Math.min(1.8, sp / ref)), fade: 0.18 }); else play(m, a.idle, { fade: 0.22 }); return; }
+  if (m.hero) { const run = sp > 3.2, ref = run ? 4.64 : 1.79; // the plain Meshy walk / run (strides measured from the planted foot, world m/s)
+    if (sp > 0.35) play(m, run ? 'Running' : 'Walking', { speed: Math.max(0.6, Math.min(1.9, sp / ref)), fade: 0.2 }); else play(m, 'Idle', { fade: 0.25 }); return; }
   const k = CHARS[u.kind].scale * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }
   else play(m, a.idle, { fade: 0.22 });

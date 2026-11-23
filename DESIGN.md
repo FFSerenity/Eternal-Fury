@@ -69,6 +69,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3. Skill level L → L+1 costs 10·L^1.45.
 - Skeleton at level L: life (230 + 40(L−1)) × style, damage (16 + 4.5(L−1)) × style, armour 18 + 3(L−1) + style; taunts within 6 m; never staggered.
   Sword & Shield: life ×1.3, armour +14, evasion 32%, attack every ~1.4 s, narrow arc. Greatsword: damage ×1.5, evasion 16%, ~2 s, wide arc, knock-back.
+- Bearing: it walks and stands with a plain, loose walk cycle (no guard stance — that waits for a defence skill), straight into its swings;
+  the greatsword drags along the floor behind it (sparks), and no blade sinks into the ground. It cannot be shoved or knocked back by anyone.
 - The summoner's Bone Spear does half damage here and the summoner levels at 60% speed: support, heal (Mend), harvest.
 - Not yet: the skeleton wearing gear (drops / bag / forge still work), more weapon styles (axe, spear, mace are modelled), skills of its own,
   a second skeleton, using the extracted root motion (lunges / leaps that travel).
