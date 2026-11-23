@@ -49,7 +49,7 @@ function ensure(u) {
 function dropDrone(D, fall) {
   if (D.link) { C.scene.remove(D.link); D.link = null; }
   if (!fall) { C.scene.remove(D.g); return; }
-  const y0 = D.g.position.y; G.fx.push({ t: 0.45, tick: k => { D.g.position.y = Math.max(0.1, y0 * (1 - k * k)); D.g.rotation.z = k * 2.5; },
+  const y0 = D.g.position.y; G.fx.push({ end: () => C.scene.remove(D.g), t: 0.45, tick: k => { D.g.position.y = Math.max(0.1, y0 * (1 - k * k)); D.g.rotation.z = k * 2.5; },
     fn: () => { C.scene.remove(D.g); if (C.parts) C.parts.emit(D.g.position.x, 0.2, D.g.position.z, 8, { col: 0xffd080, spd: 2.5, up: 1.5, grav: 8, life: 0.35, size: 0.12 }); } });
 }
 export function clearDrones(u, fall = false) { const d = u.dr; if (!d) return; for (const D of d.list) dropDrone(D, fall); if (d.rep) dropDrone(d.rep, fall); u.dr = null; }
@@ -152,9 +152,9 @@ function fireStrike(s) {
   const col = new THREE.Group(); col.position.set(x, 8, z); C.scene.add(col);
   const mk = (rad, c, op) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 16, 24, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 3; col.add(m); return m; };
   const shell = mk(R * 0.55, 0xff6a88, 0.4), core = mk(R * 0.22, 0xffffff, 0.9);
-  G.fx.push({ t: 0.55, tick: k => { const e = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85; shell.scale.set(0.4 + 0.8 * e, 1, 0.4 + 0.8 * e); core.scale.set(0.2 + 0.9 * e, 1, 0.2 + 0.9 * e);
+  G.fx.push({ clean: true, t: 0.55, tick: k => { const e = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85; shell.scale.set(0.4 + 0.8 * e, 1, 0.4 + 0.8 * e); core.scale.set(0.2 + 0.9 * e, 1, 0.2 + 0.9 * e);
     shell.material.opacity = 0.4 * e; core.material.opacity = 0.9 * e; }, fn: () => { C.scene.remove(col); shell.geometry.dispose(); core.geometry.dispose(); } });
-  const wv = ring(0.3, 0.6, 0xffc0cc, 0.9); wv.position.set(x, 0.07, z); C.scene.add(wv); G.fx.push({ t: 0.45, tick: k => { wv.scale.setScalar(1 + k * R * 2.2); wv.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(wv) });
+  const wv = ring(0.3, 0.6, 0xffc0cc, 0.9); wv.position.set(x, 0.07, z); C.scene.add(wv); G.fx.push({ clean: true, t: 0.45, tick: k => { wv.scale.setScalar(1 + k * R * 2.2); wv.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(wv) });
   if (C.parts) { C.parts.emit(x, 0.3, z, 30, { col: 0xffd0d8, spd: 5.5, up: 1.4, life: 0.5, size: 0.24 }); C.parts.emit(x, 0.4, z, 18, { col: 0xffffff, spd: 1.2, up: 6, grav: 4, life: 0.7, size: 0.2 });
     C.parts.emit(x, 0.5, z, 14, { col: 0x3a3442, spd: 1.4, up: 1.4, grav: -0.5, life: 1.0, size: 0.45 }); }
   const dmg = src.dmg * (2.4 + 0.5 * r);

@@ -60,6 +60,9 @@ function makeFloor(depth) {
   if (G.player && G.player.chanFx) endChannel(G.player);
   for (const u of G.units) if (u.side !== 'player') u.remove(); for (const c of G.corpses) scene.remove(c.mesh.root); for (const s of G.shots) scene.remove(s.root);
   for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = []; for (const c of G.clouds) scene.remove(c.disc); G.clouds = []; G.bolts = []; for (const L of G.loot) scene.remove(L.root); G.loot = [];
+  // timed effects still running: take their scene objects away (an effect's fn may also do gameplay — a blast, a drop — so only those
+  // marked clean, whose fn just removes things, or with their own end(), are run; the rest are dropped)
+  for (const f of G.fx) { if (f.end) f.end(); else if (f.clean && f.fn) f.fn(); }
   G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
   if (G.floor) G.floor.dispose(scene); clearFx(); clearTechFx();
   const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; if (depth > 0) G.deep = depth;
@@ -155,7 +158,7 @@ function updatePlayer(dt) {
         P.chanFx = new SoulChannel(scene, P, list, R); S.raise(); return; } } }
   // 愈合
   if (IN.mend) { IN.mend = false; if (P.mendCD > 0) message(tr('愈合冷却中', 'Mend is cooling down')); else if (P.mp < SKILLS.mend.mana) message(tr('法力不足', 'Not enough mana')); else { P.mp -= SKILLS.mend.mana; P.mendCD = SKILLS.mend.cd; S.heal(); playerAnim(P, 'mend');
-    const rg = ring(0.3, 0.6, 0x7dff9a, 0.9); rg.position.set(P.x, 0.05, P.z); scene.add(rg); G.fx.push({ t: 0.5, tick: k => { rg.scale.setScalar(1 + k * 14); rg.material.opacity = 0.9 * (1 - k); }, fn: () => scene.remove(rg) });
+    const rg = ring(0.3, 0.6, 0x7dff9a, 0.9); rg.position.set(P.x, 0.05, P.z); scene.add(rg); G.fx.push({ clean: true, t: 0.5, tick: k => { rg.scale.setScalar(1 + k * 14); rg.material.opacity = 0.9 * (1 - k); }, fn: () => scene.remove(rg) });
     for (const f of G.friends) { if (Math.hypot(f.x - P.x, f.z - P.z) > 9) continue; const h = f.maxHp * (f === P ? 0.12 : 0.3); f.hp = Math.min(f.maxHp, f.hp + h); say(f.x, f.z, '+' + Math.round(h), '#7dff9a', 15);
       parts.emit(f.x, 0.6, f.z, 10, { col: 0x7dff9a, spd: 0.8, up: 2.5, life: 0.8, grav: -1 }); } } }
   // attacks

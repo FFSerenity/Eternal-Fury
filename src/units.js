@@ -131,11 +131,11 @@ function kill(u, src) {
   }
 }
 function fadeOut(u) { const m = u.mesh; play(m, ANIM[u.kind].die, { once: true, speed: 1.3, fade: 0.08 }); if (u.ringMesh) m.root.remove(u.ringMesh); let lk = 0;
-  G.fx.push({ t: 1.4, tick: (k) => { m.mixer.update((k - lk) * 1.4); lk = k; m.u.uFade.value = Math.min(1, (1 - k) * 2.2); for (const gs of m.glows) gs.material.opacity = 0.85 * Math.min(1, (1 - k) * 2.2); }, fn: () => u.remove() }); }
+  G.fx.push({ clean: true, t: 1.4, tick: (k) => { m.mixer.update((k - lk) * 1.4); lk = k; m.u.uFade.value = Math.min(1, (1 - k) * 2.2); for (const gs of m.glows) gs.material.opacity = 0.85 * Math.min(1, (1 - k) * 2.2); }, fn: () => u.remove() }); }
 function fireBlast(u) {
   S.boom(); C.parts.emit(u.x, 0.4, u.z, 40, { col: 0xff8a2a, spd: 5, up: 2, life: 0.7, size: 0.35 }); burst(u.x, 0.6, u.z, 0xff9a40, 3.2); shake(0.2, u.x, u.z);
   const rg = ring(0.2, 0.5, 0xff7a20, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
-  G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * 5); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
+  G.fx.push({ clean: true, t: 0.45, tick: k => { rg.scale.setScalar(1 + k * 5); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
   const lv = mlv(u, 'fire'); for (const h of (u.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && dist(h, u) < 2.4 + 0.3 * (lv - 1)) damage(u, h, u.dmg * 1.6 * (1 + 0.4 * (lv - 1)), { knock: 3, fx: u.x, fz: u.z, noFx: true });
 }
 // ---------- loot on the ground: glows in its quality colour (rare items get a light beam), walk over it to pick it up ----------
@@ -153,7 +153,7 @@ export function dropLoot(it, x, z) {
 export function openCoffin() {
   const F = C.floor, c = F && F.coffin, P = G.player; if (!c || G.egg) return; G.egg = 1;
   C.parts.emit(c.x, 0.4, c.z, 46, { col: 0xb46cff, spd: 2.6, up: 3.2, life: 1.1, size: 0.34 }); C.parts.emit(c.x, 0.5, c.z, 24, { col: 0xffe6a0, spd: 1.8, up: 2.4, life: 0.8, size: 0.2 });
-  const rg = ring(0.2, 1.6, 0xb46cff, 0.8); rg.position.set(c.x, 0.05, c.z); C.scene.add(rg); G.fx.push({ t: 0.8, tick: k => { rg.scale.setScalar(0.4 + k * 1.6); rg.material.opacity = 0.8 * (1 - k); }, fn: () => C.scene.remove(rg) });
+  const rg = ring(0.2, 1.6, 0xb46cff, 0.8); rg.position.set(c.x, 0.05, c.z); C.scene.add(rg); G.fx.push({ clean: true, t: 0.8, tick: k => { rg.scale.setScalar(0.4 + k * 1.6); rg.material.opacity = 0.8 * (1 - k); }, fn: () => C.scene.remove(rg) });
   S.raise(); C.say(tr('棺材里藏着什么……', 'Something was hidden in the coffin…'), true);
   const s = F.snapToward(c.x + (P.x - c.x) * 0.4, c.z + (P.z - c.z) * 0.4, P.x, P.z) || { x: P.x, z: P.z };
   const gun = makeGun(G.uid++); G.fx.push({ t: 0.45, fn: () => dropLoot(gun, s.x, s.z) }); save();
@@ -194,7 +194,7 @@ function deathBlast(u, delay) {
     else if (m === 'poison') G.fx.push({ t: d, fn: () => poisonCloud(u) });
     else if (m === 'lightning') G.fx.push({ t: d, fn: () => thunder(u) }); });
 }
-function shock(u, col, r) { const rg = ring(0.2, 0.5, col, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg); G.fx.push({ t: 0.45, tick: k => { rg.scale.setScalar(1 + k * r * 2); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) }); }
+function shock(u, col, r) { const rg = ring(0.2, 0.5, col, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg); G.fx.push({ clean: true, t: 0.45, tick: k => { rg.scale.setScalar(1 + k * r * 2); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) }); }
 function frostNova(u) {
   S.frost(); C.parts.emit(u.x, 0.4, u.z, 36, { col: 0xcfeeff, spd: 5, up: 1.5, grav: 3, life: 0.6, size: 0.28 }); shock(u, 0x7cc8ff, 3);
   const lv = mlv(u, 'cold'); for (const h of hostilesOf(u)) if (!h.dead && dist(h, u) < 3.2 + 0.4 * (lv - 1)) { damage(u, h, u.dmg * 0.9 * (1 + 0.4 * (lv - 1)), { noFx: true }); h.chillT = Math.max(h.chillT || 0, 3.5 + lv - 1); }
@@ -270,7 +270,7 @@ export function updateGhosts(dt) {
         if (!g.sent) { g.sent = true; S.raise(); C.parts.emit(g.x, 0.7, g.z, 22, { col: 0x6ff7e8, spd: 1.2, up: 2.5, life: 0.7, size: 0.28, grav: -1.5 });
           soulOrb(g.x, 1.0, g.z, () => G.player, () => { const P = G.player; S.caught(); P.flash = 0.5;
             C.parts.emit(P.x, 0.9, P.z, 30, { col: 0x6ff7e8, spd: 2.2, up: 1.5, life: 0.6, size: 0.25, grav: 0 });
-            const rg = ring(0.25, 0.45, 0x6ff7e8, 0.9); rg.position.set(P.x, 0.05, P.z); C.scene.add(rg); G.fx.push({ t: 0.45, tick: q => { rg.scale.setScalar(1 + q * 3); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) }); }); }
+            const rg = ring(0.25, 0.45, 0x6ff7e8, 0.9); rg.position.set(P.x, 0.05, P.z); C.scene.add(rg); G.fx.push({ clean: true, t: 0.45, tick: q => { rg.scale.setScalar(1 + q * 3); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) }); }); }
         if (k >= 1) { C.scene.remove(m.root); continue; } } }
     else if (g.orb) { const to = g.to(), k = Math.min(1, g.t / g.fly), e = k * k * (3 - 2 * k);
       if (!to || to.dead) { C.scene.remove(g.orb); continue; }
@@ -496,8 +496,8 @@ function explodeNade(n) {
   C.parts.emit(x, 0.4, z, n.mini ? 14 : 34, { col: 0xff9a3a, spd: n.mini ? 3 : 5.5, up: 2.2, life: 0.55, size: n.mini ? 0.26 : 0.38 });
   C.parts.emit(x, 0.5, z, n.mini ? 6 : 16, { col: 0xb46cff, spd: n.mini ? 2.5 : 4, up: 2.5, life: 0.7, size: 0.26 });
   C.parts.emit(x, 0.6, z, n.mini ? 4 : 12, { col: 0x3a3442, spd: 1.2, up: 1.6, grav: -0.6, life: 1.1, size: 0.45 });
-  const fl = glowSprite(0xffb050, R * 2.2, 0.9); fl.position.set(x, 0.6, z); C.scene.add(fl); G.fx.push({ t: 0.28, tick: k => { fl.material.opacity = 0.9 * (1 - k); fl.scale.setScalar(R * 2.2 * (0.7 + 0.6 * k)); }, fn: () => C.scene.remove(fl) });
-  const rg = ring(0.2, 0.5, n.mini ? 0xffa040 : 0xc77dff, 0.9); rg.position.set(x, 0.05, z); C.scene.add(rg); G.fx.push({ t: 0.4, tick: k => { rg.scale.setScalar(1 + k * R * 1.8); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
+  const fl = glowSprite(0xffb050, R * 2.2, 0.9); fl.position.set(x, 0.6, z); C.scene.add(fl); G.fx.push({ clean: true, t: 0.28, tick: k => { fl.material.opacity = 0.9 * (1 - k); fl.scale.setScalar(R * 2.2 * (0.7 + 0.6 * k)); }, fn: () => C.scene.remove(fl) });
+  const rg = ring(0.2, 0.5, n.mini ? 0xffa040 : 0xc77dff, 0.9); rg.position.set(x, 0.05, z); C.scene.add(rg); G.fx.push({ clean: true, t: 0.4, tick: k => { rg.scale.setScalar(1 + k * R * 1.8); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) });
   for (const h of hostilesOf(src)) if (!h.dead && Math.hypot(h.x - x, h.z - z) < R + h.r) damage(src, h, n.dmg * rand(0.9, 1.1), { knock: n.mini ? 0.8 : 2.2, fx: x, fz: z, noFx: true });
   for (let i = 0; i <= n.cl && n.cl; i++) { const a = rand(0, TAU), d = rand(1.2, 2.3); let tx = x + Math.cos(a) * d, tz = z + Math.sin(a) * d; if (!C.floor.walk(tx, tz)) { tx = x + Math.cos(a) * 0.6; tz = z + Math.sin(a) * 0.6; }
     launchNade(src, { x: tx, z: tz }, { mini: true, x, z, y: 0.4, dmg: n.dmg * (n.shell ? 0.4 : 0.45) }); }
@@ -511,7 +511,7 @@ function deploy(u) {
   S.clank(); C.parts.emit(u.x, 0.3, u.z, 20, { col: 0xc9b38a, spd: 2, up: 1.2, life: 0.5, size: 0.25 }); say(u.x, u.z, tr('架起！', 'Dig in!'), '#d9a8ff', 14, 1.0);
 }
 function undeployVis(u) { const d = u.dep; if (!d) return; u.dep = null; const root = u.mesh.root;
-  G.fx.push({ t: 0.3, tick: k => { d.rc.material.opacity = 0.55 * (1 - k); }, fn: () => { root.remove(d.rc); } }); }
+  G.fx.push({ clean: true, t: 0.3, tick: k => { d.rc.material.opacity = 0.55 * (1 - k); }, fn: () => { root.remove(d.rc); } }); }
 function undeploy(u) { u.deployT = 0; undeployVis(u); }
 const TR = [], trGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5), trMat = new THREE.MeshBasicMaterial({ color: 0xffc35a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
 function tracer(x0, y0, z0, x1, y1, z1) { const m = new THREE.Mesh(trGeo, trMat); m.renderOrder = 3; C.scene.add(m); const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0) || 0.01;
@@ -632,7 +632,7 @@ function updateLeap(u, dt) {
   if (u.st >= u.t1 && !u.landed) { u.landed = true; u.y = 0; S.smash(); shake(0.15, u.x, u.z); burst(u.x, 0.35, u.z, 0x9ff8ee, 2.4); u.hitStop = 0.08; slamMark(u.x, u.z);
     C.parts.emit(u.x, 0.15, u.z, 26, { col: 0xc8bca8, spd: 4, up: 1.2, life: 0.55, size: 0.32 }); C.parts.emit(u.x, 0.3, u.z, 12, { col: 0x6ff7e8, spd: 3, up: 1.5, life: 0.5, size: 0.25 });
     const rg = ring(0.3, 0.55, 0x6ff7e8, 0.9); rg.position.set(u.x, 0.05, u.z); C.scene.add(rg);
-    G.fx.push({ t: 0.4, tick: q => { rg.scale.setScalar(1 + q * 3.6); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) });
+    G.fx.push({ clean: true, t: 0.4, tick: q => { rg.scale.setScalar(1 + q * 3.6); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) });
     const lr = rk(u, 'leap'); for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - u.x, h.z - u.z) > 1.9 + 0.15 * lr + h.r) continue;
       damage(u, h, u.dmg * 0.55 * (1 + 0.12 * lr) * rand(0.9, 1.1), { knock: 3.2, fx: u.x, fz: u.z, heavy: true }); /* a gap closer, not a nuke */ h.stun = Math.max(h.stun, 0.6); if (!h.dead) { h.target = u; h.aggro = true; } } }
   if (u.st >= u.t1 + 0.35) { u.state = 'recover'; u.st = 0.0; u.landed = false; u.y = 0; u.cdT = Math.max(u.cdT, 0.5); }
