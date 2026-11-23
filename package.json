@@ -2,7 +2,7 @@
   "name": "grave-tamer",
   "private": true,
   "scripts": {
-    "build": "esbuild src/main.js --bundle --minify --format=iife --target=es2020 --outfile=game.js"
+    "build": "esbuild src/main.js --bundle --minify --format=iife --target=es2020 --outfile=game.js && node tools/stamp.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",

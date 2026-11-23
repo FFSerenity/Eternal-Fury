@@ -170,8 +170,9 @@ export function makeUnitMesh(kind, o = {}) {
 const HERO_H = 2.25; // world height (realistic proportions are slim: it has to stand a head taller than the chunky KayKit warriors to read as the hero)
 // weapon sets: a prefix on the pack's clip names (SNS_Idle, GS_Atk1 ...) and the weapons held in each hand
 export const HERO_SETS = {
-  SNS: { r: 'sword', l: 'shield', atk: ['SNS_Atk1', 'SNS_Atk2', 'SNS_Atk3'] },
-  GS: { r: 'greatsword', atk: ['GS_Atk1', 'GS_Atk2', 'GS_Atk3'] },
+  // (not SNS_Atk1, a pommel strike, nor GS_Atk1, which swings high over the heads of anything its size)
+  SNS: { r: 'sword', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'] },
+  GS: { r: 'greatsword', atk: ['GS_Atk2', 'GS_Atk3', 'GS_Atk4'] },
 };
 export function heroClip(n, set) {
   const C = A.heroClips, p = set ? set + '_' : '#', pick = (...ks) => ks.find(k => C[k]) || null;
@@ -392,7 +393,8 @@ export function heroWeaponPose(u, dt, emit) {
   plumeTick(u, dt, emit);
   const m = u.mesh, sh = m.weap && m.weap.l; if (sh && sh.userData.q0) shieldHang(sh, dt);
   const g = m.weap && m.weap.r; if (!g || !g.userData.q0) return;
-  const swing = /Atk|Death|Dead|Rise|Dodge/.test(m.curName || '') && m.cur && m.cur.isRunning(), drag = m.wset === 'GS' && !swing && !(u.spawnT > 0) ? 1 : 0;
+  // the greatsword drags only while it stands or walks (any other clip — swings, skills, dodges, death, the rise — carries it)
+  const loco = /^(Stand|Walk_|Run_)/.test(m.curName || '') || !(m.cur && m.cur.isRunning()), drag = m.wset === 'GS' && loco && !(u.spawnT > 0) ? 1 : 0;
   m.dragW = (m.dragW ?? drag) + (drag - (m.dragW ?? drag)) * Math.min(1, dt * 8);
   g.quaternion.copy(g.userData.q0); g.updateMatrixWorld(true); g.getWorldPosition(_p); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.userData.q0);
   _ax.copy(_up).applyQuaternion(_qw); _d.copy(_ax);

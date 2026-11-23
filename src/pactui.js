@@ -5,6 +5,7 @@ import { tr } from './i18n.js';
 import { SETS, SUMMON, heroBase, heroName, heroUnit, stackNeed, lvlCost, levelUp, setStyle, summonK } from './pact.js';
 import { PACE } from './data.js';
 import { plumeTier, PLUME_AT } from './assets.js';
+import { SKILLS } from './pactskills.js';
 
 const $ = s => document.querySelector(s), P8 = G.pact;
 const pct = v => Math.round(v * 100) + '%';
@@ -49,6 +50,8 @@ export function renderPact(force) {
     + `<div class="ds">${tr('生命', 'Life')} ${now.hp} → <b>${nx.hp}</b> · ${tr('伤害', 'Damage')} ${now.dmg} → <b>${nx.dmg}</b></div>`
     + `<button class="btn pup"${G.soul < cost ? ' disabled' : ''} data-act="up">${tr(`强化到 Lv ${L + 1}（${cost} 魂能）`, `Strengthen to Lv ${L + 1} (${cost} soul)`)}</button></div></div>`
     + `<div class="card pcur"><span class="ic">${W.icon}</span><div class="info">${cur}</div></div>`
+    + `<div class="psec">${tr('技能（自动释放）', 'Skills (used on its own)')}</div>` + SKILLS.map(s => `<div class="card pskl${L >= s.at ? ' on' : ''}"><span class="ic">${s.icon}</span><div class="info">`
+      + `<div class="nm">${s.name} <span class="sub">${L >= s.at ? tr(`冷却 ${s.cd} 秒`, `${s.cd} s cooldown`) : tr(`Lv ${s.at} 解锁`, `unlocks at Lv ${s.at}`)}</span></div><div class="ds">${s.desc}</div></div></div>`).join('')
     + `<div class="psec">${tr('武器流派', 'Weapon style')}</div>` + style('SNS') + style('GS')
     + `<div class="cEmpty prules">${tr('骸骨卫士亲手击杀敌人会积攒战魂（精英算 4 次、骷髅战士算 2 次），每层提升伤害、攻速、移速和生命。它倒下时战魂全部清零。<br>唤魂把尸体化成魂能，魂能用来强化召唤。', 'Kills by the Sentinel\'s own hand build Fury (elites count 4, warriors 2): each stack adds damage, attack speed, move speed and life. When it falls, all Fury is lost.<br>Raise turns corpses into soul energy, which strengthens the summon.')}</div>`;
 }

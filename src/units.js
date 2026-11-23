@@ -94,6 +94,7 @@ export function say(x, z, text, col = '#fff', size = 15, y = 1.7, num = 0) { G.m
 export function damage(src, dst, amt, o = {}) {
   if (!dst || dst.dead) return 0;
   if (dst.evade && !o.dot && Math.random() < dst.evade && PH.evade) { PH.evade(src, dst); return 0; } // 魂契 skeleton: evasion
+  if (dst.guardT > G.t && PH.guard && !o.dot) { const k = PH.guard(src, dst, o); if (k <= 0) return 0; amt *= k; } // 魂契 skeleton: its Guard skill
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
@@ -382,7 +383,7 @@ export function updateShots(dt) {
     if (!dead) for (const u of (s.side === 'enemy' ? G.friends : G.enemies)) { if (u.dead || s.hit.has(u)) continue;
       if (Math.hypot(u.x - s.x, u.z - s.z) < u.r + 0.22) { s.hit.add(u);
         if (s.kind === 'fire') { dead = true; break; }
-        damage(s.src, u, s.dmg * rand(0.85, 1.15), { knock: s.kind === 'spear' ? 1.2 : 0 }); impact(s.x, s.y, s.z, s.kind === 'spear' ? 0xbff8ff : s.el ? s.el.col : 0xffe6c0, s.kind === 'spear' ? 0.9 : 0.7); if (s.kind === 'spear') C.parts.emit(s.x, s.y, s.z, 5, { col: 0xe8e0d0, spd: 2, life: 0.3, size: 0.15 }); else if (s.pierce > 0) s.pierce--; else { dead = true; break; } } }
+        damage(s.src, u, s.dmg * rand(0.85, 1.15), { knock: s.kind === 'spear' ? 1.2 : 0, shot: s.kind, fx: s.x - s.vx, fz: s.z - s.vz }); impact(s.x, s.y, s.z, s.kind === 'spear' ? 0xbff8ff : s.el ? s.el.col : 0xffe6c0, s.kind === 'spear' ? 0.9 : 0.7); if (s.kind === 'spear') C.parts.emit(s.x, s.y, s.z, 5, { col: 0xe8e0d0, spd: 2, life: 0.3, size: 0.15 }); else if (s.pierce > 0) s.pierce--; else { dead = true; break; } } }
     if (dead) { if (s.kind === 'fire') { S.boom(); C.parts.emit(s.x, 0.5, s.z, 22, { col: 0xff8a2a, spd: 3, up: 2, life: 0.5, size: 0.3 }); burst(s.x, 0.6, s.z, 0xff9a3a, 1.8); shake(0.035, s.x, s.z);
         for (const u of (s.side === 'enemy' ? G.friends : G.enemies)) if (!u.dead && Math.hypot(u.x - s.x, u.z - s.z) < s.splash + u.r) damage(s.src, u, s.dmg, { knock: 1.5, fx: s.x, fz: s.z }); }
       C.scene.remove(s.root); continue; }
@@ -628,7 +629,7 @@ function allyThink(u, dt) {
   const t = u.target;
   if (u.gun) { if (!gunSkills(u)) { rangedLogic(u, t, dt, 3, 6.5 + (u.deployT > 0 ? 2.5 : 0));
     if (u.deployT > 0 && dp > 3.5 && u.state !== 'windup') seek(u, P.x, P.z, u.speed); } } // braced: keeps up with the summoner, firing as it walks
-  else if (isMelee(u)) { if (u.mech) { aegisSkill(u); if (overloadSkill(u)) return; } if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1 && !u.pact) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
+  else if (isMelee(u)) { if (u.pact && PH.skillAI && PH.skillAI(u, t)) return; if (u.mech) { aegisSkill(u); if (overloadSkill(u)) return; } if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1 && !u.pact) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
   else if (u.mortar) mortarLogic(u, t, dt);
   else if (u.eng) { if (orbitalSkill(u)) return; rangedLogic(u, t, dt, 4.5, 7.5); }
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 3.5, 6.5 + 0.4 * rk(u, 'eagle'));
@@ -764,6 +765,7 @@ export function updateUnit(u, dt) {
   else if (u.state === 'call') updateCall(u, dt);
   else if (u.state === 'leap') updateLeap(u, dt);
   else if (u.state === 'lunge') updateLunge(u, dt);
+  else if (u.state === 'pskill') { if (PH.skillTick) PH.skillTick(u, dt); else u.state = 'idle'; } // 魂契 skeleton's skills (pactskills.js)
   else if (u.state === 'throw') { u.st += dt; u.wantX = u.wantZ = 0; if (!u.thrown && u.st >= u.wind) { u.thrown = true; launchNade(u, u.nadeAt); } if (u.st >= u.wind + 0.3) { u.state = 'idle'; u.thrown = false; } }
   else if (u.state === 'cast') { u.st += dt; u.wantX = u.wantZ = 0;
     if (u.castC) { if (!G.corpses.includes(u.castC)) { u.state = 'idle'; u.castC = null; } else { if (Math.random() < 0.5) C.parts.emit(u.castC.x, 0.3, u.castC.z, 1, { col: 0xc070ff, spd: 0.5, up: 2, life: 0.6, grav: -1 });
@@ -843,8 +845,8 @@ export const ANIM = {
 // fraction of each attack clip at which the blow lands (used to line the swing up with the windup; measured from where the blade moves fastest / reaches furthest)
 const HIT_AT = { '1H_Melee_Attack_Stab': 0.4, '1H_Melee_Attack_Chop': 0.56, '1H_Melee_Attack_Slice_Diagonal': 0.42, '1H_Melee_Attack_Slice_Horizontal': 0.26, '2H_Melee_Attack_Chop': 0.52, '2H_Melee_Attack_Slice': 0.36,
   '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4,
-  // the 魂契 skeleton's Mixamo swings (peak hand speed, measured on the retargeted clips)
-  SNS_Atk1: 0.43, SNS_Atk2: 0.4, SNS_Atk3: 0.53, GS_Atk1: 0.39, GS_Atk2: 0.45, GS_Atk3: 0.44 };
+  // the 魂契 skeleton's Mixamo swings: when the blade passes closest to a body 1.5 m in front (measured on the retargeted clips)
+  SNS_Atk2: 0.41, SNS_Atk3: 0.52, GS_Atk2: 0.51, GS_Atk3: 0.51, GS_Atk4: 0.44 };
 // stride references (world units per second at model scale 0.5)
 const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running_B: 3.4, Walking_Backwards: 1.2, Running_Strafe_Left: 2.6, Running_Strafe_Right: 2.6 };
 export function attackAnim(u, wind) {
@@ -880,7 +882,7 @@ function animate(u, dt, sp) {
   if (u.spawnT > 0) return;
   if ((m.gun || u.mortar) && u.state !== 'leap') { gunnerAnim(u, sp); return; }
   if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover' || u.state === 'leap' || u.state === 'lunge' || u.state === 'rocket') return; }
-  if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload' || u.state === 'call') return;
+  if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload' || u.state === 'call' || u.state === 'pskill') return;
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }

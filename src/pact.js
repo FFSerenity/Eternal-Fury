@@ -12,10 +12,11 @@ import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
 import { S, loadSamples } from './audio.js';
+import { SKILLS } from './pactskills.js';
 if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2']);
 
 // ---------- tunables ----------
-export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1.9 };
+export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1 };
 // weapon styles: one class (warrior), two ways to fight
 export const SETS = {
   SNS: { name: tr('剑盾', 'Sword & Shield'), style: tr('坚守', 'Bulwark'), icon: '🛡️', mv: 2.07, hp: 1.3, dmg: 1, arm: 14, cd: 1.15, wind: 0.42, range: 1.2, eva: 0.32, arc: 0.55, side: 0.6, knock: 1.4,
@@ -119,7 +120,7 @@ function spot(P) { const F = C.floor; for (const d of [1.8, 1.2, 0.6]) { const x
 // put the skeleton on the field; quick: on a new floor (no circle, a fast rise)
 export function spawnHero(x, z, quick) {
   const en = makeEntry(), u = spawnAlly(en, x, z, null), P = G.player; u.face = u.faceT = P ? P.face : 0;
-  const clip = A.heroClips.Rise, sp = quick ? 3.2 : SUMMON.riseSp;
+  const clip = A.heroClips.Rise, sp = SUMMON.riseSp; // the Mixamo stand-up at its own pace (also on a new floor)
   if (clip) { play(u.mesh, 'Rise', { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clip.duration / sp * 0.9; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
   P8.alive = true; save(); return u;
 }
@@ -158,6 +159,7 @@ export function levelUp() {
   const c = lvlCost(P8.lvl); if (G.soul < c) return false; G.soul -= c; P8.lvl++;
   if (plumeTier(P8.lvl) > plumeTier(P8.lvl - 1)) C.say(tr(['', '骸骨卫士的鬃毛染上了幽蓝', '骸骨卫士的鬃毛化为鎏金', '骸骨卫士的鬃毛燃起紫焰', '骸骨卫士的鬃毛燃起赤焰'][plumeTier(P8.lvl)],
     ['', 'The Sentinel\'s crest turns azure', 'The Sentinel\'s crest turns to gold', 'The Sentinel\'s crest kindles violet fire', 'The Sentinel\'s crest bursts into crimson fire'][plumeTier(P8.lvl)]), true);
+  for (const s of SKILLS) if (s.at === P8.lvl) C.say(tr(`习得技能：${s.icon} ${s.name}`, `New skill: ${s.icon} ${s.name}`), true);
   const u = heroUnit(); if (u) { u.entry.level = P8.lvl; u.level = P8.lvl; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; C.parts.emit(u.x, 0.9, u.z, 30, { col: 0x8ff7ea, spd: 1.6, up: 3, life: 0.9, size: 0.28, grav: -1 }); }
   S.level(); save(); return true;
 }
