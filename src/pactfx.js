@@ -71,6 +71,16 @@ export function qiBolt(x, z, ang, col, range, speed, onStep) {
       body.material.opacity = 0.9 * o; edge.material.opacity = 0.95 * o; if (Math.random() < 0.7) C.parts.emit(px - dx * 0.3, 1.05, pz - dz * 0.3, 1, { col, spd: 0.3, up: 0.2, grav: 0, life: 0.25, size: 0.3, spread: 0.5 });
       if (onStep) onStep(px, pz); }, fn: () => { C.scene.remove(grp); body.material.dispose(); edge.material.dispose(); } });
 }
+// the shield fanned upward: a crescent of light standing up in front, sweeping from low to high
+export function swipeUp(x, z, face, col) {
+  const dx = Math.sin(face), dz = Math.cos(face), grp = new THREE.Group(), inner = new THREE.Group();
+  const body = new THREE.Mesh(crescent(0), new THREE.MeshBasicMaterial({ color: col, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  const edge = new THREE.Mesh(crescent(1), new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  inner.add(body, edge); inner.rotation.x = -Math.PI / 2; grp.add(inner); body.renderOrder = edge.renderOrder = 5; // stood up: the arc spans low to high, bulging forward
+  grp.rotation.y = Math.atan2(-dz, dx); grp.position.set(x + dx * 0.5, 1.2, z + dz * 0.5); C.scene.add(grp);
+  G.fx.push({ clean: true, t: 0.3, tick: k => { inner.rotation.z = -0.9 + 1.4 * k; grp.scale.setScalar(0.9 + 0.5 * k); const o = 1 - k * k; body.material.opacity = 0.85 * o; edge.material.opacity = 0.95 * o; },
+    fn: () => { C.scene.remove(grp); body.material.dispose(); edge.material.dispose(); } });
+}
 // a wide half-moon of qi spreading out in front (the greatsword's counter), and a few crescents in it
 const ARC = {};
 function arcGeo(A, w, core) { const key = A + '/' + w + '/' + core; if (ARC[key]) return ARC[key]; const N = 48, pos = [], col = [], idx = [];

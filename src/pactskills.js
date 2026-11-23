@@ -8,7 +8,7 @@ import { A, play, heroPart } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { burst, shake, trail, slamMark } from './fx.js';
 import { S } from './audio.js';
-import { bladeFire, roarBurst, qiWaves, QI, fireCone, fireArc, qiBolt, qiFan } from './pactfx.js';
+import { bladeFire, roarBurst, qiWaves, QI, fireCone, fireArc, qiBolt, qiFan, swipeUp } from './pactfx.js';
 
 export const SKILLS = [
   { id: 'charge', at: 5, cd: 8, icon: '⚡', name: tr('冲锋', 'Charge'),
@@ -25,7 +25,9 @@ const SK = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 export const skillsAt = L => SKILLS.filter(s => L >= s.at);
 // per style: clip, play speed, the clip fractions where things happen (measured like the swings: blade closest to a body in front)
 const MOVES = {
-  SNS: { charge: { shield: true, pose: 'SNS_Block', brace: 0.22, dash: 0.9, speed: 12, mult: 1.6, stun: 1.4, bash: 'SNS_Combo', bashAt: 0.64, bashHit: 0.74, bashEnd: 0.86, bashSp: 1.3 },
+  // the shield bash: from the low guard the shield is fanned straight up overhead — a blend from the guard pose to SNS_Combo's frame with the
+  // shield held high (0.43), the shield sweeping up through the front on the way
+  SNS: { charge: { shield: true, pose: 'SNS_Block', brace: 0.22, dash: 0.9, speed: 12, mult: 1.6, stun: 1.4, up: 'SNS_Combo', upAt: 0.43, upT: 0.2, upHit: 0.12, upHold: 0.32 },
     guard: { chance: 0.3, keep: 0.2, missiles: true, word: tr('格挡', 'Block'), pose: 'SNS_Block', poseT: 0.22, clip: 'SNS_Atk2', at: 0, hit: 0.41, mult: 1.1 },
     whirl: { clip: 'SNS_Combo', sp: 1.8, hits: [0.21, 0.74], mult: 1 },
     sunder: { pre: 'SNS_Power', preSp: 1.5, preT: 1.15, roarAt: 0.42, ignite: 0.55, full: 0.85, clip: 'SNS_Atk2', at: 0, hit: 0.41, mult: 3 } }, // the roar, then the blade catches fire
@@ -87,8 +89,8 @@ PH.skillTick = (u, dt) => {
     if (!sk.hits) { if (t) faceAt(u, t);
       if (sk.t >= mv.brace) { const stop = t ? u.r + t.r + 0.3 : 0, d = t ? dist(u, t) : 0;
         if (!sk.rush) { sk.rush = true; S.rush(Math.min(mv.dash, Math.max(0.2, (d - stop) / mv.speed)) + 0.15); }
-        if (!t || d <= stop + 0.05 || sk.t > mv.brace + mv.dash) { sk.hits = 1; sk.tb = sk.t; const L = clipDur(mv.bash); // up against it: the shield bash (SNS_Combo's slam)
-          play(u.mesh, mv.bash, { once: true, restart: true, speed: mv.bashSp, fade: 0.06, at: mv.bashAt }); sk.tbHit = sk.t + (mv.bashHit - mv.bashAt) * L / mv.bashSp; sk.tbEnd = sk.t + (mv.bashEnd - mv.bashAt) * L / mv.bashSp; }
+        if (!t || d <= stop + 0.05 || sk.t > mv.brace + mv.dash) { sk.hits = 1; sk.tb = sk.t; // up against it: the shield fanned up
+          play(u.mesh, mv.up, { restart: true, speed: 0, fade: mv.upT, at: mv.upAt }); sk.tbHit = sk.t + mv.upHit; sk.tbEnd = sk.t + mv.upT + mv.upHold; S.swoosh(true, mv.upHit, 0.1); }
         else { const dx = (t.x - u.x) / d, dz = (t.z - u.z) / d, v = Math.min(mv.speed, (d - stop) / Math.max(dt, 0.016)); u.wantX = dx * v; u.wantZ = dz * v; u.vx = u.wantX; u.vz = u.wantZ;
           for (const h of hostilesOf(u)) { if (h === t || h.dead || sk.hit.has(h) || dist(h, u) > u.r + h.r + 0.45 || !inArc(u, h, 1.2)) continue; sk.hit.add(h); // barged aside
             damage(u, h, u.dmg * 0.5, { knock: 3, fx: u.x, fz: u.z, quiet: true }); stunHit(h, 0.5); S.clank(); }
@@ -129,11 +131,12 @@ function arcHit(u, reach, half, mult, o = {}) { let n = 0, cr = false;
   for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > reach + h.r || !inArc(u, h, half)) continue; const crit = Math.random() < 0.15; cr = cr || crit;
     damage(u, h, u.dmg * mult * (0.9 + Math.random() * 0.2), { knock: o.knock || 0, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); if (o.stun) stunHit(h, o.stun); n++; }
   if (n) S.blade(styleOf(u) === 'GS', cr); return n; }
-function shieldBash(u, t, mv) { // the shield hits: the target and whoever stands right beside it go down
+function shieldBash(u, t, mv) { // the shield sweeps up into them: the target and whoever stands right beside it are thrown up and back
   const fx = u.x + Math.sin(u.face) * 0.75, fz = u.z + Math.cos(u.face) * 0.75;
   for (const h of hostilesOf(u)) { if (h.dead || (h !== t && (dist(h, u) > u.r + h.r + 0.9 || !inArc(u, h, 0.7)))) continue;
-    damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 4.5, heavy: true, quiet: true }); stunHit(h, mv.stun); h.hitStop = Math.max(h.hitStop || 0, 0.1); }
-  say(t.x, t.z, tr('击倒', 'Knocked down'), '#ffe6b0', 15, 2.1); u.hitStop = 0.08;
+    damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 4.5, heavy: true, quiet: true }); stunHit(h, mv.stun); h.hitStop = Math.max(h.hitStop || 0, 0.1);
+    if (!h.dead && !h.champ && !h.noStun) { const lift = 0.55 + Math.random() * 0.2; G.fx.push({ t: 0.5, tick: k => { if (!h.dead) h.y = Math.sin(Math.PI * k) * lift; }, fn: () => { h.y = 0; } }); } } // a hop in the air
+  say(t.x, t.z, tr('击倒', 'Knocked down'), '#ffe6b0', 15, 2.1); u.hitStop = 0.08; swipeUp(u.x, u.z, u.face, colOf(u));
   S.clank(); S.smash(); shake(0.12, fx, fz); burst(fx, 1.0, fz, colOf(u), 1.5); shock(fx, fz, colOf(u), 1.6, 0.35, 0.4);
   C.parts.emit(fx, 1.0, fz, 12, { col: 0xffe6b0, spd: 3, up: 1.2, grav: 7, life: 0.3, size: 0.12 }); C.parts.emit(fx, 0.2, fz, 14, { col: 0xb8a890, spd: 2.4, up: 1, life: 0.5, size: 0.3, grav: 5 });
 }

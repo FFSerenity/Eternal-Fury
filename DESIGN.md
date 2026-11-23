@@ -82,7 +82,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier: they wake at 5 / 10 / 15 / 20 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).
   Charge (3.5–8 m, 8 s): sword & shield drops into its low guard stance and drives straight in behind the shield with a long rush of air,
-  barging aside what is in the way, and ends with a shield bash (SNS_Combo's slam) that knocks the target down; the greatsword leaps in a
+  barging aside what is in the way, and ends by fanning the shield up overhead (a blend from the guard pose to SNS_Combo's shield-high frame) that knocks the target down and pops it off its feet; the greatsword leaps in a
   long arc like the crypt's warriors and splits the ground where it lands.
   Block / Parry (passive, blows from the front): sword & shield blocks 30% (−80%, missiles stopped whole), the greatsword parries 25%
   (−60%); each earns a counter slipped in between its swings — the guard pose for a beat, then sword & shield cuts down and a crescent of
