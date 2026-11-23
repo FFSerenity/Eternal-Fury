@@ -49,14 +49,57 @@ function crescent(core) { if (CRES[core]) return CRES[core]; const N = 28, R = 1
   for (let i = 0; i < N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); return (CRES[core] = g); }
 export const QI = { speed: 9.5, life: 0.55, r0: 0.8 };
-export function qiWaves(x, z, col, n = 8, rot = 0) {
-  for (let i = 0; i < n; i++) { const al = rot + i / n * TAU, dx = Math.sin(al), dz = Math.cos(al), tilt = (Math.random() - 0.5) * 0.45, grp = new THREE.Group();
+export function qiWaves(x, z, col, n = 8, rot = 0, spread = TAU) {
+  for (let i = 0; i < n; i++) { const al = rot + (spread >= TAU ? i / n : (i + 0.5) / n) * spread, dx = Math.sin(al), dz = Math.cos(al), tilt = (Math.random() - 0.5) * 0.45, grp = new THREE.Group();
     const body = new THREE.Mesh(crescent(0), new THREE.MeshBasicMaterial({ color: col, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     const edge = new THREE.Mesh(crescent(1), new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     edge.position.y = 0.01; grp.add(body, edge); grp.rotation.set(0, Math.atan2(-dz, dx), 0); grp.rotateX(tilt); grp.position.set(x + dx * QI.r0, 0.85, z + dz * QI.r0); body.renderOrder = edge.renderOrder = 5; C.scene.add(grp);
     G.fx.push({ clean: true, t: QI.life, tick: k => { const r = QI.r0 + QI.speed * QI.life * k, o = (1 - k * k) * (k < 0.06 ? k / 0.06 : 1); grp.position.set(x + dx * r, 0.85 + 0.12 * k, z + dz * r);
         grp.scale.set(1 + 0.45 * k, 1, 1 + 0.45 * k); body.material.opacity = 0.9 * o; edge.material.opacity = 0.9 * o; },
       fn: () => { C.scene.remove(grp); body.material.dispose(); edge.material.dispose(); } }); }
+}
+
+// a single big crescent flying straight, a little tilted (flat enough to read from the camera above whichever way it flies); the sword
+// & shield's counter. onStep(x, z) each frame, to cut what it passes
+export function qiBolt(x, z, ang, col, range, speed, onStep) {
+  const dx = Math.sin(ang), dz = Math.cos(ang), grp = new THREE.Group(), life = range / speed;
+  const body = new THREE.Mesh(crescent(0), new THREE.MeshBasicMaterial({ color: col, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  const edge = new THREE.Mesh(crescent(1), new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const inner = new THREE.Group(); inner.add(body, edge); inner.rotation.x = (Math.random() < 0.5 ? -1 : 1) * 0.45; inner.scale.set(1.3, 1, 1.5); grp.add(inner); body.renderOrder = edge.renderOrder = 5;
+  grp.rotation.y = Math.atan2(-dz, dx); grp.position.set(x + dx * 0.9, 1.05, z + dz * 0.9); C.scene.add(grp);
+  G.fx.push({ clean: true, t: life, tick: k => { const r = 0.9 + range * k, px = x + dx * r, pz = z + dz * r; grp.position.set(px, 1.05, pz); const o = k < 0.8 ? 1 : (1 - k) / 0.2;
+      body.material.opacity = 0.9 * o; edge.material.opacity = 0.95 * o; if (Math.random() < 0.7) C.parts.emit(px - dx * 0.3, 1.05, pz - dz * 0.3, 1, { col, spd: 0.3, up: 0.2, grav: 0, life: 0.25, size: 0.3, spread: 0.5 });
+      if (onStep) onStep(px, pz); }, fn: () => { C.scene.remove(grp); body.material.dispose(); edge.material.dispose(); } });
+}
+// a wide half-moon of qi spreading out in front (the greatsword's counter), and a few crescents in it
+const ARC = {};
+function arcGeo(A, w, core) { const key = A + '/' + w + '/' + core; if (ARC[key]) return ARC[key]; const N = 48, pos = [], col = [], idx = [];
+  for (let i = 0; i <= N; i++) { const t = i / N, th = -A + 2 * A * t, f = Math.pow(Math.sin(Math.PI * t), 0.5), c = Math.cos(th), s = Math.sin(th), ww = w * (0.4 + 0.6 * f);
+    pos.push(c * (1 - ww), 0, -s * (1 - ww), c, 0, -s); col.push(1, 1, 1, core ? 0 : 0.3 * f, 1, 1, 1, f); }
+  for (let i = 0; i < N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); return (ARC[key] = g); }
+export function qiFan(x, z, face, col, R) {
+  const grp = new THREE.Group(), body = new THREE.Mesh(arcGeo(Math.PI / 2, 0.22, 0), new THREE.MeshBasicMaterial({ color: col, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  const edge = new THREE.Mesh(arcGeo(Math.PI / 2, 0.22, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  edge.position.y = 0.01; grp.add(body, edge); body.renderOrder = edge.renderOrder = 5; grp.rotation.y = Math.atan2(-Math.cos(face), Math.sin(face)); grp.position.set(x, 0.85, z); C.scene.add(grp);
+  G.fx.push({ clean: true, t: 0.42, tick: k => { const e = 1 - (1 - k) * (1 - k); grp.scale.setScalar(0.9 + (R - 0.9) * e); const o = 1 - k * k; body.material.opacity = 0.85 * o; edge.material.opacity = 0.95 * o; },
+    fn: () => { C.scene.remove(grp); body.material.dispose(); edge.material.dispose(); } });
+  qiWaves(x, z, col, 3, face - 0.75, 1.5); // three crescents riding in it
+}
+// the greatsword's Sundering Strike: fire rolling out over a 270° arc around it, scorching the ground as it goes
+export function fireArc(x, z, face, R, span) {
+  const th0 = Math.atan2(-Math.cos(face), Math.sin(face)) - span / 2, geo = new THREE.RingGeometry(0.8, 1, 64, 1, th0, span).rotateX(-Math.PI / 2), band = new THREE.Group();
+  const under = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff4a10, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide })); // reads on a light floor
+  const glow = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffb050, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  glow.position.y = 0.005; band.add(under, glow); band.position.set(x, 0.07, z); under.renderOrder = glow.renderOrder = 4; C.scene.add(band); let last = 0;
+  G.fx.push({ clean: true, t: 0.55, tick: k => { const e = 1 - (1 - k) * (1 - k), r = 0.6 + (R - 0.6) * e; band.scale.setScalar(r); under.material.opacity = 0.6 * (1 - k); glow.material.opacity = 0.9 * (1 - k);
+      const n = Math.floor((k - last) * 70); last += n / 70; // flames thrown up along the front of the wave
+      for (let i = 0; i < n * 3; i++) { const a = face - span / 2 + Math.random() * span, px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r;
+        C.parts.emit(px, 0.15, pz, 1, { col: fire(), spd: 0.5, up: 2.6 + Math.random() * 1.6, grav: -1.2, life: 0.45 + Math.random() * 0.3, size: 0.42, spread: 0.25 }); } },
+    fn: () => { C.scene.remove(band); geo.dispose(); under.material.dispose(); glow.material.dispose(); } });
+  for (let i = 0; i < 5; i++) { const a = face - span / 2 + (i + 0.5) / 5 * span, d = R * (0.45 + 0.15 * (i % 2)), px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d;
+    G.fx.push({ clean: true, t: 0.08 + 0.05 * i, fn: () => { slamMark(px, pz, 0.85, 0xff5a1a, 2.6); C.parts.emit(px, 0.2, pz, 7, { col: 0x4e443c, spd: 2.4, up: 2, grav: 9, life: 0.5, size: 0.26, spread: 0.4 }); } }); }
+  wave(x, z, 0xffb050, R + 0.5, 0.6, 0.45, 0.8);
 }
 
 // the blow of the Sundering Strike, on fire: a wave of flame runs out down the cone, scorching cracks behind it

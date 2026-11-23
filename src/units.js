@@ -94,7 +94,7 @@ export function say(x, z, text, col = '#fff', size = 15, y = 1.7, num = 0) { G.m
 export function damage(src, dst, amt, o = {}) {
   if (!dst || dst.dead) return 0;
   if (dst.evade && !o.dot && Math.random() < dst.evade && PH.evade) { PH.evade(src, dst); return 0; } // 魂契 skeleton: evasion
-  if (dst.guardT > G.t && PH.guard && !o.dot) { const k = PH.guard(src, dst, o); if (k <= 0) return 0; amt *= k; } // 魂契 skeleton: its Guard skill
+  if (dst.pact && PH.guard && !o.dot) { const k = PH.guard(src, dst, o); if (k <= 0) return 0; amt *= k; } // 魂契 skeleton: Block / Parry (passive)
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
@@ -618,6 +618,7 @@ function allyThink(u, dt) {
   if (u.kind === 'shaman' && !u.eng) { u.healCD -= dt; // (the 机械师骷髅 leaves healing to its repair drone)
     if (u.healCD <= 0) { let lo = null, lr = 0.75; for (const f of G.friends) { if (f.dead || dist(f, u) > 8) continue; const r = f.hp / f.maxHp; if (r < lr) { lr = r; lo = f; } }
       if (lo) { u.state = 'cast'; u.st = 0; u.castH = lo; u.wantX = u.wantZ = 0; faceTo(u, lo); u.healCD = 3.5 - 0.3 * rk(u, 'heal'); return; } u.healCD = 0.6; } }
+  if (u.pact && u.ctrQ && PH.counterAI && PH.counterAI(u)) return; // 魂契: a counter earned by a block / parry, even with nothing targeted
   if (!u.target || dp > 15) { // formation: melee summons walk ahead of the summoner, ranged ones beside / behind
     const allies = G.friends.filter(f => f.side === 'ally'), mine = allies.filter(f => isMelee(f) === isMelee(u)), idx = mine.indexOf(u), n = mine.length;
     const ang = isMelee(u) ? P.face + (idx - (n - 1) / 2) * 0.8 : P.face + Math.PI + (idx - (n - 1) / 2) * 0.9, r = isMelee(u) ? 1.7 : 1.6;

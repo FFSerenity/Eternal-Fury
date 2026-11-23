@@ -52,7 +52,7 @@ export function renderPact(force) {
     + `<div class="card pcur"><span class="ic">${W.icon}</span><div class="info">${cur}</div></div>`
     + `<div class="psec">${tr('技能（战魂 5 / 10 / 15 / 20 层觉醒，倒下清零；自动释放）', 'Skills (wake at 5 / 10 / 15 / 20 Fury, lost when it falls; used on its own)')}</div>`
     + SKILLS.map(s => { const on = u && P8.stacks >= s.at; return `<div class="card pskl${on ? ' on' : ''}"><span class="ic">${s.icon}</span><div class="info">`
-      + `<div class="nm">${s.name} <span class="sub">${on ? tr(`冷却 ${s.cd} 秒`, `${s.cd} s cooldown`) : tr(`战魂 ${s.at} 层`, `${s.at} Fury`)}</span></div><div class="ds">${s.desc}</div></div></div>`; }).join('')
+      + `<div class="nm">${s.name} <span class="sub">${on ? (s.passive ? tr('被动', 'passive') : tr(`冷却 ${s.cd} 秒`, `${s.cd} s cooldown`)) : tr(`战魂 ${s.at} 层`, `${s.at} Fury`)}</span></div><div class="ds">${s.desc}</div></div></div>`; }).join('')
     + `<div class="psec">${tr('武器流派', 'Weapon style')}</div>` + style('SNS') + style('GS')
     + `<div class="cEmpty prules">${tr('骸骨卫士亲手击杀敌人会积攒战魂（精英算 4 次、骷髅战士算 2 次），每层提升伤害、攻速、移速和生命。它倒下时战魂全部清零。<br>唤魂把尸体化成魂能，魂能用来强化召唤。', 'Kills by the Sentinel\'s own hand build Fury (elites count 4, warriors 2): each stack adds damage, attack speed, move speed and life. When it falls, all Fury is lost.<br>Raise turns corpses into soul energy, which strengthens the summon.')}</div>`;
 }
