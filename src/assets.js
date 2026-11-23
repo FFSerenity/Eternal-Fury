@@ -231,9 +231,9 @@ function makeHeroMesh(o) {
     tips: [], glows, soul: null, gun: null, muz: null, drill: null, rod: null, blade: null, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? o.wset : null, atk: set ? set.atk : ['Attack'], atkI: 0, weap };
 }
 // the dazed stand (Mixamo Idle) holds the arms close against the body: a sturdier stance, elbows out and forearms leaning slightly back
-// in (upper arm ~21 deg off vertical, forearm about plumb). Turns about the facing axis, in world space so every key gets the same
+// in (upper arm ~23 deg off vertical, forearm about plumb, a touch out). Turns about the facing axis, in world space so every key gets the same
 // turn; the forearm turn is on top of the upper arm's. Baked into the clip once.
-const ARM_SPREAD = [13, -19]; // degrees: upper arm, forearm (tests: globalThis.__spread)
+const ARM_SPREAD = [15, -19]; // degrees: upper arm, forearm (tests: globalThis.__spread)
 function spreadArms(scene, clip, armDeg, foreDeg) {
   const bones = []; scene.traverse(o => { if (o.isBone) bones.push([o, o.position.clone(), o.quaternion.clone(), o.scale.clone()]); });
   const mixer = new THREE.AnimationMixer(scene), act = mixer.clipAction(clip); act.play();
