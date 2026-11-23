@@ -81,10 +81,13 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier: they wake at 5 / 10 / 15 / 20 战魂 and are lost with them; used on its own (pactskills.js).
-  Charge (3.5–8 m, 8 s: sword & shield runs in behind the raised shield — legs from the run, arms from the guard — barging aside what is
+  Charge (3.5–8 m, 8 s: sword & shield drops into its low guard stance and drives straight in behind the shield, barging aside what is
   in the way and knocking the target down; the greatsword leaps in a long arc like the crypt's warriors and splits the ground where it lands); Guard (below 60% life or 3+ around: 2.5 s at −70% / −50%
-  damage, the shield stops missiles from the front, then a counter, 12 s); Whirlwind (3+ within 2.5 m: two cuts all around, 10 s);
-  Sundering Strike (charged blow, shock wave down a 5.5 m cone, non-elites left under 25% are cut down, 15 s).
+  damage, the shield stops missiles from the front, then a counter, 12 s); Whirlwind (3+ within 2.5 m: two cuts all around, each flinging
+  eight crescents of sword qi outward that cut what they meet out to ~5.5 m at half damage, 10 s); Sundering Strike (sword & shield roars —
+  rings of force race out, a column of light, the nearest are thrown back — then its sword catches fire; the greatsword fills its blade with
+  fire from the hilt up; the burning blow sends a wave of fire with scorched cracks down a 5.5 m cone; non-elites left under 25% are cut
+  down, 15 s). Effects in pactfx.js.
 - Its helmet crest shows its 战魂 (Fury from its own kills, lost when it falls): as modelled below 5, then dyed in the gear colours —
   5 blue, 10 gold (glowing, sparks), 15 violet fire, 20 crimson fire (flames running out along the fin, a halo, embers); the swing trail
   takes the same colour. The summon skill only sets the level it comes out at, and grows slowly.

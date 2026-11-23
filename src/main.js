@@ -4,6 +4,7 @@ import { pactPlayer, pactFloor, pactTick, harvest } from './pact.js';
 import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch, heroWeaponPose, heroPart } from './assets.js';
+import * as PFX from './pactfx.js';
 import './gun.js';
 import './tech.js';
 import './forest.js';
@@ -251,4 +252,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

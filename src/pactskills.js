@@ -8,25 +8,28 @@ import { A, play, heroPart } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { burst, shake, trail, slamMark } from './fx.js';
 import { S } from './audio.js';
+import { bladeFire, roarBurst, qiWaves, QI, fireCone } from './pactfx.js';
 
 export const SKILLS = [
   { id: 'charge', at: 5, cd: 8, icon: '⚡', name: tr('冲锋', 'Charge'),
-    desc: tr('目标在 3.5–8 米外时突进：剑盾举盾冲撞，撞开路上的敌人、击倒目标；大剑跃起跳劈，落地裂地范围伤害', 'Closes on a target 3.5–8 m away: sword & shield charges behind the shield, barging aside what is in the way and knocking the target down; the greatsword leaps and splits the ground where it lands') },
+    desc: tr('目标在 3.5–8 米外时突进：剑盾压低身形举盾冲撞，撞开路上的敌人、击倒目标；大剑跃起跳劈，落地裂地范围伤害', 'Closes on a target 3.5–8 m away: sword & shield drives in low behind the shield, barging aside what is in the way and knocking the target down; the greatsword leaps and splits the ground where it lands') },
   { id: 'guard', at: 10, cd: 12, icon: '🛡️', name: tr('格挡', 'Guard'),
     desc: tr('血量低于 60% 或被 3 个以上围攻时防御 2.5 秒：剑盾减伤 70%、挡下前方箭矢，大剑减伤 50%；结束时反击', 'Below 60% life or with 3+ around it, guards for 2.5 s: sword & shield takes 70% less and blocks missiles from the front, greatsword 50% less; then strikes back') },
   { id: 'whirl', at: 15, cd: 10, icon: '🌀', name: tr('旋风斩', 'Whirlwind'),
-    desc: tr('身边 2.5 米内有 3 个以上敌人时转身横扫，打两段', 'With 3+ enemies within 2.5 m, spins and cuts everything around it, twice') },
+    desc: tr('身边 2.5 米内有 3 个以上敌人时转身横扫，打两段，每段向四周甩出剑气（远处的敌人也会被剑气划伤）', 'With 3+ enemies within 2.5 m, spins and cuts everything around it, twice, flinging sword qi out in every direction (it cuts what it meets further out too)') },
   { id: 'sunder', at: 20, cd: 15, icon: '💥', name: tr('破军一击', 'Sundering Strike'),
-    desc: tr('蓄力重劈，前方扇形冲击波；非精英敌人血量低于 25% 直接斩杀', 'A charged blow with a shock wave down a cone in front; non-elite enemies left under 25% life are cut down') },
+    desc: tr('蓄力（剑盾怒吼爆气，大剑为剑注火）后挥出燃火的一击，火浪沿前方扇形扫出；非精英敌人血量低于 25% 直接斩杀', 'Gathers itself (sword & shield roars, the greatsword fills its blade with fire), then a burning blow sends a wave of fire down a cone in front; non-elite enemies left under 25% life are cut down') },
 ];
 const SK = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 export const skillsAt = L => SKILLS.filter(s => L >= s.at);
 // per style: clip, play speed, the clip fractions where things happen (measured like the swings: blade closest to a body in front)
 const MOVES = {
-  SNS: { charge: { run: 'SNS_Run', block: 'SNS_Block', brace: 0.2, dash: 0.9, speed: 12, mult: 1.6, stun: 1.4 }, guard: { clip: 'SNS_Block', counter: 'SNS_Atk3', chit: 0.52, red: 0.7, missiles: true },
-    whirl: { clip: 'SNS_Combo', sp: 1.8, hits: [0.21, 0.74], mult: 1 }, sunder: { pre: 'SNS_Power', preSp: 1.5, preT: 0.9, clip: 'SNS_Atk2', hit: 0.41, mult: 3 } },
+  SNS: { charge: { shield: true, pose: 'SNS_Block', brace: 0.22, dash: 0.9, speed: 12, mult: 1.6, stun: 1.4 }, guard: { clip: 'SNS_Block', counter: 'SNS_Atk3', chit: 0.52, red: 0.7, missiles: true },
+    whirl: { clip: 'SNS_Combo', sp: 1.8, hits: [0.21, 0.74], mult: 1 },
+    sunder: { pre: 'SNS_Power', preSp: 1.5, preT: 1.15, roarAt: 0.42, ignite: 0.55, full: 0.85, clip: 'SNS_Atk2', hit: 0.41, mult: 3 } }, // the roar, then the blade catches fire
   GS: { charge: { clip: 'GS_Leap', sp: 1.1, at: 0.1, up: 0.3, land: 0.53, end: 0.8, mult: 1.5, stun: 0.9, aoe: 2.6 }, guard: { clip: 'GS_Block', counter: 'GS_Atk2', chit: 0.51, red: 0.5 },
-    whirl: { clip: 'GS_Spin', sp: 1.2, hits: [0.35, 0.61], mult: 1.2 }, sunder: { pre: 'GS_Power', preSp: 2, preT: 0.9, clip: 'GS_Atk3', hit: 0.51, mult: 3.5 } },
+    whirl: { clip: 'GS_Spin', sp: 1.2, hits: [0.35, 0.61], mult: 1.2 },
+    sunder: { pre: 'GS_Power', preSp: 2, preT: 1.1, ignite: 0.1, full: 0.95, clip: 'GS_Atk3', hit: 0.51, mult: 3.5 } }, // fire climbs the blade from the hilt
 };
 const GUARD_T = 2.5, CONE = { range: 5.5, half: 0.66 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -44,9 +47,8 @@ function start(u, id, t) {
   const st = styleOf(u), mv = MOVES[st][id]; u.skCD = u.skCD || {}; u.skCD[id] = G.t + SK[id].cd;
   u.state = 'pskill'; u.st = 0; u.wantX = u.wantZ = 0; u.sk = { id, mv, st, t: 0, tgt: t, hits: 0 }; faceAt(u, t, true);
   say(u.x, u.z, SK[id].name, '#' + colOf(u).toString(16).padStart(6, '0'), 16, 2.2);
-  if (id === 'charge' && mv.run) { // behind the shield: legs run, arms hold the guard
-    const m = u.mesh, up = heroPart(mv.block, 'upper'); play(m, heroPart(mv.run, 'lower'), { restart: true, speed: 1.7, fade: 0.1 });
-    const a = m.mixer.clipAction(A.heroClips[up]); a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.fadeIn(0.1); a.play(); m.curU = a; m.curUName = up; u.sk.upA = a; u.sk.hit = new Set(); S.clank(); }
+  if (id === 'charge' && mv.shield) { // dropped low behind the shield (the guard stance) and driven straight in
+    play(u.mesh, mv.pose, { restart: true, fade: 0.12 }); u.sk.hit = new Set(); S.clank(); }
   else if (id === 'charge') { // the leap: a long arc over to the target, the ground splits where it lands
     const L = clipDur(mv.clip), k = Math.max(0, dist(u, t) - (u.r + t.r + 0.3)) / (dist(u, t) || 1); play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.06, at: mv.at });
     Object.assign(u.sk, { tUp: (mv.up - mv.at) * L / mv.sp, tLand: (mv.land - mv.at) * L / mv.sp, tEnd: (mv.end - mv.at) * L / mv.sp, x0: u.x, z0: u.z, x1: u.x + (t.x - u.x) * k, z1: u.z + (t.z - u.z) * k, lh: 0.3 + dist(u, t) * 0.08 });
@@ -54,10 +56,11 @@ function start(u, id, t) {
   else if (id === 'guard') { play(u.mesh, mv.clip, { restart: true, fade: 0.12 }); u.guardT = G.t + GUARD_T; u.guardK = 1 - mv.red; S.clank(); guardFx(u); }
   else if (id === 'whirl') { play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.08 }); trail(u, clipDur(mv.clip) / mv.sp);
     for (const h of mv.hits) S.swoosh(st === 'GS', h * clipDur(mv.clip) / mv.sp - 0.02); }
-  else if (id === 'sunder') { play(u.mesh, mv.pre, { once: true, restart: true, speed: mv.preSp, fade: 0.1 }); chargeFx(u); S.raise(); }
+  else if (id === 'sunder') { play(u.mesh, mv.pre, { once: true, restart: true, speed: mv.preSp, fade: 0.1 }); u.sk.col0 = u.mesh.blade && u.mesh.blade.col; }
   return true;
 }
 function end(u) { const sk = u.sk, m = u.mesh; if (sk && sk.upA && m.curU === sk.upA) { sk.upA.fadeOut(0.15); m.curU = null; m.curUName = ''; }
+  if (sk && sk.fire) { sk.fire.stop(); if (m.blade && sk.col0 != null) m.blade.col = sk.col0; }
   u.state = 'idle'; u.sk = null; u.guardT = 0; u.y = 0; u.cdT = Math.max(u.cdT, 0.25); }
 
 // ---------- when to use what ----------
@@ -79,14 +82,14 @@ PH.skillAI = (u, t) => {
 PH.skillTick = (u, dt) => {
   const sk = u.sk; if (!sk) { end(u); return; }
   sk.t += dt; u.wantX = u.wantZ = 0; const mv = sk.mv, t = sk.tgt && !sk.tgt.dead ? sk.tgt : null;
-  if (sk.id === 'charge' && mv.run) { // shield charge: brace, then run in, barging aside whatever is in the way
+  if (sk.id === 'charge' && mv.shield) { // shield charge: brace, then drive in, barging aside whatever is in the way
     if (!sk.hits) { if (t) faceAt(u, t);
       if (sk.t >= mv.brace) { const stop = t ? u.r + t.r + 0.3 : 0, d = t ? dist(u, t) : 0;
         if (!t || d <= stop + 0.05 || sk.t > mv.brace + mv.dash) { sk.hits = 1; sk.tb = sk.t; if (t) shieldBash(u, t, mv); }
         else { const dx = (t.x - u.x) / d, dz = (t.z - u.z) / d, v = Math.min(mv.speed, (d - stop) / Math.max(dt, 0.016)); u.wantX = dx * v; u.wantZ = dz * v; u.vx = u.wantX; u.vz = u.wantZ;
           for (const h of hostilesOf(u)) { if (h === t || h.dead || sk.hit.has(h) || dist(h, u) > u.r + h.r + 0.45 || !inArc(u, h, 1.2)) continue; sk.hit.add(h); // barged aside
             damage(u, h, u.dmg * 0.5, { knock: 3, fx: u.x, fz: u.z, quiet: true }); stunHit(h, 0.5); S.clank(); }
-          if (Math.random() < dt * 35) C.parts.emit(u.x - dx * 0.3, 0.12, u.z - dz * 0.3, 1, { col: 0xb8a890, spd: 0.7, up: 0.7, grav: 4, life: 0.45, size: 0.26 }); } } }
+          if (Math.random() < dt * 40) for (const sd of [-1, 1]) C.parts.emit(u.x - dx * 0.3 + dz * 0.35 * sd, 0.1, u.z - dz * 0.3 - dx * 0.35 * sd, 1, { col: 0xb8a890, spd: 0.8, up: 0.6, grav: 4, life: 0.5, size: 0.28 }); } } } // dust off both feet
     else { u.vx *= 0.6; u.vz *= 0.6; if (sk.t - sk.tb > 0.35) end(u); }
   } else if (sk.id === 'charge') { // leap
     if (sk.t < sk.tUp && t) { faceAt(u, t); const d = dist(u, t), k = Math.max(0, d - (u.r + t.r + 0.3)) / (d || 1); sk.x1 = u.x + (t.x - u.x) * k; sk.z1 = u.z + (t.z - u.z) * k; sk.x0 = u.x; sk.z0 = u.z; sk.lh = 0.3 + d * 0.08; }
@@ -104,10 +107,16 @@ PH.skillTick = (u, dt) => {
     while (sk.hits < mv.hits.length && sk.t >= mv.hits[sk.hits] * L / mv.sp) { whirlHit(u, mv); sk.hits++; }
     if (sk.t >= len * 0.88) end(u);
   } else if (sk.id === 'sunder') {
+    if (mv.roarAt && !sk.roared && sk.t >= mv.roarAt) { sk.roared = true; roarBurst(u); S.roar(); // the burst throws back whatever stands close
+      for (const h of hostilesOf(u)) { const d = dist(h, u); if (h.dead || d > 3.6 + h.r) continue; const l = d || 1; h.kx += (h.x - u.x) / l * 3; h.kz += (h.z - u.z) / l * 3; stunHit(h, 0.45); } }
+    if (!sk.fire && sk.t >= mv.ignite) { sk.fire = bladeFire(u); S.fire(); if (u.mesh.blade) u.mesh.blade.col = 0xff6a1a; }
+    if (sk.fire && !sk.strike) { const r = Math.min(1, Math.max(0, (sk.t - mv.ignite) / (mv.full - mv.ignite))); sk.fire.reach = 0.08 + 0.92 * r; sk.fire.power = 0.6 + 0.6 * r;
+      if (r >= 1 && !sk.flared) { sk.flared = true; const e = u.mesh.weap.r.userData.edge; if (e) { const P = e[1].getWorldPosition(new THREE.Vector3()); burst(P.x, P.y, P.z, 0xffb050, 1.4); } } }
     if (!sk.strike) { if (t) faceAt(u, t);
       if (sk.t >= mv.preT) { sk.strike = true; sk.st0 = sk.t; const L = clipDur(mv.clip), sp = Math.max(0.6, Math.min(2.5, L * mv.hit / 0.42)); sk.tHit = L * mv.hit / sp; sk.len = L / sp;
-        play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06 }); trail(u, sk.len); S.swoosh(sk.st === 'GS', sk.tHit - 0.02); } }
-    else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; sunderHit(u, mv); } if (s >= Math.min(sk.len * 0.8, sk.tHit + 0.6)) end(u); }
+        play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06 }); trail(u, sk.len); S.swoosh(sk.st === 'GS', sk.tHit - 0.02); if (sk.fire) { sk.fire.reach = 1; sk.fire.power = 1.4; } } }
+    else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; sunderHit(u, mv); } if (sk.fire && s >= sk.tHit + 0.3) sk.fire.power = Math.max(0, sk.fire.power - dt * 3);
+      if (s >= Math.min(sk.len * 0.8, sk.tHit + 0.6)) end(u); }
   }
 };
 
@@ -138,28 +147,23 @@ function whirlHit(u, mv) {
   let n = 0, cr = false; for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > 2.7 + h.r) continue; const crit = Math.random() < 0.12; cr = cr || crit;
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 2, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); n++; }
   if (n) S.blade(styleOf(u) === 'GS', cr); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
-  for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; C.parts.emit(u.x + Math.cos(a) * 2, 0.7, u.z + Math.sin(a) * 2, 1, { col: colOf(u), spd: 0.8, up: 0.4, grav: 0, life: 0.35, size: 0.2, spread: 0.1 }); }
+  // sword qi flung out all round: it cuts what it meets out to ~5.5 m, as it gets there
+  const x = u.x, z = u.z, reach = QI.r0 + QI.speed * QI.life; qiWaves(x, z, colOf(u), 8, (u.sk ? u.sk.hits : 0) * 0.39 + Math.random() * 0.3);
+  for (const h of hostilesOf(u)) { const d = Math.hypot(h.x - x, h.z - z); if (h.dead || d <= 2.7 + h.r || d > reach + h.r) continue;
+    G.fx.push({ t: Math.max(0.01, (d - QI.r0) / QI.speed), fn: () => { if (h.dead || !u) return; damage(u, h, u.dmg * mv.mult * 0.5, { knock: 1.4, fx: x, fz: z, quiet: true });
+      C.parts.emit(h.x, 0.9, h.z, 6, { col: colOf(u), spd: 2, up: 1, grav: 5, life: 0.3, size: 0.14 }); } }); }
 }
 function sunderHit(u, mv) {
   const col = colOf(u), fx = Math.sin(u.face), fz = Math.cos(u.face); let n = 0;
   for (const h of coneOf(u)) { damage(u, h, u.dmg * mv.mult * (0.95 + Math.random() * 0.1), { knock: 3.5, melee: true, heavy: true, crit: true, critX: 1, quiet: true }); n++;
     if (!h.dead && !h.champ && h.hp < h.maxHp * 0.25) { say(h.x, h.z, tr('斩杀', 'Cut down'), '#ff6a4a', 17, 2); damage(u, h, h.hp + 1, { quiet: true, noFx: true }); } }
-  S.blade(true, true); S.boom(); shake(0.2, u.x + fx * 2, u.z + fz * 2); burst(u.x + fx * 1.4, 0.6, u.z + fz * 1.4, col, 2.4);
-  for (let k = 1; k <= 5; k++) { const d = k * 1.05, x = u.x + fx * d, z = u.z + fz * d; // the shock wave runs out down the cone
-    G.fx.push({ clean: true, t: 0.06 * k, tick: () => {}, fn: () => { shock(x, z, col, 0.5 + k * 0.28, 0.4, 0.4); C.parts.emit(x, 0.2, z, 6 + k, { col: k % 2 ? col : 0xb8a890, spd: 2.2, up: 1.8, life: 0.5, size: 0.28, grav: 5, spread: 0.3 + k * 0.15 }); } }); }
+  S.blade(true, true); S.boom(); S.fire(); shake(0.24, u.x + fx * 2, u.z + fz * 2); burst(u.x + fx * 1.4, 0.6, u.z + fz * 1.4, 0xffb050, 2.6);
+  fireCone(u.x, u.z, u.face, CONE.range); // the wave of fire runs out down the cone
 }
 // ---------- the look of the long ones ----------
 function guardFx(u) { // a shell of light while it guards
   const g = glowSprite(colOf(u), 2.6, 0); g.position.set(0, 1.1, 0); u.mesh.root.add(g); const sk = u.sk;
   G.fx.push({ clean: true, t: GUARD_T + 0.3, tick: k => { const on = u.sk === sk && u.guardT > G.t && !u.dead; g.material.opacity = on ? 0.22 + 0.06 * Math.sin(G.t * 9) : Math.max(0, g.material.opacity - 0.05); }, fn: () => u.mesh.root.remove(g) });
-}
-function chargeFx(u) { // light gathers on the blade, motes are drawn in
-  const e = u.mesh.weap && u.mesh.weap.r && u.mesh.weap.r.userData.edge; if (!e) return; const g = glowSprite(colOf(u), 1, 0), sk = u.sk, P = new THREE.Vector3();
-  const ws = e[1].getWorldScale(P).x || 1; g.scale.setScalar(0.2 / ws); e[1].add(g);
-  G.fx.push({ clean: true, t: 1.6, tick: k => { const on = u.sk === sk && !u.dead, c = Math.min(1, (u.sk ? u.sk.t : 0) / 0.9); g.material.opacity = on ? 0.4 + 0.5 * c : Math.max(0, g.material.opacity - 0.08);
-      g.scale.setScalar((0.3 + 1.3 * c + 0.15 * Math.sin(G.t * 30)) / ws);
-      if (on && !u.sk.strike && Math.random() < 0.6) { e[1].getWorldPosition(P); const a = Math.random() * Math.PI * 2, r = 1.2; C.parts.emit(P.x + Math.cos(a) * r, P.y + 0.3, P.z + Math.sin(a) * r, 1, { col: colOf(u), spd: 0.2, up: -0.2, grav: 0, life: 0.35, size: 0.16 }); } },
-    fn: () => e[1].remove(g) });
 }
 // ---------- the Guard: how much of a blow gets through ----------
 PH.guard = (src, u, o) => {
