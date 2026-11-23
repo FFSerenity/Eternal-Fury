@@ -10,7 +10,7 @@ export function unlock() {
 }
 // recorded sounds (assets/sfx, from Kenney's CC0 packs): fetched when asked for, decoded once the audio context exists
 const RAW = {}, BUF = {};
-const SWING_PK = { swing_l0: 0.045, swing_l1: 0.023, swing_l2: 0.034, swing_l3: 0.023, swing_h0: 0.035, swing_h1: 0.052, swing_h2: 0.061 }; // where each swish is loudest (s, with the mp3's lead-in)
+const SWING_PK = { swing_l0: 0.046, swing_l1: 0.013, swing_l2: 0.024, swing_l3: 0.059, swing_h0: 0.046, swing_h1: 0.063, swing_h2: 0.081 }; // where each swish is loudest (s)
 export function loadSamples(names) { for (const n of names) if (!RAW[n]) RAW[n] = fetch(`assets/sfx/${n}.mp3`).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null); if (ac) decodeAll(); }
 function decodeAll() { for (const n in RAW) if (!(n in BUF)) { BUF[n] = null; RAW[n].then(ab => ab && ac.decodeAudioData(ab)).then(b => { BUF[n] = b || null; }).catch(() => {}); } }
 function sample(n, v = 1, rate = 1, t = 0) { const b = BUF[n]; if (!b) return false; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = v;
@@ -29,11 +29,13 @@ function hiss(f, q, dur, v, t = 0, type = 'bandpass') { const t0 = ac.currentTim
 const lim = {}; const gate = (k, ms) => { const n = performance.now(); if (n - (lim[k] || 0) < ms) return false; lim[k] = n; return true; };
 export const S = {
   // the 魂契 skeleton's blade: a whoosh as it swings (t: seconds from now), a slash with a metal ring when it bites
-  // tPeak: seconds from now to the blade's fastest moment; the swish (artisticdude's CC0 Swishes pack, the greatsword's pitched down) peaks there
-  swoosh(heavy, tPeak = 0.05) { if (!ok()) return; const n = (heavy ? 'swing_h' : 'swing_l') + Math.floor(Math.random() * (heavy ? 3 : 4)), r = 0.95 + Math.random() * 0.1;
-    if (!sample(n, heavy ? 0.75 : 0.65, r, Math.max(0, tPeak - (SWING_PK[n] ?? 0.03) / r))) { if (heavy) sweep(260, 1300, 1.1, 0.34, 0.2, Math.max(0, tPeak - 0.2)); else sweep(520, 2500, 1.3, 0.24, 0.16, Math.max(0, tPeak - 0.14)); } },
+  // tPeak: seconds from now to the blade's fastest moment, where the swish (artisticdude's CC0 Swishes pack, stretched; the greatsword's pitched
+  // down) is loudest; lead: how long the blade gathers speed before it — the air swells over that, so long swings get a long sound
+  swoosh(heavy, tPeak = 0.05, lead = heavy ? 0.24 : 0.14) { if (!ok()) return; const n = (heavy ? 'swing_h' : 'swing_l') + Math.floor(Math.random() * (heavy ? 3 : 4)), r = 0.96 + Math.random() * 0.08;
+    const pre = Math.min(Math.max(0, tPeak), lead); if (pre > 0.05) sweep(heavy ? 170 : 340, heavy ? 950 : 1800, 0.9, pre + 0.06, heavy ? 0.17 : 0.13, tPeak - pre);
+    if (!sample(n, heavy ? 1 : 0.95, r, Math.max(0, tPeak - (SWING_PK[n] ?? 0.03) / r))) { if (heavy) sweep(260, 1300, 1.1, 0.34, 0.2, Math.max(0, tPeak - 0.2)); else sweep(520, 2500, 1.3, 0.24, 0.16, Math.max(0, tPeak - 0.14)); } },
   blade(heavy, crit) { if (!ok() || !gate('bl', 50)) return; const n = (heavy ? 'blade_h' : 'blade_l') + Math.floor(Math.random() * 3);
-    if (!sample(n, crit ? 1 : 0.85, (heavy ? 0.96 : 0.97) + Math.random() * 0.08)) { hiss(heavy ? 900 : 1600, 0.9, 0.12, 0.25); tone('triangle', heavy ? 700 : 1100, 300, 0.12, 0.06); } },
+    if (!sample(n, crit ? 0.75 : 0.6, (heavy ? 0.96 : 0.97) + Math.random() * 0.08)) { hiss(heavy ? 900 : 1600, 0.9, 0.12, 0.25); tone('triangle', heavy ? 700 : 1100, 300, 0.12, 0.06); } },
   spear() { if (!ok() || !gate('sp', 60)) return; hiss(2400, 1.2, 0.12, 0.18); tone('triangle', 900, 300, 0.12, 0.08); },
   hit(v = 1) { if (!ok() || !gate('hit', 40)) return; hiss(600, 0.8, 0.09, 0.25 * v); tone('sine', 160, 70, 0.1, 0.18 * v); },
   smash() { if (!ok()) return; tone('sine', 110, 40, 0.3, 0.4); hiss(300, 0.7, 0.25, 0.35); },

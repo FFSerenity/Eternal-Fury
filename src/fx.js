@@ -73,13 +73,17 @@ const MARKS = [];
 export function spinFx(u, col = 0x5fe8dc) { if (!S.scene) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(4.1, 4.1).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({ map: SWIRL, color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   m.position.y = 0.55; m.renderOrder = 4; u.mesh.root.add(m); MARKS.push({ m, t: 0, life: 1.1, kind: 'spin', parent: u.mesh.root }); }
-export function slamMark(x, z) { if (!S.scene) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6).rotateX(-Math.PI / 2),
+// s: size; glow: a colour the cracks burn with for a moment (the 魂契 skeleton's landing)
+export function slamMark(x, z, s = 1, glow = null, life = 2.2) { if (!S.scene) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6 * s, 2.6 * s).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({ map: CRACK, transparent: true, opacity: 0.85, depthWrite: false })); m.rotation.y = Math.random() * 6.28; m.position.set(x, 0.07, z); m.renderOrder = 1; S.scene.add(m);
-  MARKS.push({ m, t: 0, life: 2.2, kind: 'crack', parent: S.scene }); }
+  MARKS.push({ m, t: 0, life, kind: 'crack', parent: S.scene });
+  if (glow != null) { const g = new THREE.Mesh(m.geometry.clone(), new THREE.MeshBasicMaterial({ map: CRACK, color: glow, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending }));
+    g.rotation.y = m.rotation.y; g.position.set(x, 0.075, z); g.renderOrder = 2; S.scene.add(g); MARKS.push({ m: g, t: 0, life: 1.1, kind: 'glow', parent: S.scene }); } }
 function updateMarks(dt) { let j = 0;
   for (const k of MARKS) { k.t += dt; const f = k.t / k.life; if (f >= 1) { k.parent.remove(k.m); k.m.geometry.dispose(); k.m.material.dispose(); continue; }
     if (k.kind === 'spin') { k.m.rotation.y -= dt * 17; k.m.material.opacity = Math.min(1, f * 8) * (f > 0.75 ? (1 - f) / 0.25 : 1) * 0.75; k.m.scale.setScalar(0.85 + 0.2 * Math.min(1, f * 4)); }
     else if (k.kind === 'wave') { const q = Math.max(0, f); k.m.scale.setScalar(Math.max(0.01, (k.R / 0.95) * (1 - (1 - q) * (1 - q)))); k.m.material.opacity = 0.95 * (1 - q); }
+    else if (k.kind === 'glow') k.m.material.opacity = (1 - f) * (1 - f) * (0.85 + 0.15 * Math.sin(k.t * 40));
     else k.m.material.opacity = 0.85 * Math.min(1, (1 - f) * 2.5);
     MARKS[j++] = k; } MARKS.length = j; }
 

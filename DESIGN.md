@@ -75,12 +75,14 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   for a defence skill) and no run yet, straight from the walk into its swings;
   it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the shield hangs point-down along the leg when the arm is lowered;
   the greatsword drags along the floor behind it (sparks), and no blade sinks into the ground. It cannot be shoved or knocked back by anyone.
-- Its swings leave a trail and sound like blades: a swish timed to the blade's fastest moment in each clip (artisticdude's CC0 Swishes pack,
-  pitched down for the greatsword), and a cut with a metal ring when a blow lands (Kenney samples mixed in assets/sfx, one per swing).
+- Its swings leave a trail and sound like blades: the air swells while the blade gathers speed and a swish peaks at its fastest moment in
+  each clip (artisticdude's CC0 Swishes pack, stretched, pitched down for the greatsword), louder than the cut with a metal ring when a blow
+  lands (Kenney samples mixed in assets/sfx, one per swing).
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier: they wake at 5 / 10 / 15 / 20 战魂 and are lost with them; used on its own (pactskills.js).
-  Charge (3.5–8 m: lunge that knocks down / leap with a landing slam, 8 s); Guard (below 60% life or 3+ around: 2.5 s at −70% / −50%
+  Charge (3.5–8 m, 8 s: sword & shield runs in behind the raised shield — legs from the run, arms from the guard — barging aside what is
+  in the way and knocking the target down; the greatsword leaps in a long arc like the crypt's warriors and splits the ground where it lands); Guard (below 60% life or 3+ around: 2.5 s at −70% / −50%
   damage, the shield stops missiles from the front, then a counter, 12 s); Whirlwind (3+ within 2.5 m: two cuts all around, 10 s);
   Sundering Strike (charged blow, shock wave down a 5.5 m cone, non-elites left under 25% are cut down, 15 s).
 - Its helmet crest shows its 战魂 (Fury from its own kills, lost when it falls): as modelled below 5, then dyed in the gear colours —

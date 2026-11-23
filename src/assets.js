@@ -178,7 +178,7 @@ export function heroClip(n, set) {
   const C = A.heroClips, p = set ? set + '_' : '#', pick = (...ks) => ks.find(k => C[k]) || null;
   if (C[p + n]) return p + n; if (C[n]) return n;
   if (/Death|Die/.test(n)) return pick(p + 'Death', 'Dead');
-  if (/Attack|Chop|Slice|Stab|Spin|Melee/.test(n)) return pick(p + 'Atk1', 'Attack');
+  if (/Attack|Chop|Slice|Stab|Spin|Melee/.test(n)) return pick(p + 'Atk2', 'Attack');
   // moving and standing: a dazed stand and a plain walk — no guard stance (the styles' guarded idle / walk wait for a defence skill), and
   // no run yet. Sword & shield: Mixamo's brutal walk; greatsword: the briefcase walk (the right arm hangs, the blade drags behind)
   if (/Walk|Run/.test(n)) return pick('Walk_' + (set || 'SNS'), 'Walk_SNS', 'Walking');
@@ -423,6 +423,11 @@ export function play(m, name, o = {}) {
   m.cur = a; m.curName = name;
   if (m.curU && !name.endsWith('@lower')) { if (o.fade === 0) m.curU.stop(); else m.curU.fadeOut(o.fade ?? 0.15); m.curU = null; m.curUName = ''; } // a whole-body clip takes the arms back
   return a;
+}
+// the 魂契 skeleton's clips split into legs (hips down) and the rest, to run with one and hold another with the other
+export function heroPart(name, part) {
+  const key = name + '@' + part, C = A.heroClips; if (C[key]) return key; const c = C[name]; if (!c) return name;
+  C[key] = new THREE.AnimationClip(key, c.duration, c.tracks.filter(t => /Hips|UpLeg|Leg|Foot|Toe/.test(t.name.split('.')[0]) === (part === 'lower'))); return key;
 }
 // layered animation (the 机枪骷髅 walks with its legs while its arms keep the gun up): a clip split into the upper body
 // (spine, chest, head, arms) and the rest; play(m, partClip(walk, 'lower')) for the legs, playUpper(m, partClip(aim, 'upper')) for the arms
