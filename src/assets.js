@@ -176,11 +176,11 @@ export function heroClip(n, set) {
   if (C[p + n]) return p + n; if (C[n]) return n;
   if (/Death|Die/.test(n)) return pick(p + 'Death', 'Dead');
   if (/Attack|Chop|Slice|Stab|Spin|Melee/.test(n)) return pick(p + 'Atk1', 'Attack');
-  // moving and standing: the plain walk cycle whatever it holds — no guard stance (the styles' guarded idle / walk / run wait for a defence skill)
-  if (/Running|Run/.test(n)) return pick('Running');
-  if (/Walk/.test(n)) return pick('Walking');
+  // moving and standing: a dazed stand and a plain walk — no guard stance (the styles' guarded idle / walk wait for a defence skill), and
+  // no run yet. Sword & shield: Mixamo's brutal walk; greatsword: the briefcase walk (the right arm hangs, the blade drags behind)
+  if (/Walk|Run/.test(n)) return pick('Walk_' + (set || 'SNS'), 'Walk_SNS', 'Walking');
   if (/Hit/.test(n)) return null; // no flinch: keep what's playing (it shrugs hits off)
-  return pick('Idle');
+  return pick('Stand', 'Idle');
 }
 // the model came with open, spread hands: curl the fingers into a fist (in the rest pose, so every clone has it) and keep the clips
 // off the finger bones. The auto-rig hung some fingers on a palm bone (Bone_024 / Bone_019, reparented under the hands at build time),

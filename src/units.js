@@ -605,13 +605,13 @@ function allyThink(u, dt) {
     const allies = G.friends.filter(f => f.side === 'ally'), mine = allies.filter(f => isMelee(f) === isMelee(u)), idx = mine.indexOf(u), n = mine.length;
     const ang = isMelee(u) ? P.face + (idx - (n - 1) / 2) * 0.8 : P.face + Math.PI + (idx - (n - 1) / 2) * 0.9, r = isMelee(u) ? 1.7 : 1.6;
     let tx = P.x + Math.sin(ang) * r, tz = P.z + Math.cos(ang) * r; if (!C.floor.walk(tx, tz)) { tx = P.x; tz = P.z; } const d = Math.hypot(tx - u.x, tz - u.z);
-    if (d > 0.5) seek(u, tx, tz, u.speed * Math.min(1.3, 0.35 + d / 2.5)); else { u.wantX = u.wantZ = 0; }
+    if (d > 0.5) seek(u, tx, tz, u.speed * Math.min(u.pact ? 1 : 1.3, 0.35 + d / 2.5)); else { u.wantX = u.wantZ = 0; } // (the 魂契 skeleton never hurries)
     if (u.gun && u.deployT > 0 && !(u.burst > 0) && u.cdT <= 0) { const h = nearestHostile(u, u.range + 2.5); if (h) { u.tgt = h; u.burst = 6; u.burstT = 0; u.burstN = 0; u.cdT = u.cd * 0.62; } } // fire on the move
     return; }
   const t = u.target;
   if (u.gun) { if (!gunSkills(u)) { rangedLogic(u, t, dt, 3, 6.5 + (u.deployT > 0 ? 2.5 : 0));
     if (u.deployT > 0 && dp > 3.5 && u.state !== 'windup') seek(u, P.x, P.z, u.speed); } } // braced: keeps up with the summoner, firing as it walks
-  else if (isMelee(u)) { if (u.mech) { aegisSkill(u); if (overloadSkill(u)) return; } if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
+  else if (isMelee(u)) { if (u.mech) { aegisSkill(u); if (overloadSkill(u)) return; } if (spinSkill(u)) return; if (moveSkill(u, t)) return; meleeLogic(u, t); const d = dist(u, t); if (d > u.range + u.r + t.r + 1 && !u.pact) { u.wantX *= 1.2; u.wantZ *= 1.2; } }
   else if (u.mortar) mortarLogic(u, t, dt);
   else if (u.eng) { if (orbitalSkill(u)) return; rangedLogic(u, t, dt, 4.5, 7.5); }
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 3.5, 6.5 + 0.4 * rk(u, 'eagle'));
@@ -867,8 +867,8 @@ function animate(u, dt, sp) {
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
-  if (m.hero) { const run = sp > 3.2, ref = run ? 4.64 : 1.79; // the plain Meshy walk / run (strides measured from the planted foot, world m/s)
-    if (sp > 0.35) play(m, run ? 'Running' : 'Walking', { speed: Math.max(0.6, Math.min(1.9, sp / ref)), fade: 0.2 }); else play(m, 'Idle', { fade: 0.25 }); return; }
+  if (m.hero) { const ref = m.wset === 'GS' ? 1.68 : 1.29; // walk only (no run yet); strides from the clips' root travel, world m/s
+    if (sp > 0.3) play(m, 'Walking', { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Idle', { fade: 0.3 }); return; }
   const k = CHARS[u.kind].scale * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }
   else play(m, a.idle, { fade: 0.22 });

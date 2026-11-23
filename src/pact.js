@@ -17,16 +17,16 @@ import { S } from './audio.js';
 export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1.9 };
 // weapon styles: one class (warrior), two ways to fight
 export const SETS = {
-  SNS: { name: tr('剑盾', 'Sword & Shield'), style: tr('坚守', 'Bulwark'), icon: '🛡️', hp: 1.3, dmg: 1, arm: 14, cd: 1.15, wind: 0.42, range: 1.2, eva: 0.32, arc: 0.55, side: 0.6, knock: 1.4,
+  SNS: { name: tr('剑盾', 'Sword & Shield'), style: tr('坚守', 'Bulwark'), icon: '🛡️', mv: 2.07, hp: 1.3, dmg: 1, arm: 14, cd: 1.15, wind: 0.42, range: 1.2, eva: 0.32, arc: 0.55, side: 0.6, knock: 1.4,
     desc: tr('生命和护甲高，闪避高，出手快。被一群怪围住也站得住。', 'More life and armour, high evasion, quick strikes. Holds its ground in a crowd.') },
-  GS: { name: tr('双手大剑', 'Greatsword'), style: tr('横扫', 'Cleave'), icon: '⚔️', hp: 1.0, dmg: 1.5, arm: 4, cd: 1.6, wind: 0.6, range: 1.6, eva: 0.16, arc: 1.25, side: 0.85, knock: 3, heavy: true,
+  GS: { name: tr('双手大剑', 'Greatsword'), style: tr('横扫', 'Cleave'), icon: '⚔️', mv: 2.33, hp: 1.0, dmg: 1.5, arm: 4, cd: 1.6, wind: 0.6, range: 1.6, eva: 0.16, arc: 1.25, side: 0.85, knock: 3, heavy: true,
     desc: tr('伤害高，每一刀都扇形横扫面前的敌人并击退，但闪避低、更容易受伤。', 'Heavy hits: every swing cleaves everything in front and knocks it back, but it dodges less and gets hurt more.') },
 };
 // the skeleton at summon level L with s 战魂 stacks (before the global pace: speed ×0.75, attack interval ÷0.8)
 export function heroBase(L, s, set) {
   const W = SETS[set] || SETS.SNS;
   return { maxHp: (230 + 40 * (L - 1)) * W.hp * (1 + 0.025 * s), dmg: (16 + 4.5 * (L - 1)) * W.dmg * (1 + 0.06 * s), armor: 18 + 3 * (L - 1) + W.arm,
-    speed: 2.9 * Math.min(1.6, 1 + 0.035 * s), cd: W.cd / (1 + 0.04 * s), evade: W.eva + Math.min(0.12, 0.004 * s) };
+    speed: W.mv * Math.min(1.3, 1 + 0.02 * s), cd: W.cd / (1 + 0.04 * s), evade: W.eva + Math.min(0.12, 0.004 * s) }; // speed: a slow, heavy walk (1.55 / 1.75 m/s at first, at most +30%)
 }
 // kills needed for the next stack (champions count 4, warriors 2)
 export const stackNeed = s => 3 + Math.floor(s * 0.6);

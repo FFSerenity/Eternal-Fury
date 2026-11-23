@@ -37,7 +37,7 @@ export function renderPact(force) {
     cur = `<div class="nm">${tr('在场', 'On the field')} · ${tr('战魂', 'Fury')} <b class="fury">✦${s}</b></div>`
       + `<div class="lv">${tr(`下一层还差 ${stackNeed(s) - P8.kills} 次击杀`, `${stackNeed(s) - P8.kills} more kills to the next stack`)}</div><div class="xp"><i style="width:${P8.kills / stackNeed(s) * 100}%"></i></div>`
       + `<div class="ds">${tr('生命', 'Life')} ${Math.ceil(u.hp)} / ${b.hp} · ${tr('伤害', 'Damage')} ${b.dmg} · ${tr('每秒攻击', 'Attacks/s')} ${b.aps} · ${tr('移速', 'Speed')} ${b.mv} · ${tr('闪避', 'Evasion')} ${b.eva}<br>`
-      + `${tr(`战魂加成：伤害 +${s * 6}%，攻速 +${s * 4}%，移速 +${Math.round(Math.min(0.6, 0.035 * s) * 100)}%，生命 +${(s * 2.5).toFixed(0)}%`, `Fury bonus: +${s * 6}% damage, +${s * 4}% attack speed, +${Math.round(Math.min(0.6, 0.035 * s) * 100)}% speed, +${(s * 2.5).toFixed(0)}% life`)}</div>`; }
+      + `${tr(`战魂加成：伤害 +${s * 6}%，攻速 +${s * 4}%，移速 +${Math.round(Math.min(0.3, 0.02 * s) * 100)}%，生命 +${(s * 2.5).toFixed(0)}%`, `Fury bonus: +${s * 6}% damage, +${s * 4}% attack speed, +${Math.round(Math.min(0.3, 0.02 * s) * 100)}% speed, +${(s * 2.5).toFixed(0)}% life`)}</div>`; }
   else cur = `<div class="nm">${tr('未召唤', 'Not summoned')}</div><div class="ds">${tr(`按 E（或「召唤」按钮）施法 ${SUMMON.cast} 秒，消耗 ${SUMMON.mana} 法力。`, `Press E (or the Summon button): a ${SUMMON.cast} s cast, ${SUMMON.mana} mana.`)}</div>`;
   $('#cryptList').innerHTML = `<div class="card ptop"><span class="ic">💀</span><div class="info"><div class="nm">${tr(`召唤${heroName()}`, `Summon ${heroName()}`)} · Lv ${L}</div>`
     + `<div class="lv">${tr('召唤出的骸骨卫士等级 = 技能等级', 'The Sentinel comes out at the skill\'s level')}</div>`

@@ -24,7 +24,10 @@ if mode == 'anim':
     for o in list(bpy.data.objects):
         if o.type == 'MESH': bpy.data.objects.remove(o, do_unlink=True)
 else:
-    for a in bpy.data.actions: a.use_fake_user = True
+    import os  # DROP=Idle,Walking: leave those of the model's own clips out
+    for a in list(bpy.data.actions):
+        if a.name in [x for x in os.environ.get('DROP', '').split(',') if x]: bpy.data.actions.remove(a)
+        else: a.use_fake_user = True
 
 # bones that get animated: the mixamo body chain; fingers stay in the game's fixed fist pose
 def keep(b):
