@@ -27,7 +27,7 @@ export function pactHUD() {
 // the helmet crest shows the level (see PLUME_AT in assets.js)
 const CREST = [[tr('骨黑', 'bone-black'), '#8d8a86'], [tr('幽蓝', 'azure'), '#5f9cff'], [tr('鎏金', 'gold'), '#ffc83a'], [tr('紫焰', 'violet fire'), '#b46cff'], [tr('赤焰', 'crimson fire'), '#ff5030']];
 function crestLine(L) { const t = plumeTier(L), c = CREST[t], n = CREST[t + 1], dot = k => `<b style="color:${k[1]}">●</b>`;
-  return `<div class="lv">${tr('头盔鬃毛', 'Helmet crest')} ${dot(c)} ${c[0]}${n ? tr(` · Lv ${PLUME_AT[t]} 化为`, ` · Lv ${PLUME_AT[t]}: `) + `${dot(n)} ${n[0]}` : ''}</div>`; }
+  return `<div class="lv">${tr('头盔鬃毛', 'Helmet crest')} ${dot(c)} ${c[0]}${n ? tr(` · Lv ${PLUME_AT[t]} 化为 `, ` · Lv ${PLUME_AT[t]}: `) + `${dot(n)} ${n[0]}` : ''}</div>`; }
 // ---------- the Pact panel ----------
 let panelSig = '';
 export function renderPact(force) {
