@@ -22,6 +22,7 @@ export async function loadAll(onProgress = () => {}) {
     else if (kind === 'anims') for (const c of g.animations) A.clips[c.name] = c;
     else if (kind === 'hero') { const fingers = heroFists(g.scene); for (const c of g.animations) { c.tracks = c.tracks.filter(t => !fingers.has(t.name.split('.')[0])); A.heroClips[c.name] = c; }
       if (A.heroClips.Stand) spreadArms(g.scene, A.heroClips.Stand, ...(globalThis.__spread || ARM_SPREAD));
+      A.heroPlume = plumeMask(g.scene);
       A.hero = { scene: g.scene, clips: A.heroClips }; }
     else if (kind === 'heropack') for (const c of g.animations) A.heroClips[c.name] = c; // weapon-style clip packs: rig + clips only, same bone names
     else if (kind === 'heroweap') for (const n of g.scene.children) A.heroWeap[n.name] = n;
@@ -213,8 +214,9 @@ function heroFists(scene) {
 }
 function makeHeroMesh(o) {
   const model = skClone(A.hero.scene), u = charUniforms(o), adds = []; let mat = null;
+  u.uPl = { value: new THREE.Vector4(0, 0, 0, 0) }; u.uPlFx = { value: new THREE.Vector4(0, 0, 0, globalThis.__plumeDbg ? 1 : 0) };
   model.traverse(obj => { if (!obj.isMesh) return; const sm = obj.material;
-    mat = mat || realMat({ u, map: sm.map, nmap: sm.normalMap, mr: sm.roughnessMap || sm.metalnessMap });
+    mat = mat || realMat({ u, map: sm.map, nmap: sm.normalMap, mr: sm.roughnessMap || sm.metalnessMap, plume: !!A.heroPlume });
     obj.material = mat; obj.frustumCulled = false;
     if (obj.isSkinnedMesh) { const ol = new THREE.SkinnedMesh(obj.geometry, outlineMat(o.outline ?? 0x0c080c, 0.012, u.uFade)); ol.bind(obj.skeleton, obj.bindMatrix); ol.frustumCulled = false; adds.push([obj.parent, ol]); } });
   for (const [p, ol] of adds) p.add(ol);
@@ -226,9 +228,15 @@ function makeHeroMesh(o) {
     const g = glowSprite(0x5ff2ff, 0.42 / ws, 0.75); g.position.copy(head.worldToLocal(hp.add(new THREE.Vector3(0, 0.09 * HERO_H / 1.85, 0.1 * HERO_H / 1.85)))); head.add(g); glows.push(g); }
   const set = HERO_SETS[o.wset], weap = {};
   if (set) for (const side of ['r', 'l']) if (set[side]) weap[side] = heroGrip(model, side, set[side], u, o.outline);
+  // sparks rise from points along the crest's rim (hung on the head bone)
+  const plumePts = []; let plumeGlow = null;
+  if (head && A.heroPlume) { for (const p of A.heroPlume.pts) { const d = new THREE.Object3D(); d.position.copy(p); head.add(d); plumePts.push(d); }
+    // a halo over the crest for the fiery tiers (reads from the game camera, where the crest itself is small)
+    const ws = head.getWorldScale(new THREE.Vector3()).x || 1; plumeGlow = glowSprite(0xffffff, 0.9 / ws, 0); plumeGlow.position.copy(A.heroPlume.c); plumeGlow.visible = false; head.add(plumeGlow); }
+  const blade = weap.r && weap.r.userData.edge ? { a: weap.r.userData.edge[0], b: weap.r.userData.edge[1], col: PLUME_TIERS[0].trail } : null;
   const root = new THREE.Group(); root.add(model);
   return { root, model, pivot: model, mixer: new THREE.AnimationMixer(model), actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u,
-    tips: [], glows, soul: null, gun: null, muz: null, drill: null, rod: null, blade: null, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? o.wset : null, atk: set ? set.atk : ['Attack'], atkI: 0, weap };
+    tips: [], glows, plumeGlow, soul: null, gun: null, muz: null, drill: null, rod: null, blade, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? o.wset : null, atk: set ? set.atk : ['Attack'], atkI: 0, weap, plumePts };
 }
 // the dazed stand (Mixamo Idle) holds the arms close against the body: a sturdier stance, elbows out and forearms leaning slightly back
 // in (upper arm ~26 deg off vertical, forearm leaning a few degrees out). Turns about the facing axis, in world space so every key gets the same
@@ -297,11 +305,77 @@ function heroGrip(model, side, name, u, outline) {
   g.position.copy(bone.worldToLocal(at.clone()));
   g.quaternion.copy(bone.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(W));
   g.userData.q0 = g.quaternion.clone(); g.userData.tip = fit.len * box.max.y / (box.max.y - box.min.y); // world length from the grip to the point
+  if (name !== 'shield') { const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2, a = new THREE.Object3D(), b = new THREE.Object3D(); // the edge, for swing trails
+    a.position.set(cx, box.max.y * 0.3, cz); b.position.set(cx, box.max.y, cz); g.add(a, b); g.userData.edge = [a, b]; }
   bone.add(g); return g;
 }
 // after the skeleton is posed each frame: a blade never sinks into the floor, and out of a swing the greatsword is dragged along the
 // ground behind it (tip on the floor, a little to its right; sparks while it walks) instead of hanging straight down through it
 const _V = THREE.Vector3, _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
+// ---------- the helmet crest (鬃毛): its colour and fire show the skeleton's level ----------
+// Found once on load: head-weighted vertices near the head's middle plane that stand outside the helmet itself (worked in the head
+// bone's bind frame, axes from the world, sizes relative to the helmet's half width). aPlume = (membership, 0 at the helmet .. 1 at
+// the fin's outer rim, 0 front .. 1 back along the arc); pts: points on the rim in the head bone's frame, for sparks
+function plumeMask(scene) {
+  let sk = null; scene.traverse(o => { if (o.isSkinnedMesh && (!sk || o.geometry.attributes.position.count > sk.geometry.attributes.position.count)) sk = o; });
+  if (!sk) return null; const bones = sk.skeleton.bones, hi = bones.findIndex(b => /Head$/.test(b.name)), ti = bones.findIndex(b => /HeadTop_End$/.test(b.name)); if (hi < 0) return null;
+  const g = sk.geometry, P = g.attributes.position, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, N = P.count, V = THREE.Vector3;
+  const Bi = sk.skeleton.boneInverses[hi], Mi = new THREE.Matrix4().multiplyMatrices(Bi, sk.bindMatrix), R = new THREE.Matrix3().setFromMatrix4(Bi);
+  const L = new V(1, 0, 0).applyMatrix3(R).normalize(), U = new V(0, 1, 0).applyMatrix3(R).normalize(), F = new V(0, 0, 1).applyMatrix3(R).normalize();
+  const pts = [], p = new V();
+  for (let i = 0; i < N; i++) { let bi = -1, bw = 0; for (let k = 0; k < 4; k++) { const w = SW.getComponent(i, k); if (w > bw) { bw = w; bi = SI.getComponent(i, k); } }
+    if (bi !== hi && bi !== ti) continue; p.fromBufferAttribute(P, i).applyMatrix4(Mi); pts.push({ i, p: p.clone(), l: p.dot(L), u: p.dot(U), f: p.dot(F) }); }
+  if (pts.length < 50) return null;
+  const hw = Math.max(...pts.map(q => Math.abs(q.l))), wide = pts.filter(q => Math.abs(q.l) > 0.64 * hw);
+  const cu = wide.reduce((s, q) => s + q.u, 0) / wide.length, cf = wide.reduce((s, q) => s + q.f, 0) / wide.length;
+  const NB = 48, bin = q => Math.floor((Math.atan2(q.u - cu, q.f - cf) / (2 * Math.PI) + 1) % 1 * NB) % NB, rad = q => Math.hypot(q.u - cu, q.f - cf);
+  const near = (a, b) => a.map((_, k) => Math.max(a[(k + NB - 1) % NB], a[k], a[(k + 1) % NB])), hull = new Array(NB).fill(0);
+  for (const q of wide) { const b = bin(q); hull[b] = Math.max(hull[b], rad(q)); }
+  // the fin is thin all over: seen from the side, no part of the helmet's width lies close behind it (the helmet's own middle ridge,
+  // over the brow, does have the helmet beside it)
+  const D = 0.36 * hw, cell = new Map(), ck = (a, b) => a * 4096 + b;
+  for (const q of pts) if (Math.abs(q.l) > 0.55 * hw) { const k = ck(Math.floor(q.u / D), Math.floor(q.f / D)); (cell.get(k) || cell.set(k, []).get(k)).push(q); }
+  const besideHelmet = q => { const a = Math.floor(q.u / D), b = Math.floor(q.f / D);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const w of cell.get(ck(a + i, b + j)) || []) if (Math.hypot(w.u - q.u, w.f - q.f) < D) return true; return false; };
+  const H = near(hull), m = 0.3 * hw, fin = [];
+  for (const q of pts) { const r = rad(q), du = (q.u - cu) / (r || 1), df = (q.f - cf) / (r || 1);
+    if (Math.abs(q.l) < 0.5 * hw && r > H[bin(q)] + m && !(df > 0.2 && du < 0.5) && du > -0.62 && !besideHelmet(q)) { q.r = r; q.th = Math.atan2(-df, du); fin.push(q); } } // (not the face and nose guard: forward and low; not the neck below the back of the helmet)
+  if (fin.length < 30) return null;
+  const rimR = new Array(NB).fill(0); for (const q of fin) { const b = bin(q); rimR[b] = Math.max(rimR[b], q.r); } const RR = near(rimR);
+  const t0 = Math.min(...fin.map(q => q.th)), t1 = Math.max(...fin.map(q => q.th)), arr = new Float32Array(N * 3);
+  for (const q of fin) { const b = bin(q), lo = H[b] + m; q.rim = Math.min(1, Math.max(0, (q.r - lo) / Math.max(1e-4, RR[b] - lo))); q.arc = (q.th - t0) / Math.max(1e-4, t1 - t0);
+    arr[q.i * 3] = 1; arr[q.i * 3 + 1] = q.rim; arr[q.i * 3 + 2] = q.arc; }
+  g.setAttribute('aPlume', new THREE.BufferAttribute(arr, 3));
+  const rim = fin.filter(q => q.rim > 0.85).sort((a, b) => a.arc - b.arc), out = [];
+  for (let k = 0; k < 12 && rim.length; k++) out.push(rim[Math.floor((k + 0.5) / 12 * rim.length)].p);
+  const c = new THREE.Vector3(); for (const q of fin) c.add(q.p); c.divideScalar(fin.length);
+  return { pts: out, n: fin.length, c };
+}
+// tiers by skill level: the crest as it is, then the gear colours blue, gold, purple, and red, each brighter, the later ones on fire
+const PLUME_TIERS = [ // dye colour, dye amount, glow, flame, sparks a second, swing trail colour, halo size and strength
+  { c: 0x000000, a: 0, glow: 0, flame: 0, sp: 0, trail: 0xbfe6ff, halo: 0 },
+  { c: 0x3f86ff, a: 0.9, glow: 0.35, flame: 0, sp: 0, trail: 0x5f9cff, halo: 0 },
+  { c: 0xffb22e, a: 0.95, glow: 0.55, flame: 0.3, sp: 4, trail: 0xffc83a, halo: 0.35 },
+  { c: 0x8a3cff, a: 1, glow: 0.5, flame: 0.5, sp: 10, trail: 0xb46cff, halo: 0.55 },
+  { c: 0xff3418, a: 1, glow: 1.1, flame: 1, sp: 24, trail: 0xff5030, halo: 0.8 },
+];
+export const PLUME_AT = [5, 10, 15, 20];
+export const plumeTier = L => PLUME_AT.filter(l => L >= l).length;
+const _pc = new THREE.Color();
+function plumeTick(u, dt, emit) {
+  const m = u.mesh, uf = m.u && m.u.uPlFx; if (!uf) return; uf.value.x += dt;
+  const tier = Math.min(PLUME_TIERS.length - 1, plumeTier(globalThis.__plumeL ?? (u.entry ? u.entry.level : u.level) ?? 1)), T = PLUME_TIERS[tier];
+  if (m.plumeT !== tier) { const up = m.plumeT != null && tier > m.plumeT; m.plumeT = tier; _pc.setHex(T.c); m.u.uPl.value.set(_pc.r, _pc.g, _pc.b, T.a); uf.value.y = T.glow; uf.value.z = T.flame;
+    if (m.blade) m.blade.col = T.trail; if (m.plumeGlow) { m.plumeGlow.visible = T.halo > 0; m.plumeGlow.material.color.setHex(T.c); }
+    if (up && emit) for (const d of m.plumePts) { d.getWorldPosition(_p); for (let k = 0; k < 4; k++) emit(_p.x, _p.y, _p.z, { col: T.c, spd: 1.2, up: 1.6, grav: -0.5, life: 0.9, size: 0.2, spread: 0.1 }); } }
+  if (m.plumeGlow && T.halo) { const t = uf.value.x, f = 0.82 + 0.1 * Math.sin(t * 3.1) + (tier >= 4 ? 0.08 * Math.sin(t * 17.3) * Math.sin(t * 7.7) : 0); // breathing, the fire flickers
+    m.plumeGlow.material.opacity = T.halo * f * m.u.uFade.value; m.plumeGlow.scale.setScalar(m.plumeGlow.userData.s0 ??= m.plumeGlow.scale.x); m.plumeGlow.scale.multiplyScalar((0.7 + 0.5 * T.halo) * f); }
+  if (!T.sp || !emit || !m.plumePts.length || !m.root.visible || u.dead) return;
+  m.spAcc = (m.spAcc || 0) + dt * T.sp;
+  while (m.spAcc >= 1) { m.spAcc -= 1; const d = m.plumePts[Math.floor(Math.random() * m.plumePts.length)]; d.getWorldPosition(_p);
+    if (tier >= 4 && Math.random() < 0.45) emit(_p.x, _p.y, _p.z, { col: 0xff3010, spd: 0.25, up: 0.9, grav: -1.2, life: 0.45, size: 0.3, spread: 0.06 }); // flame licks
+    else emit(_p.x, _p.y, _p.z, { col: tier >= 4 ? 0xffb050 : T.trail, spd: 0.35, up: 0.7, grav: -0.8, life: tier >= 3 ? 0.9 : 0.6, size: tier >= 4 ? 0.16 : tier >= 3 ? 0.13 : 0.1, spread: 0.05 }); }
+}
 const _n = new _V(), _c = new _V(), _zA = new _V(0, 0, 1), _qz = new THREE.Quaternion();
 // the shield turns in its own plane (so the forearm stays behind the board) to keep its point down: a lowered arm carries it upright
 // along the leg instead of sticking out like a wing, and a raised guard (thumb up) needs almost no turn. Slightly short of full and
@@ -315,6 +389,7 @@ function shieldHang(g, dt) {
   g.quaternion.multiply(_qz.setFromAxisAngle(_zA, a));
 }
 export function heroWeaponPose(u, dt, emit) {
+  plumeTick(u, dt, emit);
   const m = u.mesh, sh = m.weap && m.weap.l; if (sh && sh.userData.q0) shieldHang(sh, dt);
   const g = m.weap && m.weap.r; if (!g || !g.userData.q0) return;
   const swing = /Atk|Death|Dead|Rise|Dodge/.test(m.curName || '') && m.cur && m.cur.isRunning(), drag = m.wset === 'GS' && !swing && !(u.spawnT > 0) ? 1 : 0;

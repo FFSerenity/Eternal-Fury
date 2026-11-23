@@ -62,8 +62,9 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
 
 ## 魂契 / Soul Pact mode (first playable, Nov 2026)
 A separate mode with its own save (start screen). The fun to find: one summon you raise by hand and that is the centre of every fight.
-- Monsters move at 60% speed (minion ~2.0 m/s, warrior ~1.1); the summoner (3.45 m/s) outruns everything; the skeleton walks slow and heavy
-  (sword & shield 1.55 m/s, greatsword 1.75; never hurries to catch up, no run yet).
+- Monsters move at 60% speed, and the slow kinds (warrior, archer, mage) are brought up to 90% of a minion (minion ~2.6 m/s, the rest ~2.4);
+  the summoner (3.45 m/s) outruns everything; the skeleton walks slow and heavy (sword & shield 1.55 m/s, greatsword 1.75; never hurries,
+  no run yet) and blinks back beside the summoner at 10 m (15 m while it has a target), half the usual distance.
 - 召唤 (E): no cooldown, 10 mana, 1.5 s cast (rune circle), then the skeleton rises (Mixamo Zombie Stand Up, ×1.9). Its level = the skill level.
 - 战魂 (Fury): kills by the skeleton's own hand (elite 4, warrior 2, others 1); stack n needs 3 + ⌊0.6n⌋ kills. Per stack: +6% damage,
   +4% attack speed, +2% move speed (cap +30%), +2.5% life, +0.4% evasion (cap +12%). Death: all stacks gone, summon again.
@@ -74,6 +75,9 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   for a defence skill) and no run yet, straight from the walk into its swings;
   it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the shield hangs point-down along the leg when the arm is lowered;
   the greatsword drags along the floor behind it (sparks), and no blade sinks into the ground. It cannot be shoved or knocked back by anyone.
+- Its swings leave a trail and sound like blades (a whoosh, then a slash with a metal ring: Kenney samples mixed in assets/sfx, one per swing).
+- Its helmet crest shows the skill level: as modelled below Lv 5, then dyed in the gear colours — Lv 5 blue, 10 gold (glowing, sparks),
+  15 violet fire, 20 crimson fire (flames running out along the fin, a halo, embers); the swing trail takes the same colour.
 - The summoner's Bone Spear does half damage here and the summoner levels at 60% speed: support, heal (Mend), harvest.
 - Not yet: the skeleton wearing gear (drops / bag / forge still work), more weapon styles (axe, spear, mace are modelled), skills of its own,
   a second skeleton, using the extracted root motion (lunges / leaps that travel).

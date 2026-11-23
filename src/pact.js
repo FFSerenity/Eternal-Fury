@@ -7,11 +7,12 @@ import * as THREE from 'three';
 import { G, save, PACT } from './state.js';
 import { tr } from './i18n.js';
 import { C, PH, say, damage, hostilesOf, removeCorpse, soulOrb, spawnAlly } from './units.js';
-import { A, play } from './assets.js';
+import { A, play, plumeTier } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
-import { S } from './audio.js';
+import { S, loadSamples } from './audio.js';
+if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2']);
 
 // ---------- tunables ----------
 export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1.9 };
@@ -51,11 +52,12 @@ PH.stats = u => {
 PH.name = () => heroName();
 // a swing: the target and whatever else stands in the arc in front (narrow for the sword, wide for the greatsword)
 PH.strike = (u, t) => {
-  const W = SETS[u.entry.wset] || SETS.SNS, reach = u.range + u.r + 0.35;
+  const W = SETS[u.entry.wset] || SETS.SNS, reach = u.range + u.r + 0.35; let hits = 0, crits = false;
   if (W.heavy) { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 1.1, 0.2, u.z + Math.cos(u.face) * 1.1, 14, { col: 0xb8a890, spd: 3, up: 1.4, life: 0.5, size: 0.3 }); }
   for (const h of hostilesOf(u)) { if (h.dead) continue; const d = Math.hypot(h.x - u.x, h.z - u.z); if (d > reach + h.r + (h === t ? 0.4 : 0)) continue;
     const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (h !== t && da > W.arc && d > 0.8) continue;
-    const crit = Math.random() < 0.1; damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8 }); }
+    const crit = Math.random() < 0.1; damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; }
+  if (hits) S.blade(!!W.heavy, crits); // one blade sound per swing, however many it cuts
 };
 // evasion: a number-less "dodge" and, when it is free to move, a quick dodge step (the Mixamo dodges, sped up)
 PH.evade = (src, u) => {
@@ -154,6 +156,8 @@ export function pactTick(dt) {
 // spend 魂能 on the summon skill; a skeleton already out gets the new level at once (keeps its stacks)
 export function levelUp() {
   const c = lvlCost(P8.lvl); if (G.soul < c) return false; G.soul -= c; P8.lvl++;
+  if (plumeTier(P8.lvl) > plumeTier(P8.lvl - 1)) C.say(tr(['', '骸骨卫士的鬃毛染上了幽蓝', '骸骨卫士的鬃毛化为鎏金', '骸骨卫士的鬃毛燃起紫焰', '骸骨卫士的鬃毛燃起赤焰'][plumeTier(P8.lvl)],
+    ['', 'The Sentinel\'s crest turns azure', 'The Sentinel\'s crest turns to gold', 'The Sentinel\'s crest kindles violet fire', 'The Sentinel\'s crest bursts into crimson fire'][plumeTier(P8.lvl)]), true);
   const u = heroUnit(); if (u) { u.entry.level = P8.lvl; u.level = P8.lvl; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; C.parts.emit(u.x, 0.9, u.z, 30, { col: 0x8ff7ea, spd: 1.6, up: 3, life: 0.9, size: 0.28, grav: -1 }); }
   S.level(); save(); return true;
 }

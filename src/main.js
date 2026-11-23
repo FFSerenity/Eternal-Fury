@@ -251,4 +251,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, PropBatch, fx: FXM, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, addXP }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, addXP }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

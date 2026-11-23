@@ -119,3 +119,4 @@ world space, through both T-poses (`tools/bl_ybot.py`; Mixamo's own retarget ben
 Dungeon Remastered, Halloween Bits and Forest Nature Pack. Licensed CC0 1.0; thank you, Kay!
 The Soul Pact skeleton ("Boneforged Sentinel") and its weapons ("Runebound Armory") were generated with **Meshy** (meshy.ai), licensed
 CC BY 4.0. Its animations are from **Mixamo** (Adobe): Pro Sword and Shield Pack, Great Sword Pack, Zombie Stand Up, Dodging.
+Its blade sounds are mixed from **Kenney**'s Impact Sounds and RPG Audio (www.kenney.nl, CC0).

@@ -127,9 +127,10 @@ export class Floor {
     return D;
   }
   // direction to walk from (x,z) toward (tx,tz): straight if visible, otherwise down a cached flow field
-  dirTo(x, z, tx, tz, out) {
+  // r: the walker's half width for the straight-line shortcut; flow: skip the shortcut (except within the target's own cell)
+  dirTo(x, z, tx, tz, out, r = 0.36, flow = false) {
     if (!this.walk(tx, tz)) { const n = this.nearestWalk(tx, tz); tx = n.x; tz = n.z; }
-    if (this.clear(x, z, tx, tz)) { const dx = tx - x, dz = tz - z, d = Math.hypot(dx, dz) || 1; out.x = dx / d; out.z = dz / d; return out; }
+    if (flow ? Math.floor(x) === Math.floor(tx) && Math.floor(z) === Math.floor(tz) : this.clear(x, z, tx, tz, r)) { const dx = tx - x, dz = tz - z, d = Math.hypot(dx, dz) || 1; out.x = dx / d; out.z = dz / d; return out; }
     const TX = Math.floor(tx), TZ = Math.floor(tz), key = TZ * this.W + TX; let f = this.fields.get(key);
     if (!f || G_T - f.t > 2) { f = { d: this.bfs(TX, TZ), t: G_T }; this.fields.set(key, f); if (this.fields.size > 40) this.fields.delete(this.fields.keys().next().value); }
     const D = f.d, X = Math.floor(x), Z = Math.floor(z), W = this.W; let best = D[Z * W + X], bx = 0, bz = 0;

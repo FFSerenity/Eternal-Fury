@@ -54,7 +54,8 @@ export class Unit {
     this.maxHp = T.hp * (1 + k * (L - 1)) * (ally ? 1.35 : 1); this.dmg = T.dmg * (1 + kd * (L - 1)) * (ally ? 1.15 : 1);
     this.armor = T.armor + 2 * (L - 1); this.speed = T.speed * (ally ? 1.08 : 1); this.range = T.range; this.cd = T.cd; this.r = T.r; this.noStun = false;
     if (ally && this.kind === 'brute') this.speed = TYPES.imp.speed * 1.08 * 0.92;
-    if (PACT && !ally) this.speed *= 0.6; // 魂契: monsters are slow, fights stand still around the skeleton
+    // 魂契: monsters are slow, fights stand still around the skeleton; the slow kinds (warrior, archer, mage) close up to just under a minion
+    if (PACT && !ally) this.speed = Math.max(this.speed, TYPES.imp.speed * 0.9) * 0.6;
     if (this.champ) { this.maxHp *= 2.4; this.dmg *= 1.35; this.r *= ally ? 1.08 : 1.2; }
     if (this.mods.includes('fast')) { const l = mlv(this, 'fast'); this.speed *= 1.35 + 0.1 * l; this.cd *= 0.75 - 0.05 * l; }
     if (this.mods.includes('stone')) { const l = mlv(this, 'stone'); this.armor += 35 + 25 * l; this.maxHp *= 1.2 + 0.1 * l; this.speed *= 0.85; this.noStun = true; }
@@ -100,7 +101,7 @@ export function damage(src, dst, amt, o = {}) {
   if (o.knock && !(dst.deployT > 0) && !dst.pact) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
   if (dst.kind !== 'player' && !dst.noStun && !(dst.deployT > 0) && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
-  if (dst.kind === 'player') { S.hurt(); if (d > dst.maxHp * 0.08) shake(0.06); } else if (!o.dot && !o.sum) S.hit(Math.min(1, d / 20));
+  if (dst.kind === 'player') { S.hurt(); if (d > dst.maxHp * 0.08) shake(0.06); } else if (!o.dot && !o.sum && !o.quiet) S.hit(Math.min(1, d / 20));
   // feel of the blow: a blade leaves a slash and a flash; heavy blows and crits freeze both bodies for a few frames; the one hit jolts
   if (!o.dot) { const heavy = o.heavy || o.crit; dst.jolt = Math.max(dst.jolt || 0, heavy ? 1 : o.sum ? 0.35 : 0.65);
     if (o.melee && src) { slash(src, dst, src.mesh && src.mesh.blade ? src.mesh.blade.col : 0xfff0e0, { crit: o.crit, heavy: o.heavy });
@@ -391,7 +392,12 @@ export function updateShots(dt) {
 }
 
 // ---------- AI ----------
-function seek(u, tx, tz, spd) { C.floor.dirTo(u.x, u.z, tx, tz, tmp); u.wantX = tmp.x * spd; u.wantZ = tmp.z * spd; }
+// walk toward (tx, tz): straight when the way is clear for this unit's width, else down the flow field. A unit that has barely moved
+// for half a second (pressed against a corner) follows the flow field only for a while
+function seek(u, tx, tz, spd) { const t = G.t;
+  if (u.skT == null || t - u.skT >= 0.5) { if (u.skT != null && t - u.skT < 0.8 && Math.hypot(u.x - u.skX, u.z - u.skZ) < spd * (t - u.skT) * 0.25) u.flowT = t + 1.5;
+    u.skT = t; u.skX = u.x; u.skZ = u.z; }
+  C.floor.dirTo(u.x, u.z, tx, tz, tmp, Math.max(0.36, u.r + 0.06), t < (u.flowT || 0)); u.wantX = tmp.x * spd; u.wantZ = tmp.z * spd; }
 function flee(u, fx, fz, spd) {
   let ax = u.x - fx, az = u.z - fz; const l = Math.hypot(ax, az) || 1; ax /= l; az /= l;
   for (const ang of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.5, -2.5]) { const c = Math.cos(ang), s = Math.sin(ang), dx = ax * c - az * s, dz = ax * s + az * c;
@@ -404,7 +410,8 @@ function startWindup(u, t) {
   if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire); the arms are animated in gunnerAnim
     if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
     u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); return; }
-  u.state = 'windup'; u.st = 0; u.wind = (u.windup ?? u.T.windup) * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind); if (MELEE(u.kind)) trail(u, u.wind + 0.3);
+  u.state = 'windup'; u.st = 0; u.wind = (u.windup ?? u.T.windup) * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind); if (MELEE(u.kind)) trail(u, u.wind + (u.pact ? 0.55 : 0.3));
+  if (u.pact) S.swoosh(u.wset === 'GS' || (u.entry && u.entry.wset === 'GS'), Math.max(0, u.wind - (u.entry && u.entry.wset === 'GS' ? 0.24 : 0.16))); // the whoosh peaks just before the blade lands
   if (u.kind === 'brute') { const R = u.range + u.r + 0.3, en = u.side === 'enemy', col = en ? 0xff3a2a : 0x3fe0d0, rg = ring(en ? 0.2 : R - 0.1, R, col, 0.0);
     if (en) { const edge = ring(R - 0.09, R, 0xff8a6a, 0); edge.position.y = 0.002; rg.add(edge); rg.userData.edge = edge; } rg.userData.en = en; rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
 function strike(u) {
@@ -534,7 +541,9 @@ function updateTracers(dt) { let j = 0; // a short bright streak flying from the
 function meleeLogic(u, t) {
   const d = dist(u, t), reach = u.range + u.r + t.r;
   if (d > reach * 0.95) { let tx = t.x, tz = t.z;
-    if (d < 3.2) { const ang = Math.atan2(u.z - t.z, u.x - t.x) + u.flank * 0.45; tx = t.x + Math.cos(ang) * reach * 0.85; tz = t.z + Math.sin(ang) * reach * 0.85; }
+    if (d < 3.2) { const ang = Math.atan2(u.z - t.z, u.x - t.x) + u.flank * 0.45; tx = t.x + Math.cos(ang) * reach * 0.85; tz = t.z + Math.sin(ang) * reach * 0.85;
+      // a flank spot this unit cannot stand on (against a wall, round a corner), or stuck getting there: go for the target itself
+      const F = C.floor, m = u.r + 0.05; if (!(F.walk(tx + m, tz) && F.walk(tx - m, tz) && F.walk(tx, tz + m) && F.walk(tx, tz - m)) || G.t < (u.flowT || 0)) { tx = t.x; tz = t.z; } }
     seek(u, tx, tz, u.speed); }
   else { u.wantX = u.wantZ = 0; faceTo(u, t); if (u.cdT <= 0) startWindup(u, t); }
 }
@@ -594,7 +603,9 @@ function allyThink(u, dt) {
   const P = G.player; if (P.dead) { u.wantX = u.wantZ = 0; return; }
   const dp = dist(u, P);
   if (u.dep) u.dep.rc.rotation.y += dt * 0.6;
-  if (dp > 20 || (dp > 9 && !C.floor.los(u.x, u.z, P.x, P.z) && u.state === 'idle' && Math.random() < dt * 0.5)) { // catch up
+  // catch up (the 魂契 skeleton walks slowly: half the distance, unless it is fighting out there)
+  if (u.pact ? dp > (u.target ? 15 : 10) || (dp > 4.5 && !u.target && !C.floor.los(u.x, u.z, P.x, P.z) && u.state === 'idle' && Math.random() < dt * 0.5)
+    : dp > 20 || (dp > 9 && !C.floor.los(u.x, u.z, P.x, P.z) && u.state === 'idle' && Math.random() < dt * 0.5)) {
     const a = rand(0, TAU); u.x = P.x + Math.cos(a) * 1.2; u.z = P.z + Math.sin(a) * 1.2; if (!C.floor.walk(u.x, u.z)) { u.x = P.x; u.z = P.z; } u.target = null;
     C.parts.emit(u.x, 0.5, u.z, 10, { col: 0x6ff7e8, spd: 1, up: 2, life: 0.5 }); return; }
   u.scanT -= dt; u.moveCD = (u.moveCD || 0) - dt;

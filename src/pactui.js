@@ -4,6 +4,7 @@ import { G } from './state.js';
 import { tr } from './i18n.js';
 import { SETS, SUMMON, heroBase, heroName, heroUnit, stackNeed, lvlCost, levelUp, setStyle, summonK } from './pact.js';
 import { PACE } from './data.js';
+import { plumeTier, PLUME_AT } from './assets.js';
 
 const $ = s => document.querySelector(s), P8 = G.pact;
 const pct = v => Math.round(v * 100) + '%';
@@ -23,6 +24,10 @@ export function pactHUD() {
   $('#cryptN').textContent = P8.lvl;
 }
 
+// the helmet crest shows the level (see PLUME_AT in assets.js)
+const CREST = [[tr('骨黑', 'bone-black'), '#8d8a86'], [tr('幽蓝', 'azure'), '#5f9cff'], [tr('鎏金', 'gold'), '#ffc83a'], [tr('紫焰', 'violet fire'), '#b46cff'], [tr('赤焰', 'crimson fire'), '#ff5030']];
+function crestLine(L) { const t = plumeTier(L), c = CREST[t], n = CREST[t + 1], dot = k => `<b style="color:${k[1]}">●</b>`;
+  return `<div class="lv">${tr('头盔鬃毛', 'Helmet crest')} ${dot(c)} ${c[0]}${n ? tr(` · Lv ${PLUME_AT[t]} 化为`, ` · Lv ${PLUME_AT[t]}: `) + `${dot(n)} ${n[0]}` : ''}</div>`; }
 // ---------- the Pact panel ----------
 let panelSig = '';
 export function renderPact(force) {
@@ -40,7 +45,7 @@ export function renderPact(force) {
       + `${tr(`战魂加成：伤害 +${s * 6}%，攻速 +${s * 4}%，移速 +${Math.round(Math.min(0.3, 0.02 * s) * 100)}%，生命 +${(s * 2.5).toFixed(0)}%`, `Fury bonus: +${s * 6}% damage, +${s * 4}% attack speed, +${Math.round(Math.min(0.3, 0.02 * s) * 100)}% speed, +${(s * 2.5).toFixed(0)}% life`)}</div>`; }
   else cur = `<div class="nm">${tr('未召唤', 'Not summoned')}</div><div class="ds">${tr(`按 E（或「召唤」按钮）施法 ${SUMMON.cast} 秒，消耗 ${SUMMON.mana} 法力。`, `Press E (or the Summon button): a ${SUMMON.cast} s cast, ${SUMMON.mana} mana.`)}</div>`;
   $('#cryptList').innerHTML = `<div class="card ptop"><span class="ic">💀</span><div class="info"><div class="nm">${tr(`召唤${heroName()}`, `Summon ${heroName()}`)} · Lv ${L}</div>`
-    + `<div class="lv">${tr('召唤出的骸骨卫士等级 = 技能等级', 'The Sentinel comes out at the skill\'s level')}</div>`
+    + `<div class="lv">${tr('召唤出的骸骨卫士等级 = 技能等级', 'The Sentinel comes out at the skill\'s level')}</div>` + crestLine(L)
     + `<div class="ds">${tr('生命', 'Life')} ${now.hp} → <b>${nx.hp}</b> · ${tr('伤害', 'Damage')} ${now.dmg} → <b>${nx.dmg}</b></div>`
     + `<button class="btn pup"${G.soul < cost ? ' disabled' : ''} data-act="up">${tr(`强化到 Lv ${L + 1}（${cost} 魂能）`, `Strengthen to Lv ${L + 1} (${cost} soul)`)}</button></div></div>`
     + `<div class="card pcur"><span class="ic">${W.icon}</span><div class="info">${cur}</div></div>`

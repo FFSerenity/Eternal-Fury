@@ -21,8 +21,14 @@ const TOON_V = `
 #include <common>
 #include <skinning_pars_vertex>
 varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
+#ifdef PLUME
+attribute vec3 aPlume; varying vec3 vPl;
+#endif
 void main(){
   vec3 objectNormal = vec3(normal); vec3 transformed = vec3(position);
+  #ifdef PLUME
+  vPl = aPlume;
+  #endif
   #include <skinbase_vertex>
   #include <skinnormal_vertex>
   #include <skinning_vertex>
@@ -107,6 +113,12 @@ uniform float uCut; uniform vec2 uCutC; uniform float uCutR; uniform float uCutZ
 uniform sampler2D uMap; uniform sampler2D uNMap; uniform sampler2D uMR;
 varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
 float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+#ifdef PLUME
+// the 魂契 skeleton's helmet crest: vPl = (membership, 0 base .. 1 outer rim, 0 front .. 1 back along the arc)
+varying vec3 vPl; uniform vec4 uPl; uniform vec4 uPlFx; // uPl: dye colour, dye amount; uPlFx: time, glow, flame, (debug)
+float vn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }
+#endif
 vec3 perturb(vec3 N, vec3 p, vec2 uv, vec3 tn){
   vec3 dp1 = dFdx(p), dp2 = dFdy(p); vec2 du1 = dFdx(uv), du2 = dFdy(uv);
   vec3 a = cross(dp2, N), b = cross(N, dp1), T = a * du1.x + b * du2.x, B = a * du1.y + b * du2.y;
@@ -132,6 +144,20 @@ void main(){
   vec3 F0 = mix(vec3(0.05), base, metal);
   vec3 col = base * (1.0 - metal * 0.55) * dif + spe * F0 * 3.0 + uEmis;
   float eye = smoothstep(0.18, 0.4, min(base.g, base.b) - base.r) * smoothstep(0.45, 0.7, base.b); col += base * eye * 1.8;
+  #ifdef PLUME
+  if (vPl.x > 0.002) { float m = clamp(vPl.x, 0.0, 1.0), rim = vPl.y, t = uPlFx.x;
+    // dyed: the texture's light and shade in the tier colour
+    float lum = dot(texture2D(uMap, vUv).rgb, vec3(0.3, 0.59, 0.11));
+    vec3 dyed = uPl.rgb * (0.25 + 2.2 * lum) * (0.55 + 0.45 * dif) + spe * 0.5;
+    col = mix(col, dyed, m * uPl.a);
+    // glow, brightest toward the rim, breathing slowly; flames run outward along the fin
+    float breathe = 0.82 + 0.18 * sin(t * 2.2 + vPl.z * 3.0);
+    float fl = vn2(vec2(vPl.z * 16.0, rim * 4.0 - t * 2.4)) * 0.65 + vn2(vec2(vPl.z * 37.0 + 5.0, rim * 9.0 - t * 4.1)) * 0.35;
+    float flame = uPlFx.z * smoothstep(0.15, 1.0, rim + (fl - 0.5) * 0.9);
+    vec3 hot = mix(uPl.rgb, vec3(1.0, 0.92, 0.7), smoothstep(0.55, 1.0, flame) * 0.75 * uPlFx.z * uPlFx.z); // white-hot tips only on the real fire
+    col += m * (uPl.rgb * uPlFx.y * (0.2 + 0.8 * rim) * breathe + hot * flame * 1.4);
+    if (uPlFx.w > 0.5) col = vec3(m, rim * m, vPl.z * m); }
+  #endif
   float fr = 1.0 - max(dot(N, V), 0.0);
   col += vec3(0.5, 0.62, 0.85) * pow(fr, 2.5) * 0.34;               // a cool edge so the silhouette reads on dark floors
   float rs = max(uRim.r, max(uRim.g, uRim.b));
@@ -142,7 +168,7 @@ void main(){
 }`;
 export function realMat(o = {}) {
   const u = o.u || charUniforms(o);
-  return new THREE.ShaderMaterial({ vertexShader: TOON_V, fragmentShader: REAL_F,
+  return new THREE.ShaderMaterial({ vertexShader: TOON_V, fragmentShader: REAL_F, defines: o.plume ? { PLUME: '' } : {},
     uniforms: { ...SH, ...u, uCut: { value: o.cut ? 1 : 0 }, uMap: { value: o.map }, uNMap: { value: o.nmap }, uMR: { value: o.mr } } });
 }
 const OUT_V = `
