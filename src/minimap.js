@@ -1,18 +1,19 @@
 // ---------- minimap: explored cells drawn at the camera's 45° angle (so "up" on the map is "up" on screen) ----------
-// modes cycle small (corner) → big (see-through overlay in the middle, clicks pass through) → off.
+// modes cycle small (corner) → big (a see-through overlay over the whole screen, like Diablo II's; clicks pass through) → off.
 import { G } from './state.js';
 import { tr } from './i18n.js';
 
 const MODES = ['small', 'big', 'off'], KEY = 'graveTamerMap';
-let cv = null, ctx = null, img = null, ictx = null, mode = 'small', lastF = null, dirty = true, acc = 0, cssW = 0;
+let cv = null, ctx = null, img = null, ictx = null, mode = 'small', lastF = null, dirty = true, acc = 0, cssW = 0, cssH = 0;
 try { const m = localStorage.getItem(KEY); if (MODES.includes(m)) mode = m; } catch (e) {}
 
 export function initMap() {
-  cv = document.createElement('canvas'); cv.id = 'mmap'; document.getElementById('hud').appendChild(cv); ctx = cv.getContext('2d');
+  // (first in the HUD, so the party cards and buttons stay on top of the big overlay; the chip must follow it right after)
+  const hud = document.getElementById('hud'); cv = document.createElement('canvas'); cv.id = 'mmap'; hud.prepend(cv); ctx = cv.getContext('2d');
   img = document.createElement('canvas'); ictx = img.getContext('2d');
   cv.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); if (mode === 'small') setMode('big'); });
   // while the big map is up, a chip where the small one sits shrinks it back (the big one lets clicks through)
-  const chip = document.createElement('button'); chip.id = 'mapChip'; chip.className = 'btn'; chip.textContent = '🗺'; chip.title = tr('缩小地图', 'Shrink the map'); document.getElementById('hud').appendChild(chip);
+  const chip = document.createElement('button'); chip.id = 'mapChip'; chip.className = 'btn'; chip.textContent = '🗺'; chip.title = tr('缩小地图', 'Shrink the map'); cv.after(chip);
   chip.addEventListener('click', e => { e.stopPropagation(); setMode('small'); });
   const b = document.getElementById('bMap'); if (b) b.addEventListener('click', e => { e.stopPropagation(); cycleMap(); });
   const t = document.getElementById('bMapSet'); if (t) t.addEventListener('click', e => { e.stopPropagation(); setMode(mode === 'off' ? 'small' : 'off'); });
@@ -21,7 +22,7 @@ export function initMap() {
 export function cycleMap() { setMode(MODES[(MODES.indexOf(mode) + 1) % MODES.length]); }
 function setMode(m) { mode = m; try { localStorage.setItem(KEY, m); } catch (e) {} apply(); }
 function apply() {
-  if (!cv) return; cv.className = mode; cssW = 0; acc = 1;
+  if (!cv) return; cv.className = mode; cssW = cssH = 0; acc = 1;
   const t = document.getElementById('bMapSet'); if (t) t.textContent = '🗺 ' + (mode === 'off' ? tr('关', 'Off') : tr('开', 'On'));
   const b = document.getElementById('bMap'); if (b) { b.classList.toggle('on', mode !== 'off'); b.title = { small: tr('地图：小（点一下放大）', 'Map: small (tap to enlarge)'), big: tr('地图：大', 'Map: large'), off: tr('地图：关', 'Map: off') }[mode] + ' · M'; }
 }
@@ -49,11 +50,12 @@ export function updateMap(dt) {
   for (const r of F.rooms || []) if (P.x >= r.x && P.x <= r.x + r.w && P.z >= r.y && P.z <= r.y + r.h && !r.seen) { r.seen = 1; // walking into a room maps all of it
     for (let Z = Math.max(0, r.y - 1); Z <= Math.min(F.H - 1, r.y + r.h); Z++) for (let X = Math.max(0, r.x - 1); X <= Math.min(F.W - 1, r.x + r.w); X++) if (F.g[Z * F.W + X]) F.seen[Z * F.W + X] = 1; dirty = true; }
   if (dirty) rebuild(F);
-  const w = cv.clientWidth; if (!w) return; const dpr = Math.min(devicePixelRatio || 1, 2);
-  if (w !== cssW) { cssW = w; cv.width = cv.height = Math.round(w * dpr); }
-  const N = cv.width, big = mode === 'big', s = dpr * (big ? w / 62 : Math.min(5.5, Math.max(4, w / 28))); // px per cell
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, N, N);
-  ctx.save(); ctx.translate(N / 2, N / 2); ctx.rotate(Math.PI / 4); ctx.scale(s, s); ctx.translate(-P.x, -P.z);
+  const w = cv.clientWidth, h = cv.clientHeight, big = mode === 'big'; if (!w || !h) return; const dpr = Math.min(devicePixelRatio || 1, big ? 1.5 : 2);
+  if (w !== cssW || h !== cssH) { cssW = w; cssH = h; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  // px per cell: the big map keeps the scale it had as a round window (min(80vw, 78vh, 560px) for 62 cells), it just shows the whole screen's worth
+  const s = dpr * (big ? Math.min(w * 0.8, h * 0.78, 560) / 62 : Math.min(5.5, Math.max(4, w / 28)));
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.save(); ctx.translate(cv.width / 2, cv.height / 2); ctx.rotate(Math.PI / 4); ctx.scale(s, s); ctx.translate(-P.x, -P.z);
   ctx.imageSmoothingEnabled = false; ctx.globalAlpha = big ? 0.7 : 1; ctx.drawImage(img, 0, 0); ctx.globalAlpha = 1;
   const dot = (x, z, r, col, glow) => { ctx.beginPath(); ctx.arc(x, z, r / s * dpr, 0, 6.2832); ctx.fillStyle = col; if (glow) { ctx.shadowColor = col; ctx.shadowBlur = glow * dpr; } ctx.fill(); ctx.shadowBlur = 0; };
   const seen = (x, z) => { const X = Math.floor(x), Z = Math.floor(z); return X >= 0 && Z >= 0 && X < F.W && Z < F.H && F.seen[Z * F.W + X]; };
