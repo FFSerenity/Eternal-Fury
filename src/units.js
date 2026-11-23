@@ -233,7 +233,7 @@ export function updateHazards(dt) {
   G.clouds.length = j;
   let b = 0; for (const x of G.bolts) if (x.until > G.t) G.bolts[b++] = x; G.bolts.length = b;
 }
-function panic(e, from) { if (e.state === 'panic') return; e.state = 'panic'; e.st = 0; e.panicDur = rand(1.3, 2.4); e.panicX = from.x; e.panicZ = from.z; S.squeal(); say(e.x, e.z, '!!', '#ffd34d', 18, 1.5); }
+function panic(e, from) { if (e.state === 'panic') return; if (PACT) { if (e.panicDone) return; e.panicDone = true; } e.state = 'panic'; e.st = 0; e.panicDur = PACT ? rand(3, 5) : rand(1.3, 2.4); e.panicX = from.x; e.panicZ = from.z; S.squeal(); say(e.x, e.z, '!!', '#ffd34d', 18, 1.5); }
 
 // ---------- corpses & capturing ----------
 function makeCorpse(u) {
@@ -538,11 +538,15 @@ function meleeLogic(u, t) {
   else { u.wantX = u.wantZ = 0; faceTo(u, t); if (u.cdT <= 0) startWindup(u, t); }
 }
 function rangedLogic(u, t, dt, near, far) {
-  const d = dist(u, t), vis = C.floor.los(u.x, u.z, t.x, t.z);
+  const d = dist(u, t), vis = C.floor.los(u.x, u.z, t.x, t.z); u.kiteCD = (u.kiteCD || 0) - dt;
   if (!vis || d > far + 0.5) { seek(u, t.x, t.z, u.speed); return; }
   // summons hold their ground and keep shooting (running away from chasers only got them stuck on corners)
   if (u.side === 'ally') { u.wantX = u.wantZ = 0; faceTo(u, t); if (u.cdT <= 0) startWindup(u, t); return; }
-  if (d < near) { if (!flee(u, t.x, t.z, u.speed)) { faceTo(u, t); if (u.cdT <= 0) startWindup(u, t); } return; }
+  if (d < near) {
+    // 魂契: a short retreat (about a second), then it plants its feet and shoots again for a few seconds before it may back off again
+    if (PACT) { if (u.kiteT > 0) { u.kiteT -= dt; if (flee(u, t.x, t.z, u.speed)) return; } else if (u.kiteCD <= 0) { u.kiteT = rand(0.8, 1.3); u.kiteCD = rand(3, 4.5); if (flee(u, t.x, t.z, u.speed)) return; }
+      u.wantX = u.wantZ = 0; faceTo(u, t); if (u.cdT <= 0) startWindup(u, t); return; }
+    if (!flee(u, t.x, t.z, u.speed)) { faceTo(u, t); if (u.cdT <= 0) startWindup(u, t); } return; }
   u.strafeT -= dt; if (u.strafeT <= 0) { u.strafeT = rand(0.7, 1.5); u.strafeDir = Math.random() < 0.35 ? 0 : (Math.random() < 0.5 ? -1 : 1); }
   const px = -(t.z - u.z) / d, pz = (t.x - u.x) / d;
   if (u.strafeDir && C.floor.walk(u.x + px * u.strafeDir * 0.8, u.z + pz * u.strafeDir * 0.8)) { u.wantX = px * u.strafeDir * u.speed * 0.45; u.wantZ = pz * u.strafeDir * u.speed * 0.45; } else u.wantX = u.wantZ = 0;
@@ -575,7 +579,8 @@ function enemyThink(u, dt) {
     if (u.resCD <= 0) { let best = null, bd = 9; for (const c of G.corpses) if ((c.kind === 'imp' || c.kind === 'archer') && !c.claim && Math.hypot(c.x - u.x, c.z - u.z) < bd) { bd = Math.hypot(c.x - u.x, c.z - u.z); best = c; }
       if (best) { if (bd > 3.2) { seek(u, best.x, best.z, u.speed); return; } u.state = 'cast'; u.st = 0; u.castC = best; best.claim = u; u.wantX = u.wantZ = 0; faceTo(u, best);
         C.say && say(u.x, u.z, tr('复活术…', 'Raising…'), '#c88cff', 14, 2.1); return; } }
-    const close = nearestHostile(u, 2.6, false); if (close) { flee(u, close.x, close.z, u.speed); return; }
+    const close = nearestHostile(u, 2.6, false); if (close && (!PACT || (u.kiteCD = (u.kiteCD || 0) - dt) <= 0 || u.kiteT > 0)) { // (魂契: a short retreat, then it fights)
+      if (PACT) { if (!(u.kiteT > 0)) { u.kiteT = rand(0.8, 1.3); u.kiteCD = rand(3, 4.5); } u.kiteT -= dt; } flee(u, close.x, close.z, u.speed); return; }
     rangedLogic(u, t, dt, 4.5, 7.5);
   }
 }
@@ -868,7 +873,7 @@ function animate(u, dt, sp) {
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
   if (m.hero) { const ref = m.wset === 'GS' ? 1.68 : 1.29; // walk only (no run yet); strides from the clips' root travel, world m/s
-    if (sp > 0.3) play(m, 'Walking', { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Idle', { fade: 0.3 }); return; }
+    if (sp > 0.3) play(m, 'Walk_' + (m.wset || 'SNS'), { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Stand', { fade: 0.3 }); return; } // by name: the styles' own guarded Idle must not win
   const k = CHARS[u.kind].scale * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }
   else play(m, a.idle, { fade: 0.22 });
