@@ -21,10 +21,9 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 Picked on the start screen (its own save). One summoned skeleton — the realistic **Bone Sentinel** — does the fighting:
 - **E** (or 💀) summons it: a 1.5 s cast, no cooldown; it climbs out of a rune circle. The summon skill doesn't level: its strength is Fury and gear.
 - It builds **Fury** (战魂) from kills by its own hand: each stack adds damage, attack speed, move speed and life. When it falls, all Fury is lost — summon it again.
-- **Q** 唤魂 turns corpses into **soul energy**: the souls fly across the screen into the **soul orb** (a glass globe held up by a hooded skeleton in a gothic cradle, bottom left;
-  the cradle's runes, the skull's eyes and the gem glow in the colour of the top rune layer).
-  Full at 100; past that the liquid burns brighter and veins of runes crawl up over the glass, a layer at a time — azure, gold,
-  violet, crimson (each layer bigger than the last).
+- **Q** 唤魂 turns corpses into **soul energy**: the souls fly across the screen into the **soul orb** (a glass globe held up by a hooded skeleton in a gothic cradle — bottom centre
+  on a wide screen, above the skill buttons on an upright phone). Full at 100; past that the liquid burns brighter and, a layer at a
+  time (each bigger than the last), the cradle's runes, the skull's eyes and the gem turn azure, gold, violet, crimson.
   **Hold the vessel** (or hold **E** / the summon button — it reads "Pour" — while the Sentinel is out) to pour it into the Sentinel:
   souls stream from the flask into its chest, it glows brighter the longer it drinks, and it gains Fury (one kill's worth = 2.5 soul).
   After a fall, what you saved charges it back up. (Old saves get back all the soul they spent on summon levels.)

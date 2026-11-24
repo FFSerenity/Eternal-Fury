@@ -70,13 +70,15 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - 战魂 (Fury): kills by the skeleton's own hand (elite 4, warrior 2, others 1); stack n needs 3 + ⌊0.6n⌋ kills. Per stack: +6% damage,
   +4% attack speed, +2% move speed (cap +30%), +2.5% life, +0.4% evasion (cap +12%). Death: all stacks gone, summon again.
 - 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3, boss ×12. The souls fly across the screen
-  into the 魂瓶 (soul orb, bottom left; soulvessel.js): a glass globe held up by a hooded skeleton in a gothic cradle — painted art (made by
-  the owner with an image generator) cut by tools/cut-orb.py into the art with the sphere cut out (the figure's head and hands, the claws stay
-  in front), its runes / eyes / gem as a mask lit in the top layer's colour, and the liquid's light on the figure as another mask that comes
-  up as it fills; the glass, liquid (waves, swirls, bubbles, a ghost skull drifting in the empty part) and veins are drawn under it. The liquid is full
-  at 100; past that it burns brighter (a white core, a bigger halo) and rune veins crawl up the glass, a layer each 100 / 200 / 300 / 400 more
-  (azure, gold, violet, crimson — the crest's colours; the art's runes take the top layer's colour); pouring sinks them back. Held (the globe, E, or the summon button —
-  "灌注 / Pour" while the skeleton is out), it pours into the skeleton: souls stream from its neck into its chest, it brightens (soul light
+  into the 魂瓶 (soul orb; soulvessel.js — bottom centre and smaller on a wide screen, above the skill buttons on the right on an upright
+  phone, where the boss bar keeps to the left of it; the way-down button moves above it): a glass globe held up by a hooded skeleton in a
+  gothic cradle — painted art (made by the owner with an image generator) cut by tools/cut-orb.py into the art with the sphere cut out (the
+  figure's head and hands, the claws stay in front), its runes / eyes / gem as a mask, and the liquid's light on the figure as another mask
+  that comes up as it fills; the glass and liquid (waves, swirls, bubbles, a ghost skull drifting in the empty part) are drawn under it.
+  The liquid is full at 100; past that it burns brighter (a white core, a bigger halo) and the runes / eyes / gem change colour as each
+  layer fills — 100 / 200 / 300 / 400 more: azure, gold, violet, crimson, the crest's colours (cyan before); pouring takes them back.
+  Held (the globe, E, or the summon button —
+  "灌注 / Pour" while the skeleton is out), it pours into the skeleton: souls stream from its top into its chest, it brightens (soul light
   +0.45 at full, after 1.6 s of pouring, wisps seeping out) and gains kill progress at 2.5 魂能 a kill (INFUSE in pact.js) — a stack
   fills in 0.7 s whatever its size. Harvesting every corpse gives about half as many stacks again as the kills themselves.
 - Skeleton at level L: life (230 + 40(L−1)) × style, damage (16 + 4.5(L−1)) × style, armour 18 + 3(L−1) + style; taunts within 6 m; never staggered.
