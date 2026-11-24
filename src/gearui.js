@@ -8,8 +8,9 @@ import { G, save, bagPut, bagFree, PACT } from './state.js';
 import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem, techName, TECH_PITY, rareItems,
   HERO_GEAR, heroFurnaceOdds, heroFurnaceRoll, heroOddsQ, rollHeroItem } from './data.js';
 import { heroEntry, heroName, SETS } from './pact.js';
+import { furyBrief } from './pactui.js';
 import { setGear, Unit, ANIM } from './units.js';
-import { makeUnitMesh, play } from './assets.js';
+import { makeUnitMesh, play, heroWeaponPose } from './assets.js';
 import { initR, lit, itemIconURL as iconOf, portrait } from './icons.js';
 import { S } from './audio.js';
 import { message, closeCrypt, touchUI } from './ui.js';
@@ -34,7 +35,9 @@ function loop(t) {
   const box = $('#gDoll'); if (mode !== 'doll' || !box || !doll) return; const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return;
   if (R.domElement.parentNode !== box) box.appendChild(R.domElement);
   const pr = Math.min(2, devicePixelRatio || 1); if (R.getPixelRatio() !== pr || R.domElement.width !== Math.round(w * pr) || R.domElement.height !== Math.round(h * pr)) { R.setPixelRatio(pr); R.setSize(w, h, false); dollCam.aspect = w / h; dollCam.updateProjectionMatrix(); }
-  doll.mixer.update(dt); doll.root.rotation.y += dt * 0.35; lit(() => R.render(dollScene, dollCam));
+  doll.mixer.update(dt); doll.root.rotation.y += dt * 0.35;
+  if (selEn && selEn.hero) heroWeaponPose({ mesh: doll, fury: G.pact.stacks, dead: false, spawnT: 0, x: 0, z: 0 }, dt, null); // its crest and soul light as on the field
+  if (selEn && selEn.hero && (briefT -= dt) <= 0) { briefT = 0.5; const el = $('#gsFw'); if (el) { const h = furyBrief(); if (h !== el.__h) { el.__h = h; el.innerHTML = h; } } } lit(() => R.render(dollScene, dollCam));
 }
 
 // ---------- containers ----------
@@ -69,7 +72,32 @@ function cantUse(it, c) { S.fail();
   message(it.slot === 'w' ? tr(`${TYPES[selEn.type].name}用不了${itemBase(it).cat || WEAPONS[it.type].cat}，这是${TYPES[it.type].name}的武器`, `A ${TYPES[selEn.type].name} can't use this — it's a ${TYPES[it.type].name}'s ${WEAPONS[it.type].cat.toLowerCase()}`) : tr('这里放不下', "Doesn't fit here")); }
 const noSmelt = () => { S.fail(); message(tr('史诗装备不能熔炼', "Epic items can't be smelted")); };
 let lastPick = null;
+// touch: a tap highlights an item (it stays where it is); a tap on an empty cell, a frame or the forge moves it there (swapping with what
+// is there); a tap on another item in the same grid highlights that one instead; the info box offers the one-tap move. The mouse keeps
+// picking items up and putting them down.
+let tsel = null, lastPT = null, briefT = 0;
+const tapMode = () => (lastPT ? lastPT !== 'mouse' : touchUI);
+const stash = o => { if (!o) return; if (!bagPut(o)) { const fp = furnFree(); if (fp >= 0) { o.fpos = fp; G.furn.push(o); } } };
+function tapCell(c, p) {
+  if ((c === 'w' || c === 'a') && !selEn) return;
+  const it = at(c, p), now = performance.now();
+  if (tsel && tsel.c === c && tsel.p === p) { const dbl = now - tsel.t < 380; tsel = null; if (dbl && it) quick(c, p); else render(); return; } // tapped again: off (twice quickly: the quick move)
+  if (!tsel || !at(tsel.c, tsel.p)) { tsel = null; if (it) { tsel = { c, p, t: now }; infoIt = it; S.pick(); } render(); return; }
+  if (it && tsel.c === c && c !== 'w' && c !== 'a') { tsel = { c, p, t: now }; infoIt = it; S.pick(); render(); return; } // another item in the same grid
+  const from = tsel; tsel = null; moveTo(from, c, p);
+}
+function moveTo(from, c, p) {
+  const it = at(from.c, from.p); if (!it) { render(); return; }
+  if ((c === 'w' || c === 'a') && !fitsSlot(it, c)) { cantUse(it, c); render(); return; }
+  if (c === 'furn' && it.uniq) { noSmelt(); render(); return; }
+  take(from.c, from.p);
+  if (c === 'w' && !freeOffHand(it)) { stash(put(from.c, from.p, it)); render(); return; }
+  const o = put(c, p, it);
+  if (o) { if (from.c === 'w' || from.c === 'a') stash(fitsSlot(o, from.c) ? setGear(selEn, from.c, o) : o); else stash(put(from.c, from.p, o)); } // what was there goes where the moved one came from
+  S.clank(); infoIt = it; save(); render();
+}
 function clickCell(c, p) {
+  if (tapMode()) { tapCell(c, p); return; } tsel = null;
   if ((c === 'w' || c === 'a') && !selEn) return;
   const now = performance.now();
   if (!held) { const it = take(c, p); if (!it) return; held = { it, from: c, pos: p }; lastPick = { c, p, t: now }; S.pick(); }
@@ -111,10 +139,13 @@ function build() {
   d.addEventListener('pointerdown', e => { if (e.target.id === 'gearP' || e.target.id === 'gearX') closeGear(); });
   d.addEventListener('pointermove', e => { const hd = $('#gHeld'); if (held && e.pointerType === 'mouse') { hd.style.left = e.clientX + 'px'; hd.style.top = e.clientY + 'px'; } });
   d.addEventListener('contextmenu', e => { e.preventDefault(); const el = e.target.closest('.cell, .gSlot'); if (el) quick(el.dataset.c, +el.dataset.p || 0); });
-  d.addEventListener('click', e => { const el = e.target.closest('.cell, .gSlot'); if (!el) return; e.stopPropagation(); clickCell(el.dataset.c, +el.dataset.p || 0); });
+  d.addEventListener('pointerdown', e => { lastPT = e.pointerType || null; }, true);
+  d.addEventListener('click', e => { const qa = e.target.closest('[data-qa]');
+    if (qa) { e.stopPropagation(); const s = tsel; tsel = null; if (qa.dataset.qa === 'go' && s) quick(s.c, s.p); else render(); return; }
+    const el = e.target.closest('.cell, .gSlot'); if (!el) return; e.stopPropagation(); clickCell(el.dataset.c, +el.dataset.p || 0); });
   d.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse' || held) return; const el = e.target.closest('.cell, .gSlot'), it = el ? at(el.dataset.c, +el.dataset.p || 0) : null; if (it !== infoIt) { infoIt = it; renderInfo(); } });
 }
-const cellHTML = (it, c, p, extra = '') => `<div class="cell${it ? ' q' + it.q : ''}${it && c === 'bag' && freshIds.has(it.id) ? ' fresh' : ''}${extra}" data-c="${c}" data-p="${p}">${it ? `<img src="${iconOf(it)}" draggable="false">` : ''}</div>`;
+const cellHTML = (it, c, p, extra = '') => `<div class="cell${it ? ' q' + it.q : ''}${tsel && it && tsel.c === c && tsel.p === p ? ' sel' : ''}${it && c === 'bag' && freshIds.has(it.id) ? ' fresh' : ''}${extra}" data-c="${c}" data-p="${p}">${it ? `<img src="${iconOf(it)}" draggable="false">` : ''}</div>`;
 export function render() {
   if (!gearOpen) return; const en = selEn, doll = mode === 'doll' && en;
   $('#gearBox').className = 'panel ' + (doll ? 'mDoll' : 'mBag');
@@ -125,12 +156,14 @@ export function render() {
     const o = { kind: en.type, side: 'ally', level: en.level, mods: en.mods, champ: en.champ, entry: en, T: TYPES[en.type] }; Unit.prototype.stats.call(o);
     if (!$('#gDoll')) $('#gLeft').innerHTML = `<div class="gDollRow"><div class="gSlot" data-c="w" data-p="0"></div><div id="gDoll"></div><div class="gSlot" data-c="a" data-p="0"></div></div><div class="gStats" id="gStats"></div>`;
     for (const el of document.querySelectorAll('.gSlot')) { const c = el.dataset.c, it = en.gear ? en.gear[c] : null, ok = held && fitsSlot(held.it, c);
-      const lock = c === 'a' && twoHanded(en); el.className = 'gSlot' + (it ? ' q' + it.q : '') + (lock ? ' lock' : '') + (held ? ok ? ' can' : ' no' : '');
+      const lock = c === 'a' && twoHanded(en), sl = tsel && tsel.c === c && it, tok = tsel && !sl && at(tsel.c, tsel.p) && fitsSlot(at(tsel.c, tsel.p), c);
+      el.className = 'gSlot' + (it ? ' q' + it.q : '') + (lock ? ' lock' : '') + (sl ? ' sel' : '') + (held ? ok ? ' can' : ' no' : tsel && !sl ? tok ? ' can' : ' no' : '');
       el.innerHTML = it ? `<img src="${iconOf(it)}" draggable="false">` : `<span>${c === 'w' ? (en.hero ? tr('武器', 'Weapon') : WEAPONS[en.type].cat) : lock ? tr('双手武器', 'Two hands') : tr('盾', 'Shield')}</span>`; }
     $('#gStats').innerHTML = (en.hero ? `<div class="gsN">${SETS[en.wset].icon} ${heroName()} <small style="white-space:nowrap">Lv ${en.level} · ${SETS[en.wset].name}</small></div>`
       : `<div class="gsN">${portrait(en, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${techName(en)} <small style="white-space:nowrap">Lv ${en.level}${en.active ? tr(' · 出战中', ' · in party') : ''}</small></div>`)
       + `<div class="gsL"><span>${tr('生命', 'Life')} <b>${Math.round(o.maxHp)}</b></span><span>${tr('伤害', 'Damage')} <b>${o.dmg.toFixed(1)}</b></span><span>${tr('护甲', 'Armour')} <b>${Math.round(o.armor)}</b></span><span>${tr('攻击间隔', 'Interval')} <b>${o.cd.toFixed(2)}s</b></span>`
-      + (en.hero ? `<span>${tr('闪避', 'Evasion')} <b>${Math.round(o.evade * 100)}%</b></span><span>${tr('暴击', 'Crit')} <b>${Math.round(o.crit * 100)}%</b></span>${o.leechB ? `<span>${tr('吸血', 'Life steal')} <b>${Math.round(o.leechB * 100)}%</b></span>` : ''}${o.blockB ? `<span>${tr('格挡 / 招架', 'Block / parry')} <b>+${Math.round(o.blockB * 100)}%</b></span>` : ''}` : '') + `</div>`;
+      + (en.hero ? `<span>${tr('闪避', 'Evasion')} <b>${Math.round(o.evade * 100)}%</b></span><span>${tr('暴击', 'Crit')} <b>${Math.round(o.crit * 100)}%</b></span>${o.leechB ? `<span>${tr('吸血', 'Life steal')} <b>${Math.round(o.leechB * 100)}%</b></span>` : ''}${o.blockB ? `<span>${tr('格挡 / 招架', 'Block / parry')} <b>+${Math.round(o.blockB * 100)}%</b></span>` : ''}` : '') + `</div>`
+      + (en.hero ? `<div id="gsFw">${furyBrief()}</div>` : '');
     $('#gSide').innerHTML = '';
   } else {
     $('#gLeft').innerHTML = '';
@@ -152,10 +185,13 @@ export function render() {
 }
 // the fixed info box: held item, else hovered item, else a hint
 function renderInfo() {
-  const it = held ? held.it : infoIt, box = $('#gInfo'); if (!box) return;
-  const hint = mode === 'doll' ? (touchUI ? tr('点装备拿起，再点武器框 / 盾框或格子放下　·　双击：一键穿上', 'Tap an item to pick it up, tap a frame or cell to put it down · double-tap: equip') : tr('点装备拿起，再点武器框 / 盾框或格子放下　·　右键或双击：一键穿上 / 卸下', 'Click an item to pick it up, click a frame or cell to put it down · right-click or double-click: equip / take off'))
-    : (touchUI ? tr('点装备拿起，再点格子或熔炉放下　·　双击：放进熔炉 / 拿回背包', 'Tap an item to pick it up, tap a cell or the forge to put it down · double-tap: into / out of the forge') : tr('点装备拿起，再点格子或熔炉放下　·　右键或双击：放进熔炉 / 拿回背包', 'Click an item to pick it up, click a cell or the forge to put it down · right-click or double-click: into / out of the forge'));
-  box.innerHTML = it ? `<div class="gi"><div class="giIc q${it.q}"><img src="${iconOf(it)}"></div>${tipHTML(it)}${held ? `<div class="giH">${tr('拿在手上', 'Holding')}</div>` : ''}</div>` : `<div class="gi empty"><div class="hint">${hint}</div></div>`;
+  const it = held ? held.it : tsel ? at(tsel.c, tsel.p) : infoIt, box = $('#gInfo'); if (!box) return;
+  const hint = mode === 'doll' ? (tapMode() ? tr('点装备选中（高亮），再点武器框 / 盾框或空格子移过去　·　双击：一键穿上', 'Tap an item to select it, then tap a frame or an empty cell to move it there · double-tap: equip') : tr('点装备拿起，再点武器框 / 盾框或格子放下　·　右键或双击：一键穿上 / 卸下', 'Click an item to pick it up, click a frame or cell to put it down · right-click or double-click: equip / take off'))
+    : (tapMode() ? tr('点装备选中（高亮），再点空格子或熔炉移过去　·　双击：放进熔炉 / 拿回背包', 'Tap an item to select it, then tap an empty cell or the forge to move it there · double-tap: into / out of the forge') : tr('点装备拿起，再点格子或熔炉放下　·　右键或双击：放进熔炉 / 拿回背包', 'Click an item to pick it up, click a cell or the forge to put it down · right-click or double-click: into / out of the forge'));
+  const ts = tsel && at(tsel.c, tsel.p), act = !ts ? '' : mode === 'doll' ? (tsel.c === 'bag' ? (fitsSlot(ts, ts.slot === 'w' ? 'w' : 'a') ? tr('穿上', 'Equip') : '') : tsel.c === 'furn' ? '' : tr('卸下', 'Take off'))
+    : tsel.c === 'bag' ? (ts.uniq ? '' : tr('放进熔炉', 'Into the forge')) : tr('拿回背包', 'Back to the bag');
+  box.innerHTML = it ? `<div class="gi"><div class="giIc q${it.q}"><img src="${iconOf(it)}"></div>${tipHTML(it)}${held ? `<div class="giH">${tr('拿在手上', 'Holding')}</div>` : ''}`
+    + (ts ? `<div class="giA">${act ? `<button class="btn go" data-qa="go">${act}</button>` : ''}<button class="btn" data-qa="x">${tr('取消', 'Cancel')}</button></div>` : '') + `</div>` : `<div class="gi empty"><div class="hint">${hint}</div></div>`;
 }
 // Diablo-style item text
 function tipHTML(it) {
@@ -190,7 +226,7 @@ function collect() {
 
 // ---------- open / close ----------
 function open(m, en) {
-  closeCrypt(); build(); if (gearOpen) returnHeld(); gearOpen = true; mode = m; selEn = en || null; infoIt = null; $('#gearP').classList.add('open');
+  closeCrypt(); build(); if (gearOpen) returnHeld(); tsel = null; briefT = 0; gearOpen = true; mode = m; selEn = en || null; infoIt = null; $('#gearP').classList.add('open');
   $('#gLeft').innerHTML = ''; $('#gSide').innerHTML = ''; dollKey = ''; render(); last = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
 }
 export function openGear(en) { if (!en) return; open('doll', en); }

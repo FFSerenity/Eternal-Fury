@@ -1,7 +1,7 @@
 // HUD, overlay text/bars, input (mouse + keyboard, touch joystick + buttons) and the crypt (墓典) panel
 import * as THREE from 'three';
 import { G, save , PACT } from './state.js';
-import { pactHUD, renderPact, bindPact } from './pactui.js';
+import { pactHUD, renderPact, bindPact, openHeroGear } from './pactui.js';
 import { soulOf } from './pact.js';
 import { techOf, techName, treeKey, TECH, makeTech } from './data.js';
 import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, affixName, ROMAN, QUAL, WEAPONS, BAG_MAX, itemName, itemLines, itemIcon, itemScore, itemFits, furnaceOdds, furnaceRoll, rollItem } from './data.js';
@@ -113,6 +113,7 @@ function bindButtons() {
   hold($('#bGear'), () => toggleBag());
   // party cards (top left): tap a summon to open its equipment, an empty slot to open the 墓典
   $('#party').addEventListener('click', e => { const c = e.target.closest('.pc'); if (!c) return; e.stopPropagation(); unlock();
+    if (PACT && e.target.closest('.pdl')) { openHeroGear(); return; } // the Sentinel's little paperdoll: its equipment
     if (c.dataset.id) { const en = G.crypt.find(x => x.id === +c.dataset.id); if (en) openGear(en); } else openCrypt(); });
   hold($('#bStairs'), () => { IN.stairs = true; });
   const sfxLabel = () => { $('#bSfx').textContent = sfxOn() ? '🔊 ' + tr('开', 'On') : '🔇 ' + tr('关', 'Off'); };

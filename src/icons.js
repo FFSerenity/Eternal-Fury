@@ -2,7 +2,7 @@
 // unlike emoji), plus the live paperdoll view used by the equipment panel.
 import * as THREE from 'three';
 import { WEAPONS, itemBase, TYPES, TECH, makeTech, techOf } from './data.js';
-import { makeUnitMesh, propGeo, propMat, play, A } from './assets.js';
+import { makeUnitMesh, propGeo, propMat, play, A, heroWeaponPose, plumeTier, soulTier } from './assets.js';
 import { SH } from './gfx.js';
 
 export let R = null;
@@ -41,6 +41,18 @@ export function makeIcons() {
     iconCam.position.set(0, fy + h * 0.06, h * 1.38); iconCam.lookAt(0, fy, 0); POR[k] = shot(m.root, 128); }
 }
 export const itemIconURL = it => ICON[itemBase(it).model] || '';
+// 魂契: a full-body snapshot of the Bone Sentinel in its gear, crest and soul light (the paperdoll on its HUD card); remade only when
+// one of those changes
+const HPV = { k: '', url: '' };
+export function heroPreviewURL(en, fury = 0) {
+  const g = en.gear || {}, key = [en.wset, g.w && g.w.id, g.a && g.a.id, plumeTier(fury), soulTier(fury)].join(':'); if (HPV.k === key) return HPV.url;
+  if (!A.hero) return ''; initR(); const m = makeUnitMesh('brute', { hero: true, wset: en.wset, gear: g });
+  play(m, 'Stand', {}); m.mixer.update(0.4); m.root.rotation.y = 0.5; m.root.updateMatrixWorld(true);
+  heroWeaponPose({ mesh: m, fury, dead: false, spawnT: 0, x: 0, z: 0 }, 0.016, null); m.root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(m.model), h = box.max.y - box.min.y, cy = (box.max.y + box.min.y) / 2;
+  iconCam.position.set(0, cy + h * 0.02, h * 2.02); iconCam.lookAt(0, cy, 0); HPV.url = shot(m.root, 128); HPV.k = key;
+  m.root.traverse(o => { if (o.material) for (const mm of [].concat(o.material)) mm.dispose(); }); return HPV.url;
+}
 export const portraitURL = type => POR[type] || '';
 // pass a crypt entry instead of a type to get the gunner's own portrait when it holds the gatling
 export const portrait = (type, cls = '') => { if (type && typeof type === 'object') type = techOf(type) ? techOf(type).key : type.type; return POR[type] ? `<img class="por ${cls}" src="${POR[type]}" draggable="false">` : TYPES[type].icon; };

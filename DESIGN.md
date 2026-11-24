@@ -115,7 +115,14 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   on the greatsword) or block / evasion / damage / move speed on the shield. Normal monsters drop 9% (red 0.5%), champions always
   (blue or better, red 4%). Rare and up glow in their colour in its hands (an aura, sparks; red smoulders) and on the ground (a beam,
   red's the tallest). A new pact starts with a plain sword and shield; an older save gets plain gear of the style it had.
-  The equipment panel opens from the Pact panel or the bag (⚔ 装备卫士 / 🔥 熔炉 switch); crypt-mode items in an old bag can only be smelted.
+  The equipment panel opens from the Pact panel, from the little paperdoll on the Sentinel's HUD card (a snapshot of it in its gear, crest
+  and soul light, with its two items beside it) or from the bag (⚔ 装备卫士 / 🔥 熔炉 switch); crypt-mode items in an old bag can only be
+  smelted. The equipment panel also shows its 战魂 in brief (stack, kills to the next, crest, soul light step, the bonus).
+  On touch screens a tap highlights an item (it stays put) and a tap on an empty cell, a frame or the forge moves it; the info box has
+  the one-tap move (穿上 / 卸下 / 放进熔炉 / 拿回背包) and 取消. The mouse still picks items up and puts them down.
+- The Pact panel: the summoning skill as a tome (its level, the upgrade), the style card (what the style does, that the weapon decides
+  it) with a big ⚔ 装备卫士 button, and the 战魂 skills as a row of badges on a track filled up to its Fury (each in its crest tier's
+  colour, locked ones grey); the picked badge is described in one fixed box underneath.
 
 ## 试炼场 / Test Arena (a tool for tuning)
 On the start screen (⚔ 试炼场) or `?arena`: the current save is loaded into one big empty hall, and nothing done there is saved (leaving
