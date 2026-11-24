@@ -19,7 +19,9 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - **E** (or 💀) summons it: a 1.5 s cast, no cooldown; it climbs out of a rune circle at the summon skill's level.
 - It builds **Fury** (战魂) from kills by its own hand: each stack adds damage, attack speed, move speed and life. When it falls, all Fury is lost — summon it again.
 - **Q** 唤魂 turns corpses into **soul energy**; spend it in the Pact panel (**Tab** / 💀 Pact) to strengthen the summon.
-- Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes) or **Greatsword** (heavy cleaves that knock back, less evasion).
+- Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes) or **Greatsword** (heavy cleaves that knock back, less evasion) — set by the weapon it holds.
+- Gear drops for the Sentinel: greatswords (two-handed, no shield), swords and shields, in white / blue / yellow / purple / red; equip from the Pact panel or the bag.
+- As Fury grows its soul light (cyan, like its eyes) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
 
 **⚔ Test Arena** (start screen, or `?arena`): an empty hall on top of your save, with a panel to spawn monsters (dummies too), set Fury,

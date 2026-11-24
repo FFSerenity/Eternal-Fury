@@ -18,7 +18,7 @@ export function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({ v: 1, level: G.level, xp: G.xp, depth: G.deep, uid: G.uid, egg: G.egg || 0, pity: G.techPity || 0,
       crypt: G.crypt.map(c => ({ id: c.id, type: c.type, level: c.level, xp: c.xp, mods: c.mods, modLv: c.modLv || {}, champ: c.champ, active: c.active, sp: c.sp || 0, skills: c.skills || {}, gear: c.gear || {} })), bag: G.bag, furn: G.furn,
-      ...(PACT ? { soul: G.soul, pact: { lvl: G.pact.lvl, wset: G.pact.wset, stacks: G.pact.stacks, kills: G.pact.kills, alive: G.pact.alive } } : {}) }));
+      ...(PACT ? { soul: G.soul, pact: { lvl: G.pact.lvl, wset: G.pact.wset, stacks: G.pact.stacks, kills: G.pact.kills, alive: G.pact.alive, gear: G.pact.gear } } : {}) }));
   } catch (e) {}
 }
 export function load() {

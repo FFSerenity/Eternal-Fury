@@ -14,14 +14,14 @@ export const SKILLS = [
   { id: 'charge', at: 5, cd: 8, icon: '⚡', name: tr('冲锋', 'Charge'),
     desc: tr('目标在 3.5–8 米外时突进：剑盾压低身形举盾冲撞，撞开路上的敌人，冲到面前一记盾击把目标击倒；大剑跃起跳劈，落地裂地范围伤害', 'Closes on a target 3.5–8 m away: sword & shield drives in low behind the shield, barging aside what is in the way, and ends with a shield bash that knocks the target down; the greatsword leaps and splits the ground where it lands') },
   { id: 'guard', at: 10, passive: true, icon: '🛡️', name: tr('格挡 / 招架', 'Block / Parry'),
-    desc: tr('被动：剑盾挨打时（任何方向）30% 几率格挡（伤害 −80%，箭和火球整个挡下），大剑正面挨打时 25% 几率招架（伤害 −60%）；战魂超过 10 层后每层再 +1% 几率（最多 +20%）。随即在普攻之间插入一次反击——剑盾举盾后直劈，剑气直线飞出约 10 米，挡下的若是飞矢就直取放箭的人；大剑架住后 180° 横扫，剑气扇面扩散约 4.5 米',
-      'Passive: sword & shield blocks 30% of blows from any side (−80% damage, arrows and fireballs stopped whole), the greatsword parries 25% of blows from the front (−60%); +1% chance per Fury stack past 10 (at most +20%); then it slips a counter in between its swings — sword & shield cuts down from behind the shield and the sword qi flies ~10 m straight (at the shooter, if it stopped a missile); the greatsword sweeps 180° and its qi fans out ~4.5 m') },
+    desc: tr('被动：剑盾（要装着盾牌）挨打时（任何方向）30% 几率格挡（伤害 −80%，箭和火球整个挡下），大剑正面挨打时 25% 几率招架（伤害 −60%）；战魂超过 10 层后每层再 +1% 几率（最多 +20%）。随即在普攻之间插入一次反击——剑盾举盾后直劈，剑气直线飞出约 10 米，挡下的若是飞矢就直取放箭的人；大剑架住后 180° 横扫，剑气扇面扩散约 4.5 米',
+      'Passive: sword & shield (with a shield on its arm) blocks 30% of blows from any side (−80% damage, arrows and fireballs stopped whole), the greatsword parries 25% of blows from the front (−60%); +1% chance per Fury stack past 10 (at most +20%); then it slips a counter in between its swings — sword & shield cuts down from behind the shield and the sword qi flies ~10 m straight (at the shooter, if it stopped a missile); the greatsword sweeps 180° and its qi fans out ~4.5 m') },
   { id: 'whirl', at: 15, cd: 10, icon: '🌀', name: tr('旋风斩', 'Whirlwind'),
     desc: tr('身边 2.5 米内有 3 个以上敌人时转身横扫，打两段，每段向四周甩出剑气（远处的敌人也会被剑气划伤）', 'With 3+ enemies within 2.5 m, spins and cuts everything around it, twice, flinging sword qi out in every direction (it cuts what it meets further out too)') },
   { id: 'sunder', at: 20, cd: 15, icon: '💥', name: tr('破军一击', 'Sundering Strike'),
     desc: tr('蓄力后挥出燃火的一击：剑盾怒吼爆气、直劈，火浪沿前方扇形扫出；大剑为剑注火横扫，三道火浪一圈比一圈远地向四周扩散；非精英敌人血量低于 25% 直接斩杀', 'Gathers itself, then a burning blow: sword & shield roars and cuts down, sending a wave of fire down a cone; the greatsword fills its blade with fire and sweeps, three rings of fire rolling out all round, each farther than the last; non-elite enemies left under 25% life are cut down') },
   { id: 'leech', at: 25, passive: true, icon: '🩸', name: tr('饮血', 'Life Steal'),
-    desc: tr('被动：卫士造成的伤害有 10% 化为自身生命（普攻和技能都算）', 'Passive: 10% of the damage the Sentinel deals heals it (swings and skills alike)') },
+    desc: tr('被动：卫士造成的伤害有 10% 化为自身生命（普攻和技能都算；装备上的吸血另算，不用等到 25 层）', 'Passive: 10% of the damage the Sentinel deals heals it (swings and skills alike; life steal on gear adds to it, at any Fury)') },
 ];
 const SK = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 const LEECH = 0.1;
@@ -205,8 +205,9 @@ function counterHit(u, sk) {
 // ---------- Block / Parry (passive, from 10 战魂): how much of a blow gets through, and the counter it earns ----------
 PH.guard = (src, u, o) => {
   if (!((u.fury || 0) >= SK.guard.at) || u.spawnT > 0 || !u.entry) return 1;
-  const mv = MOVES[styleOf(u)].guard, sx = o.fx ?? (src ? src.x : u.x), sz = o.fz ?? (src ? src.z : u.z);
-  const ang = Math.atan2(sx - u.x, sz - u.z), chance = mv.chance + Math.min(0.2, 0.01 * Math.max(0, u.fury - SK.guard.at)); // each Fury stack past 10: +1%
+  const st = styleOf(u), mv = MOVES[st].guard, sx = o.fx ?? (src ? src.x : u.x), sz = o.fz ?? (src ? src.z : u.z);
+  if (st === 'SNS' && u.shield === false) return 1; // no shield on the arm: nothing to block with
+  const ang = Math.atan2(sx - u.x, sz - u.z), chance = mv.chance + Math.min(0.2, 0.01 * Math.max(0, u.fury - SK.guard.at)) + (u.blockB || 0); // each Fury stack past 10: +1%; gear on top
   if ((!mv.all && Math.abs(((ang - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > 1.75) || Math.random() >= chance) return 1; // the shield: from any side; the parry: only from the front
   const e = mv.fan && u.mesh.weap && u.mesh.weap.r && u.mesh.weap.r.userData.edge, P = new THREE.Vector3();
   if (e) e[0].getWorldPosition(P); else P.set(u.x + Math.sin(ang) * 0.55, 1.1, u.z + Math.cos(ang) * 0.55); // the spark on the side it came from
@@ -217,7 +218,7 @@ PH.guard = (src, u, o) => {
 };
 // Life Steal (passive, 25 Fury): a share of every blow it lands comes back as life; the heal shows as one number every half second
 PH.leech = (u, d) => {
-  if ((u.fury || 0) < SK.leech.at || u.dead || !(d > 0)) return; const h = d * LEECH; u.hp = Math.min(u.maxHp, u.hp + h);
+  const r = ((u.fury || 0) >= SK.leech.at ? LEECH : 0) + (u.leechB || 0); if (!r || u.dead || !(d > 0)) return; const h = d * r; u.hp = Math.min(u.maxHp, u.hp + h); // (gear with life steal works at any Fury)
   if (!u.leechAcc) G.fx.push({ t: 0.45, fn: () => { const v = u.leechAcc; u.leechAcc = 0; if (u.dead || v < 1) return; say(u.x, u.z, '+' + Math.round(v), '#7dff9a', 13, 2.2);
     C.parts.emit(u.x, 1.0, u.z, 8, { col: 0xff3a4a, spd: 0.7, up: 1.4, grav: -0.6, life: 0.55, size: 0.2, spread: 0.3 }); } });
   u.leechAcc = (u.leechAcc || 0) + h;

@@ -4,11 +4,12 @@ import { G, PACT } from './state.js';
 import { tr } from './i18n.js';
 import { C, PH, Unit, removeCorpse, rise } from './units.js';
 import { MODS } from './data.js';
-import { heroUnit, setStyle, spawnHero, SETS } from './pact.js';
+import { heroUnit, equipSet, spawnHero, SETS } from './pact.js';
+import { QUAL } from './data.js';
 import { S } from './audio.js';
 
 const KINDS = ['imp', 'brute', 'archer', 'shaman'];
-const O = { tab: 'mob', drop: false, type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false };
+const O = { tab: 'mob', drop: false, gq: 0, type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false };
 const ST = { dmg: 0, dmgP: 0, taken: 0, kills: 0, ttk: 0, fight: 0, lastHit: -9, log: [] };
 let el = null, refillT = 0, uiT = 0, pid = 900000;
 const $ = s => el.querySelector(s);
@@ -74,7 +75,9 @@ function html() {
   <div class="aP" data-p="me">${PACT ? `
   <div class="aR">${step('fury', tr('战魂', 'Fury'))}${chips('furyQ', [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20], [25, 25]])}</div>
   <div class="aR">${step('slvl', tr('召唤等级', 'Summon Lv'))}</div>
-  <div class="aR"><span class="aL">${tr('流派', 'Style')}</span>${chips('wset', Object.keys(SETS).map(k => [k, SETS[k].name]))}</div>
+  <div class="aR"><span class="aL">${tr('装备', 'Gear')}</span>${chips('wset', Object.keys(SETS).map(k => [k, SETS[k].name]))}</div>
+  <div class="aR"><span class="aL">${tr('品质', 'Quality')}</span>${chips('gq', QUAL.map((q, i) => [i, `<i style="color:${q.col};font-style:normal">●</i>${q.name}`]))}</div>
+  <div class="aSm">${tr('点流派或品质：按当前怪物等级换上一整套新装备（大剑一把，或剑 + 盾）', 'Tap a style or quality: equips a fresh set at the monster level (a greatsword, or a sword and shield)')}</div>
   <div class="aR">${tog('hInv', tr('卫士不死', 'Unkillable'))}<button data-act="summon">${tr('召唤', 'Summon')}</button><button data-act="heal">${tr('回满', 'Full heal')}</button></div>` : `<div class="aR"><button data-act="heal">${tr('回满', 'Full heal')}</button></div>`}
   <div class="aR">${step('plvl', tr('召唤师等级', 'Summoner Lv'))}</div><div class="aR">${tog('pInv', tr('召唤师无敌 · 法力无限', 'Summoner invulnerable · endless mana'))}</div></div></div>`;
 }
@@ -88,7 +91,7 @@ function sync() { // buttons that show a choice or a toggle
 function onClick(e) {
   const b = e.target.closest('button'); if (!b) { if (e.target.closest('.aH')) { el.classList.toggle('min'); minLabel(); } return; } // (the header folds it)
   const c = b.closest('.aC');
-  if (c) { const k = c.dataset.k, v = b.dataset.v; if (k === 'wset') setStyle(v); else if (k === 'furyQ') setFury(+v); else if (k === 'type') O.type = v; else O[k] = +v; }
+  if (c) { const k = c.dataset.k, v = b.dataset.v; if (k === 'wset') equipSet(v, O.gq, O.lvl); else if (k === 'gq') { O.gq = +v; equipSet(G.pact.wset, O.gq, O.lvl); } else if (k === 'furyQ') setFury(+v); else if (k === 'type') O.type = v; else O[k] = +v; }
   else if (b.dataset.tg) O[b.dataset.tg] = !O[b.dataset.tg];
   else if (b.dataset.tab) O.tab = b.dataset.tab;
   else if (b.dataset.step) { const [k, d] = b.dataset.step.split(':'), n = +d;

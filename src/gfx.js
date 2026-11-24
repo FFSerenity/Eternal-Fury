@@ -116,6 +116,7 @@ float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
 #ifdef PLUME
 // the 魂契 skeleton's helmet crest: vPl = (membership, 0 base .. 1 outer rim, 0 front .. 1 back along the arc)
 varying vec3 vPl; uniform vec4 uPl; uniform vec4 uPlFx; // uPl: dye colour, dye amount; uPlFx: time, glow, flame, (debug)
+uniform vec4 uSoul; uniform vec3 uSoulC; // the soul light inside it (by 战魂): strength 0..1, time, the ground under it, (debug); its colour
 float vn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }
 #endif
@@ -145,6 +146,9 @@ void main(){
   vec3 col = base * (1.0 - metal * 0.55) * dif + spe * F0 * 3.0 + uEmis;
   float eye = smoothstep(0.18, 0.4, min(base.g, base.b) - base.r) * smoothstep(0.45, 0.7, base.b); col += base * eye * 1.8;
   #ifdef PLUME
+  col += base * eye * 3.0 * uSoul.x; // the eyes burn brighter with it
+  #endif
+  #ifdef PLUME
   if (vPl.x > 0.002) { float m = clamp(vPl.x, 0.0, 1.0), rim = vPl.y, t = uPlFx.x;
     // dyed: the texture's light and shade in the tier colour
     float lum = dot(texture2D(uMap, vUv).rgb, vec3(0.3, 0.59, 0.11));
@@ -157,6 +161,23 @@ void main(){
     vec3 hot = mix(uPl.rgb, vec3(1.0, 0.92, 0.7), smoothstep(0.55, 1.0, flame) * 0.75 * uPlFx.z * uPlFx.z); // white-hot tips only on the real fire
     col += m * (uPl.rgb * uPlFx.y * (0.2 + 0.8 * rim) * breathe + hot * flame * 1.4);
     if (uPlFx.w > 0.5) col = vec3(m, rim * m, vPl.z * m); }
+  // the soul light: the same cyan as the eyes, shining out of the bone from inside — strongest in the ribcage and the skull, moving up
+  // through it in bands at the higher tiers, the seams of the black armour catching it, a cyan edge, white-hot where it is densest at the top
+  if (uSoul.x > 0.001) { float s = uSoul.x, t = uSoul.y, hy = (vW.y - uSoul.z) / 2.25, crest = clamp(vPl.x, 0.0, 1.0);
+    float lum0 = dot(texture2D(uMap, vUv).rgb, vec3(0.3, 0.59, 0.11));
+    float bone = smoothstep(0.17, 0.42, lum0) * (1.0 - crest);
+    float body = 0.3 + 0.7 * max(exp(-pow((hy - 0.66) / 0.14, 2.0)), exp(-pow((hy - 0.88) / 0.07, 2.0)));
+    float fl = vn2(vec2(vW.x * 2.3 + vW.z * 1.7, vW.y * 3.0 - t * 1.7)) * 0.6 + vn2(vec2(vW.z * 5.1 - vW.x * 3.3, vW.y * 7.0 - t * 3.3)) * 0.4;
+    float flow = mix(1.0, 0.3 + 1.4 * fl, smoothstep(0.35, 0.55, s)), pulse = 0.86 + 0.14 * sin(t * 2.6);
+    vec3 hot = mix(uSoulC, vec3(0.88, 1.0, 1.0), smoothstep(0.75, 1.0, s) * smoothstep(0.6, 1.0, fl * body));
+    // the bone gives way to the light (tinted, not just added: pale bone plus cyan would only burn out to white), keeping its texture
+    float a = bone * clamp(s * 1.45, 0.0, 1.0) * (0.45 + 0.55 * body);
+    col = mix(col, hot * (0.45 + 1.15 * s) * (0.5 + 0.9 * lum0) * (0.55 + 0.6 * body * flow) * pulse, a);
+    float seam = smoothstep(0.09, 0.17, lum0) * (1.0 - smoothstep(0.19, 0.3, lum0)) * (1.0 - crest);
+    col += uSoulC * seam * smoothstep(0.6, 1.0, s) * flow * body * 0.9;
+    float fr2 = 1.0 - max(dot(N, V), 0.0);
+    col += uSoulC * pow(fr2, 2.2) * smoothstep(0.2, 0.6, s) * (0.4 + 0.8 * s) * pulse * (1.0 - crest * 0.7);
+    if (uSoul.w > 0.5) col = vec3(bone, seam, body); }
   #endif
   float fr = 1.0 - max(dot(N, V), 0.0);
   col += vec3(0.5, 0.62, 0.85) * pow(fr, 2.5) * 0.34;               // a cool edge so the silhouette reads on dark floors

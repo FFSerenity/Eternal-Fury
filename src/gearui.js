@@ -4,8 +4,10 @@
 // Items are moved by picking them up and putting them down (click / tap); right-click or double-tap is a quick move.
 // A fixed info box shows the hovered or held item, so nothing jumps around.
 import * as THREE from 'three';
-import { G, save, bagPut, bagFree } from './state.js';
-import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem, techName, TECH_PITY, rareItems } from './data.js';
+import { G, save, bagPut, bagFree, PACT } from './state.js';
+import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, itemScore, itemFits, itemBase, furnaceOdds, furnaceRoll, rollItem, techName, TECH_PITY, rareItems,
+  HERO_GEAR, heroFurnaceOdds, heroFurnaceRoll, heroOddsQ, rollHeroItem } from './data.js';
+import { heroEntry, heroName, SETS } from './pact.js';
 import { setGear, Unit, ANIM } from './units.js';
 import { makeUnitMesh, play } from './assets.js';
 import { initR, lit, itemIconURL as iconOf, portrait } from './icons.js';
@@ -20,9 +22,9 @@ let mode = 'bag', selEn = null, held = null, built = false, raf = 0, last = 0, i
 // ---------- paperdoll ----------
 let R = null, dollScene, dollCam, doll = null, dollKey = '';
 function setDoll() {
-  const en = selEn, key = en && mode === 'doll' ? en.id + ':' + (en.gear?.w?.id || 0) + ':' + (en.gear?.a?.id || 0) : ''; if (key === dollKey) return; dollKey = key;
+  const en = selEn, key = en && mode === 'doll' ? en.id + ':' + (en.gear?.w?.id || 0) + ':' + (en.gear?.a?.id || 0) + ':' + (en.wset || '') : ''; if (key === dollKey) return; dollKey = key;
   if (doll) { dollScene.remove(doll.root); doll = null; } if (!key) return;
-  doll = makeUnitMesh(en.type, { gear: en.gear, elems: en.champ ? en.mods : null, tint: en.mods.includes('stone') ? 0xb8b4ac : 0xffffff });
+  doll = makeUnitMesh(en.type, { gear: en.gear, elems: en.champ ? en.mods : null, tint: en.mods.includes('stone') ? 0xb8b4ac : 0xffffff, hero: en.hero, wset: en.wset });
   dollScene.add(doll.root); play(doll, doll.gun || doll.muz ? '2H_Ranged_Aiming' : ANIM[en.type].idle, {}); doll.mixer.update(0); // two-handed tech weapons: held up, not dragged on the floor
   const box = new THREE.Box3().setFromObject(doll.root), h = box.max.y - box.min.y || 1.2;
   dollCam.position.set(0, h * 0.62, h * 2.55); dollCam.lookAt(0, h * 0.48, 0); doll.root.rotation.y = 0.5;
@@ -43,7 +45,12 @@ function take(c, p) {
   return it;
 }
 const furnFree = () => { const u = new Set(G.furn.map(i => i.fpos)); for (let p = 0; p < FURN_N; p++) if (!u.has(p)) return p; return -1; };
-const fitsSlot = (it, c) => (c === 'w' ? it.slot === 'w' && itemFits(it, selEn.type) : it.slot === 'a');
+const twoHanded = en => !!(en && en.hero && en.gear && en.gear.w && en.gear.w.hero && HERO_GEAR[en.gear.w.hero].two);
+const fitsSlot = (it, c) => (c === 'w' ? it.slot === 'w' && itemFits(it, selEn.type, selEn.hero) : it.slot === 'a' && (selEn.hero ? !!it.hero && !twoHanded(selEn) : !it.hero));
+// putting a greatsword in: the shield comes off into the bag first (refused if the bag has no room for it)
+function freeOffHand(it) { if (!selEn || !selEn.hero || !it.hero || !HERO_GEAR[it.hero].two || !selEn.gear || !selEn.gear.a) return true;
+  if (bagFree() < 0) { S.fail(); message(tr('背包满了，放不下换下来的盾牌', 'Bag is full — no room for the shield')); return false; }
+  bagPut(setGear(selEn, 'a', null)); message(tr('双手大剑占着两只手：盾牌收回背包', 'The greatsword takes both hands: the shield goes back to the bag')); return true; }
 function put(c, p, it) { // returns the displaced item (or null)
   if (c === 'bag') { const o = take('bag', p); it.pos = p; G.bag.push(it); return o; }
   if (c === 'furn') { const o = take('furn', p); it.fpos = p; G.furn.push(it); return o; }
@@ -55,7 +62,11 @@ function returnHeld() {
   else if (!bagPut(it, f === 'bag' ? held.pos : null)) { const fp = furnFree(); if (fp >= 0) { it.fpos = fp; G.furn.push(it); } }
   held = null;
 }
-function cantUse(it) { S.fail(); message(it.slot === 'w' ? tr(`${TYPES[selEn.type].name}用不了${itemBase(it).cat || WEAPONS[it.type].cat}，这是${TYPES[it.type].name}的武器`, `A ${TYPES[selEn.type].name} can't use this — it's a ${TYPES[it.type].name}'s ${WEAPONS[it.type].cat.toLowerCase()}`) : tr('这里放不下', "Doesn't fit here")); }
+function cantUse(it, c) { S.fail();
+  if (selEn && selEn.hero) { message(!it.hero ? tr('骸骨卫士用不了这件（这是墓穴模式召唤物的装备）', "The Bone Sentinel can't use this (it's gear for the Crypt's summons)")
+    : c === 'a' && it.slot === 'a' ? tr('双手大剑占着两只手，盾牌格不能用', 'The greatsword takes both hands: no shield with it') : tr('这里放不下', "Doesn't go there")); return; }
+  if (it.hero) { message(tr('这是骸骨卫士的装备', "That's gear for the Bone Sentinel")); return; }
+  message(it.slot === 'w' ? tr(`${TYPES[selEn.type].name}用不了${itemBase(it).cat || WEAPONS[it.type].cat}，这是${TYPES[it.type].name}的武器`, `A ${TYPES[selEn.type].name} can't use this — it's a ${TYPES[it.type].name}'s ${WEAPONS[it.type].cat.toLowerCase()}`) : tr('这里放不下', "Doesn't fit here")); }
 const noSmelt = () => { S.fail(); message(tr('史诗装备不能熔炼', "Epic items can't be smelted")); };
 let lastPick = null;
 function clickCell(c, p) {
@@ -64,17 +75,18 @@ function clickCell(c, p) {
   if (!held) { const it = take(c, p); if (!it) return; held = { it, from: c, pos: p }; lastPick = { c, p, t: now }; S.pick(); }
   else { // a quick second tap on the same cell = double-click: quick move
     if (lastPick && lastPick.c === c && lastPick.p === p && now - lastPick.t < 380 && held.from === c) { lastPick = null; put(c, p, held.it); held = null; quick(c, p); return; }
-    if ((c === 'w' || c === 'a') && !fitsSlot(held.it, c)) { cantUse(held.it); return; }
-    if (c === 'furn' && held.it.q >= 3) { noSmelt(); return; }
+    if ((c === 'w' || c === 'a') && !fitsSlot(held.it, c)) { cantUse(held.it, c); return; }
+    if (c === 'w' && !freeOffHand(held.it)) return;
+    if (c === 'furn' && held.it.uniq) { noSmelt(); return; }
     const o = put(c, p, held.it); held = o ? { it: o, from: c, pos: p } : null; lastPick = null; S.clank(); }
   infoIt = held ? held.it : at(c, p); save(); render();
 }
 // quick move: 装备 panel equips / takes off; 背包 panel moves between bag and furnace
 function quick(c, p) {
   if (held) return; const it = at(c, p); if (!it) return;
-  if (c === 'bag' && mode === 'doll') { const s = it.slot === 'w' ? 'w' : 'a'; if (!fitsSlot(it, s)) { cantUse(it); return; }
-    take('bag', p); const o = setGear(selEn, s, it); if (o) { o.pos = p; G.bag.push(o); } S.clank(); }
-  else if (c === 'bag') { if (it.q >= 3) { noSmelt(); return; } const fp = furnFree(); if (fp < 0) { message(tr('熔炉放满了', 'The forge is full')); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.clank(); }
+  if (c === 'bag' && mode === 'doll') { const s = it.slot === 'w' ? 'w' : 'a'; if (!fitsSlot(it, s)) { cantUse(it, s); return; }
+    take('bag', p); if (s === 'w' && !freeOffHand(it)) { it.pos = p; G.bag.push(it); return; } const o = setGear(selEn, s, it); if (o) { if (G.bag.some(i => i.pos === p)) bagPut(o); else { o.pos = p; G.bag.push(o); } } S.clank(); }
+  else if (c === 'bag') { if (it.uniq) { noSmelt(); return; } const fp = furnFree(); if (fp < 0) { message(tr('熔炉放满了', 'The forge is full')); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.clank(); }
   else { if (bagFree() < 0) { message(tr('背包满了', 'Bag is full')); return; } bagPut(take(c, p)); S.clank(); }
   infoIt = null; save(); render();
 }
@@ -106,15 +118,19 @@ const cellHTML = (it, c, p, extra = '') => `<div class="cell${it ? ' q' + it.q :
 export function render() {
   if (!gearOpen) return; const en = selEn, doll = mode === 'doll' && en;
   $('#gearBox').className = 'panel ' + (doll ? 'mDoll' : 'mBag');
-  $('#gT').textContent = doll ? tr('装备', 'Equipment') : tr('背包', 'Bag'); $('#gSub').textContent = `${tr('背包', 'Bag')} ${G.bag.length} / ${BAG_MAX}`;
+  $('#gT').textContent = doll ? tr('装备', 'Equipment') : tr('背包', 'Bag'); $('#gSub').innerHTML = `${tr('背包', 'Bag')} ${G.bag.length} / ${BAG_MAX}`
+    + (PACT ? ` <button class="btn gSw" id="gSw">${doll ? tr('🔥 熔炉', '🔥 Forge') : tr('⚔ 装备卫士', '⚔ Equip')}</button>` : '');
+  if (PACT) $('#gSw').onclick = e => { e.stopPropagation(); returnHeld(); doll ? openBag() : openGear(heroEntry()); };
   if (doll) {
     const o = { kind: en.type, side: 'ally', level: en.level, mods: en.mods, champ: en.champ, entry: en, T: TYPES[en.type] }; Unit.prototype.stats.call(o);
     if (!$('#gDoll')) $('#gLeft').innerHTML = `<div class="gDollRow"><div class="gSlot" data-c="w" data-p="0"></div><div id="gDoll"></div><div class="gSlot" data-c="a" data-p="0"></div></div><div class="gStats" id="gStats"></div>`;
     for (const el of document.querySelectorAll('.gSlot')) { const c = el.dataset.c, it = en.gear ? en.gear[c] : null, ok = held && fitsSlot(held.it, c);
-      el.className = 'gSlot' + (it ? ' q' + it.q : '') + (held ? ok ? ' can' : ' no' : '');
-      el.innerHTML = it ? `<img src="${iconOf(it)}" draggable="false">` : `<span>${c === 'w' ? WEAPONS[en.type].cat : tr('盾', 'Shield')}</span>`; }
-    $('#gStats').innerHTML = `<div class="gsN">${portrait(en, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${techName(en)} <small style="white-space:nowrap">Lv ${en.level}${en.active ? tr(' · 出战中', ' · in party') : ''}</small></div>
-      <div class="gsL"><span>${tr('生命', 'Life')} <b>${Math.round(o.maxHp)}</b></span><span>${tr('伤害', 'Damage')} <b>${o.dmg.toFixed(1)}</b></span><span>${tr('护甲', 'Armour')} <b>${Math.round(o.armor)}</b></span><span>${tr('攻击间隔', 'Interval')} <b>${o.cd.toFixed(2)}s</b></span></div>`;
+      const lock = c === 'a' && twoHanded(en); el.className = 'gSlot' + (it ? ' q' + it.q : '') + (lock ? ' lock' : '') + (held ? ok ? ' can' : ' no' : '');
+      el.innerHTML = it ? `<img src="${iconOf(it)}" draggable="false">` : `<span>${c === 'w' ? (en.hero ? tr('武器', 'Weapon') : WEAPONS[en.type].cat) : lock ? tr('双手武器', 'Two hands') : tr('盾', 'Shield')}</span>`; }
+    $('#gStats').innerHTML = (en.hero ? `<div class="gsN">${SETS[en.wset].icon} ${heroName()} <small style="white-space:nowrap">Lv ${en.level} · ${SETS[en.wset].name}</small></div>`
+      : `<div class="gsN">${portrait(en, 'sm')}${en.champ ? `<span style="color:#ffb347">${affixName(en.mods)}</span>` : ''}${techName(en)} <small style="white-space:nowrap">Lv ${en.level}${en.active ? tr(' · 出战中', ' · in party') : ''}</small></div>`)
+      + `<div class="gsL"><span>${tr('生命', 'Life')} <b>${Math.round(o.maxHp)}</b></span><span>${tr('伤害', 'Damage')} <b>${o.dmg.toFixed(1)}</b></span><span>${tr('护甲', 'Armour')} <b>${Math.round(o.armor)}</b></span><span>${tr('攻击间隔', 'Interval')} <b>${o.cd.toFixed(2)}s</b></span>`
+      + (en.hero ? `<span>${tr('闪避', 'Evasion')} <b>${Math.round(o.evade * 100)}%</b></span><span>${tr('暴击', 'Crit')} <b>${Math.round(o.crit * 100)}%</b></span>${o.leechB ? `<span>${tr('吸血', 'Life steal')} <b>${Math.round(o.leechB * 100)}%</b></span>` : ''}${o.blockB ? `<span>${tr('格挡 / 招架', 'Block / parry')} <b>+${Math.round(o.blockB * 100)}%</b></span>` : ''}` : '') + `</div>`;
     $('#gSide').innerHTML = '';
   } else {
     $('#gLeft').innerHTML = '';
@@ -123,8 +139,10 @@ export function render() {
     $('#gAuto').onclick = e => { e.stopPropagation(); autoFill(); }; $('#gEmpty').onclick = e => { e.stopPropagation(); emptyFurn(); }; $('#gGo').onclick = e => { e.stopPropagation(); smelt(); };
     let h = ''; for (let p = 0; p < FURN_N; p++) h += cellHTML(at('furn', p), 'furn', p); $('#gF').innerHTML = h;
     const od = furnaceOdds(G.furn, G.techPity || 0), pc = v => Math.round(v * 100) + '%', pity = G.techPity || 0;
-    $('#gfOdds').innerHTML = (G.furn.length ? (od.epic ? `<span style="color:${QUAL[3].col}">${QUAL[3].name} ${pc(od.epic)}</span>` : '') + `<span style="color:${QUAL[2].col}">${QUAL[2].name} ${pc(od.gold)}</span><span style="color:${QUAL[1].col}">${QUAL[1].name} ${pc(od.blue)}</span><span style="color:${QUAL[0].col}">${QUAL[0].name} ${pc(od.white)}</span>` : `<span class="dim">${tr('放进装备后显示几率', 'Odds show once items are in')}</span>`)
-      + `<div class="gfPity" title="${tr('熔炼稀有装备（武器或盾牌）积累魂钢能量，满了必出史诗科技武器；出哪一把看放进去的武器', 'Smelting rare gear (weapons or shields) builds up soul steel; when it is full an epic tech weapon is guaranteed')}"><i style="width:${Math.min(100, pity / TECH_PITY * 100)}%"></i><span>${tr('魂钢能量', 'Soul steel')} ${pity}/${TECH_PITY}</span></div>`;
+    if (PACT) { const ho = heroFurnaceOdds(G.furn), row = (q, v) => v > 0.004 ? `<span style="color:${QUAL[q].col}">${QUAL[q].name} ${pc(v)}</span>` : ''; // 魂契: the Sentinel's gear comes out, red possible; no tech pity
+      $('#gfOdds').innerHTML = G.furn.length ? row(4, ho.red) + row(3, ho.pur) + row(2, ho.gold) + row(1, ho.blue) + row(0, ho.white) : `<span class="dim">${tr('放进装备后显示几率', 'Odds show once items are in')}</span>`; }
+    else $('#gfOdds').innerHTML = (G.furn.length ? (od.epic ? `<span style="color:${QUAL[3].col}">${QUAL[3].name} ${pc(od.epic)}</span>` : '') + `<span style="color:${QUAL[2].col}">${QUAL[2].name} ${pc(od.gold)}</span><span style="color:${QUAL[1].col}">${QUAL[1].name} ${pc(od.blue)}</span><span style="color:${QUAL[0].col}">${QUAL[0].name} ${pc(od.white)}</span>` : `<span class="dim">${tr('放进装备后显示几率', 'Odds show once items are in')}</span>`)
+      + (PACT ? '' : `<div class="gfPity" title="${tr('熔炼稀有装备（武器或盾牌）积累魂钢能量，满了必出史诗科技武器；出哪一把看放进去的武器', 'Smelting rare gear (weapons or shields) builds up soul steel; when it is full an epic tech weapon is guaranteed')}"><i style="width:${Math.min(100, pity / TECH_PITY * 100)}%"></i><span>${tr('魂钢能量', 'Soul steel')} ${pity}/${TECH_PITY}</span></div>`);
     $('#gGo').disabled = G.furn.length < 2; $('#gEmpty').disabled = !G.furn.length;
   }
   setDoll();
@@ -141,24 +159,24 @@ function renderInfo() {
 }
 // Diablo-style item text
 function tipHTML(it) {
-  const B = itemBase(it), en = mode === 'doll' ? selEn : null, fit = !en || (it.slot === 'w' ? itemFits(it, en.type) : true), cur = en && en.gear ? en.gear[it.slot === 'w' ? 'w' : 'a'] : null;
+  const B = itemBase(it), en = mode === 'doll' ? selEn : null, fit = !en || fitsSlot(it, it.slot === 'w' ? 'w' : 'a'), cur = en && en.gear ? en.gear[it.slot === 'w' ? 'w' : 'a'] : null;
   const isCur = cur === it, sc = itemScore(it), cs = itemScore(cur);
-  const cmp = !en || isCur || !fit ? '' : !cur ? `<span class="tC up">${tr(`${TYPES[en.type].name}现在没穿`, 'Slot is empty')}</span>` : sc > cs + 0.5 ? `<span class="tC up">${tr('▲ 比现在的强', '▲ Better than current')}</span>` : sc < cs - 0.5 ? `<span class="tC dn">${tr('▼ 不如现在的', '▼ Worse than current')}</span>` : `<span class="tC">${tr('与现在的差不多', 'About the same')}</span>`;
+  const cmp = !en || isCur || !fit ? '' : !cur ? `<span class="tC up">${tr(`${en.hero ? heroName() : TYPES[en.type].name}现在没穿`, 'Slot is empty')}</span>` : sc > cs + 0.5 ? `<span class="tC up">${tr('▲ 比现在的强', '▲ Better than current')}</span>` : sc < cs - 0.5 ? `<span class="tC dn">${tr('▼ 不如现在的', '▼ Worse than current')}</span>` : `<span class="tC">${tr('与现在的差不多', 'About the same')}</span>`;
   return `<div class="tip"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)} <span class="tI">${tr('物品等级', 'Item Level')} ${it.il}</span></div>
-    <div class="tB">${it.slot === 'w' ? `${B.cat || WEAPONS[it.type].cat} · ${B.name}` : `${tr('护甲', 'Armour')} · ${B.name}`}　${it.slot === 'w' ? `<span class="tR${fit ? '' : ' bad'}">${tr(`${TYPES[it.type].name}专用`, `${TYPES[it.type].name} only`)}</span>` : `<span class="tR">${tr('所有召唤物', 'Any summon')}</span>`}　${isCur ? `<span class="tC">${tr('正在穿着', 'Equipped')}</span>` : cmp}</div>
+    <div class="tB">${it.hero ? `${B.cat} · ${B.name}` : it.slot === 'w' ? `${B.cat || WEAPONS[it.type].cat} · ${B.name}` : `${tr('护甲', 'Armour')} · ${B.name}`}　${it.hero ? `<span class="tR${fit ? '' : ' bad'}">${tr(`${heroName()}专用`, `${heroName()} only`)}</span>` : it.slot === 'w' ? `<span class="tR${fit ? '' : ' bad'}">${tr(`${TYPES[it.type].name}专用`, `${TYPES[it.type].name} only`)}</span>` : `<span class="tR">${tr('所有召唤物', 'Any summon')}</span>`}　${isCur ? `<span class="tC">${tr('正在穿着', 'Equipped')}</span>` : cmp}</div>
     <div class="tLs">${itemLines(it).map(l => `<span class="tL${l[0] === '✦' ? ' sp' : ''}">${l}</span>`).join('')}</div></div>`;
 }
 
 // ---------- furnace ----------
 function smelt() {
-  if (G.furn.length < 2 || held) return; const pity = G.techPity || 0, nr = rareItems(G.furn), odds = furnaceOdds(G.furn, pity), res = furnaceRoll(G.furn, G.uid++, pity);
-  G.techPity = res.q === 3 ? 0 : Math.min(TECH_PITY, pity + nr); G.furn = [res]; res.fpos = 0; pending = res; save(); S.fire();
+  if (G.furn.length < 2 || held) return; const pity = G.techPity || 0, nr = rareItems(G.furn), odds = furnaceOdds(G.furn, pity), ho = PACT && heroFurnaceOdds(G.furn), res = PACT ? heroFurnaceRoll(G.furn, G.uid++) : furnaceRoll(G.furn, G.uid++, pity);
+  if (!PACT) G.techPity = res.q === 3 ? 0 : Math.min(TECH_PITY, pity + nr); G.furn = [res]; res.fpos = 0; pending = res; save(); S.fire();
   const box = document.createElement('div'); box.className = 'gReel'; box.innerHTML = `<div class="lt">${tr('炉火翻滚……', 'The forge roars…')}</div><div class="reel"></div><button class="btn ok" style="visibility:hidden">${tr('收下', 'Take it')}</button>`;
   $('.gFurn').appendChild(box); const reel = box.querySelector('.reel'); let dly = 45;
   const show = it => { reel.innerHTML = `<div class="ri q${it.q}"><img src="${iconOf(it)}"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)}</div></div>`; };
-  const tick = () => { if (!gearOpen || !box.isConnected) return; if (dly > 300) { show(res); reel.classList.add('done', 'q' + res.q); box.querySelector('.lt').textContent = res.q === 3 ? tr('🌟 熔出了史诗科技武器！', '🌟 An epic tech weapon!') : res.q === 2 ? tr('✨ 熔出了稀有装备！', '✨ A rare item!') : res.q === 1 ? tr('熔出了精良装备', 'A magic item') : tr('熔出了一件普通装备', 'A normal item');
+  const tick = () => { if (!gearOpen || !box.isConnected) return; if (dly > 300) { show(res); reel.classList.add('done', 'q' + res.q); box.querySelector('.lt').textContent = res.q === 4 ? tr('🔥 熔出了传说装备！', '🔥 A legendary item!') : res.q === 3 ? (res.hero ? tr('🌟 熔出了史诗装备！', '🌟 An epic item!') : tr('🌟 熔出了史诗科技武器！', '🌟 An epic tech weapon!')) : res.q === 2 ? tr('✨ 熔出了稀有装备！', '✨ A rare item!') : res.q === 1 ? tr('熔出了精良装备', 'A magic item') : tr('熔出了一件普通装备', 'A normal item');
       box.querySelector('.ok').style.visibility = 'visible'; collect(); infoIt = res; render(); if (res.q >= 2) S.level(); else if (res.q === 1) S.caught(); else S.pick(); return; }
-    const r = Math.random(); show(rollItem(0, res.il, r < odds.epic + odds.gold ? 2 : r < odds.epic + odds.gold + odds.blue ? 1 : 0)); S.pick(); dly *= 1.13; setTimeout(tick, dly); };
+    const r = Math.random(); show(PACT ? rollHeroItem(0, res.il, heroOddsQ(ho, r)) : rollItem(0, res.il, r < odds.epic + odds.gold ? 2 : r < odds.epic + odds.gold + odds.blue ? 1 : 0)); S.pick(); dly *= 1.13; setTimeout(tick, dly); };
   tick(); box.querySelector('.ok').addEventListener('click', e => { e.stopPropagation(); box.remove(); render(); });
   render();
 }

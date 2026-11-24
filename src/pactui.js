@@ -2,8 +2,10 @@
 // (strengthen the summon with 魂能, pick a weapon style, see the skeleton's stacks). Uses the crypt overlay's frame.
 import { G } from './state.js';
 import { tr } from './i18n.js';
-import { SETS, SUMMON, heroBase, heroName, heroUnit, stackNeed, lvlCost, levelUp, setStyle, summonK } from './pact.js';
-import { PACE } from './data.js';
+import { SETS, SUMMON, heroBase, heroName, heroUnit, stackNeed, lvlCost, levelUp, summonK, heroEntry } from './pact.js';
+import { PACE, QUAL, itemName, itemLines } from './data.js';
+import { openGear } from './gearui.js';
+import { itemIconURL } from './icons.js';
 import { plumeTier, PLUME_AT } from './assets.js';
 import { SKILLS } from './pactskills.js';
 
@@ -32,12 +34,16 @@ function crestLine(L) { const t = plumeTier(L), c = CREST[t], n = CREST[t + 1], 
 // ---------- the Pact panel ----------
 let panelSig = '';
 export function renderPact(force) {
-  const u = heroUnit(), sig = JSON.stringify([G.soul, P8.lvl, P8.wset, P8.stacks, P8.kills, !!u, u ? Math.round(u.hp) : 0]);
+  const u = heroUnit(), g = P8.gear || {}, sig = JSON.stringify([G.soul, P8.lvl, P8.wset, P8.stacks, P8.kills, !!u, u ? Math.round(u.hp) : 0, g.w && g.w.id, g.a && g.a.id]);
   if (!force && sig === panelSig) return; panelSig = sig;
   const L = P8.lvl, W = SETS[P8.wset], cost = lvlCost(L), now = per(heroBase(L, 0, P8.wset)), nx = per(heroBase(L + 1, 0, P8.wset));
   $('#cryptHead').innerHTML = tr(`魂契 <span class="sub">魂能 ${G.soul}</span>`, `The Pact <span class="sub">Soul energy ${G.soul}</span>`);
-  const style = k => { const S = SETS[k], b = per(heroBase(L, 0, k)); return `<div class="card pst${k === P8.wset ? ' on' : ''}" data-set="${k}"><span class="ic">${S.icon}</span><div class="info"><div class="nm">${S.name} · ${S.style}</div>`
-    + `<div class="lv">${tr('生命', 'Life')} <b>${b.hp}</b> · ${tr('伤害', 'Damage')} <b>${b.dmg}</b> · ${tr('闪避', 'Evasion')} <b>${b.eva}</b></div><div class="ds">${S.desc}</div></div></div>`; };
+  // its gear: the weapon decides the style
+  const slot = (it, empty) => it ? `<div class="card pgi"><span class="ic q${it.q}"><img src="${itemIconURL(it)}" draggable="false"></span><div class="info"><div class="nm" style="color:${QUAL[it.q].col}">${itemName(it)} <span class="sub">${tr('物品等级', 'Item Level')} ${it.il}</span></div><div class="ds">${itemLines(it).filter(l => l[0] !== '✦').join(' · ')}</div></div></div>`
+    : `<div class="card pgi empty"><span class="ic">·</span><div class="info"><div class="ds">${empty}</div></div></div>`;
+  const gearSec = `<div class="psec">${tr('装备', 'Gear')} <button class="btn pgear" data-act="gear">${tr('⚔ 装备卫士', '⚔ Equip')}</button></div>`
+    + `<div class="cEmpty pstyle">${W.icon} ${tr(`流派：${W.name} · ${W.style}（由武器决定：大剑 → 大剑流派，单手剑 → 剑盾流派）`, `Style: ${W.name} · ${W.style} (set by the weapon: a greatsword fights Greatsword, a sword Sword & Shield)`)}<br><span class="dim">${W.desc}</span></div>`
+    + slot(g.w, tr('没有武器（空手时拿一把普通的剑）', 'No weapon (it fights with a plain sword)')) + slot(g.a, g.w && g.w.hero === 'gs' ? tr('双手大剑：盾牌格不能用', 'Greatsword: both hands, no shield') : tr('没有盾牌（剑盾流派没盾就不能格挡）', 'No shield (no blocking without one)'));
   let cur;
   if (u) { const b = per({ maxHp: u.maxHp, dmg: u.dmg, cd: u.cd * PACE.act, speed: u.speed / PACE.move, evade: u.evade }), s = P8.stacks;
     cur = `<div class="nm">${tr('在场', 'On the field')} · ${tr('战魂', 'Fury')} <b class="fury">✦${s}</b></div>`
@@ -53,11 +59,11 @@ export function renderPact(force) {
     + `<div class="psec">${tr(`技能（战魂 ${SKILLS.map(s => s.at).join(' / ')} 层觉醒，倒下清零；自动释放）`, `Skills (wake at ${SKILLS.map(s => s.at).join(' / ')} Fury, lost when it falls; used on its own)`)}</div>`
     + SKILLS.map(s => { const on = u && P8.stacks >= s.at; return `<div class="card pskl${on ? ' on' : ''}"><span class="ic">${s.icon}</span><div class="info">`
       + `<div class="nm">${s.name} <span class="sub">${on ? (s.passive ? tr('被动', 'passive') : tr(`冷却 ${s.cd} 秒`, `${s.cd} s cooldown`)) : tr(`战魂 ${s.at} 层`, `${s.at} Fury`)}</span></div><div class="ds">${s.desc}</div></div></div>`; }).join('')
-    + `<div class="psec">${tr('武器流派', 'Weapon style')}</div>` + style('SNS') + style('GS')
+    + gearSec
     + `<div class="cEmpty prules">${tr('骸骨卫士亲手击杀敌人会积攒战魂（精英算 4 次、骷髅战士算 2 次），每层提升伤害、攻速、移速和生命。它倒下时战魂全部清零。<br>唤魂把尸体化成魂能，魂能用来强化召唤。', 'Kills by the Sentinel\'s own hand build Fury (elites count 4, warriors 2): each stack adds damage, attack speed, move speed and life. When it falls, all Fury is lost.<br>Raise turns corpses into soul energy, which strengthens the summon.')}</div>`;
 }
 export function bindPact() {
-  $('#cryptList').addEventListener('click', e => { const up = e.target.closest('[data-act="up"]'), st = e.target.closest('[data-set]');
-    if (up) { levelUp(); renderPact(true); } else if (st) { setStyle(st.dataset.set); renderPact(true); } });
+  $('#cryptList').addEventListener('click', e => { const up = e.target.closest('[data-act="up"]'), gr = e.target.closest('[data-act="gear"], .pgi');
+    if (up) { levelUp(); renderPact(true); } else if (gr) openGear(heroEntry()); });
   const lb = $('#bCrypt .lb'); if (lb) lb.textContent = tr(' 魂契', ' Pact'); $('#bCrypt').firstChild.textContent = '💀';
 }

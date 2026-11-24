@@ -1,7 +1,7 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
 import { G, save, bagPut, PACT } from './state.js';
-import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
+import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
 import { auraMat, glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
 import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose } from './assets.js';
@@ -127,7 +127,7 @@ function kill(u, src) {
     S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 }); C.parts.emit(u.x, 0.5, u.z, 8, { col: 0xd8ccb8, spd: 2.6, up: 2.4, grav: 8, life: 0.6, size: 0.16 }); if (u.champ) { shake(0.08, u.x, u.z); burst(u.x, 0.8, u.z, 0xffd8a0, 1.6); const P = G.player; if (P && Math.hypot(P.x - u.x, P.z - u.z) < 12 && !(G.slowCD > G.t)) { G.slowT = 0.22; G.slowCD = G.t + 1.5; } }
     const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(PACT ? xp * 0.6 : xp); if (src && src.pact && PH.kill) PH.kill(src, u);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
-    deathBlast(u, 0.7); const it = G.noDrop ? null : rollDrop(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level; the test arena can turn drops off */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
+    deathBlast(u, 0.7); const it = G.noDrop ? null : (PACT ? rollHeroDrop : rollDrop)(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level; the test arena can turn drops off */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
     if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
     makeCorpse(u);
   } else if (u.side === 'ally') {
@@ -152,9 +152,9 @@ function fireBlast(u) {
 export function dropLoot(it, x, z) {
   const root = new THREE.Group(), model = itemBase(it).model, m = propMesh(model); m.scale.setScalar(0.5); m.rotation.set(Math.PI / 2, 0, Math.random() * 6.28); root.add(m);
   if (it.q >= 2) { const pg = propGeo(model), b = pg.box, zl = b.max.z - b.min.z > b.max.y - b.min.y; // rare and up: the same flowing energy as in a hand
-    m.add(new THREE.Mesh(pg.geo, auraMat(QUAL[it.q].hex, zl ? b.max.z - b.min.z : b.max.y, null, 0.05, it.q === 3 ? 1.7 : 1.45, zl ? new THREE.Vector3(0, 0, 1) : undefined))); }
+    m.add(new THREE.Mesh(pg.geo, auraMat(QUAL[it.q].hex, zl ? b.max.z - b.min.z : b.max.y, null, 0.05, it.q >= 4 ? 2 : it.q === 3 ? 1.7 : 1.45, zl ? new THREE.Vector3(0, 0, 1) : undefined))); }
   const Q = QUAL[it.q], gl = glowSprite(Q.hex, it.q ? 1.4 : 0.9, it.q ? 0.75 : 0.45); gl.position.y = 0.1; root.add(gl);
-  if (it.q >= 2) { const beam = glowSprite(Q.hex, 1, it.q === 3 ? 0.75 : 0.55); beam.scale.set(it.q === 3 ? 0.6 : 0.45, it.q === 3 ? 7 : 5, 1); beam.position.y = it.q === 3 ? 3.2 : 2.2; root.add(beam); }
+  if (it.q >= 2) { const beam = glowSprite(Q.hex, 1, it.q >= 3 ? 0.75 : 0.55); beam.scale.set(it.q >= 4 ? 0.75 : it.q === 3 ? 0.6 : 0.45, it.q >= 4 ? 9 : it.q === 3 ? 7 : 5, 1); beam.position.y = it.q >= 4 ? 4.2 : it.q === 3 ? 3.2 : 2.2; root.add(beam); }
   const a = Math.random() * 6.28, r = 0.5 + Math.random() * 0.7; root.position.set(x, 1, z); C.scene.add(root);
   G.loot.push({ it, root, m, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: 0, ph: Math.random() * 6 });
   if (it.q >= 2) S.level(); else if (it.q === 1) S.heal();
@@ -175,6 +175,7 @@ export function updateLoot(dt) {
     if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 1.5) {
       if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say(tr('背包满了，打开背包（I）把多余的丢进熔炉吧', 'Bag is full — open the bag (I) and feed the spares to the forge')); } }
       else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0);
+        if (L.it.hero && !G.gearTip) { G.gearTip = 1; C.say(tr('骸骨卫士的装备！打开背包（I）或魂契面板，点「装备卫士」换上', 'Gear for the Bone Sentinel! Open the bag (I) or the Pact panel and tap "Equip"'), true, 5000); }
         if (L.it.uniq && TECH[L.it.uniq]) { const tn = TYPES[TECH[L.it.uniq].type].name; C.say(tr(`史诗武器！点左上角的${tn}卡片，把它装上试试`, `An epic weapon! Tap a ${tn} card (top left) and equip it`), true, 6000); } save(); continue; } }
     G.loot[j++] = L; }
   G.loot.length = j;
@@ -182,7 +183,7 @@ export function updateLoot(dt) {
 // equipment changes from the 墓典
 // put an item in a summon's slot (or clear it); returns what was there
 export function setGear(en, slot, it) { en.gear = en.gear || {}; const old = en.gear[slot] || null; if (it) en.gear[slot] = it; else delete en.gear[slot]; gearChanged(en); return old; }
-function gearChanged(en) { const u = en.unit; if (u && !u.dead) { const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.rebuildMesh(); } save(); }
+function gearChanged(en) { if (en.pact && PH.gear) { PH.gear(en); return; } const u = en.unit; if (u && !u.dead) { const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.rebuildMesh(); } save(); }
 
 // ---------- elemental affixes: what champion hits do, and what champions leave behind when they fall ----------
 const CHILL = 2.2;

@@ -2,7 +2,7 @@
 // unlike emoji), plus the live paperdoll view used by the equipment panel.
 import * as THREE from 'three';
 import { WEAPONS, itemBase, TYPES, TECH, makeTech, techOf } from './data.js';
-import { makeUnitMesh, propGeo, propMat, play } from './assets.js';
+import { makeUnitMesh, propGeo, propMat, play, A } from './assets.js';
 import { SH } from './gfx.js';
 
 export let R = null;
@@ -27,6 +27,7 @@ export function makeIcons() {
   initR(); const models = new Set();
   for (const t in WEAPONS) for (const b of WEAPONS[t].bases) models.add(b.model);
   for (const m of ['sk_shield_large', 'shield_round', 'shield_square']) models.add(m);
+  if (A.heroWeap.sword) for (const m of ['hw_greatsword', 'hw_sword', 'hw_shield']) models.add(m); // 魂契: the Sentinel's gear
   for (const m of models) { const pg = propGeo(m); if (!pg) continue;
     const g = new THREE.Group(), mesh = new THREE.Mesh(pg.geo, propMat(pg.map)), c = pg.box.getCenter(new THREE.Vector3()), sz = pg.box.getSize(new THREE.Vector3());
     mesh.position.copy(c).negate(); g.add(mesh); const shield = sz.y < sz.x * 1.4 && sz.z < sz.x; g.rotation.set(shield ? 0.25 : 0.2, shield ? 0.5 : 0.9, shield ? 0 : -0.78);

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { G, save, load, wipe, bagPut, PACT, MODE, setMode } from './state.js';
-import { pactPlayer, pactFloor, pactTick, harvest } from './pact.js';
-import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, PACE, affixName, TECH, makeTech } from './data.js';
+import { pactPlayer, pactFloor, pactTick, harvest, heroEntry } from './pact.js';
+import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, rollHeroItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch, heroWeaponPose, heroPart } from './assets.js';
 import * as PFX from './pactfx.js';
@@ -190,7 +190,7 @@ function updatePlayer(dt) {
 
 // ---------- start screen ----------
 let started = false;
-const hasSave = load();
+const hasSave = load(); if (PACT) heroEntry(); // (its gear: a plain sword and shield on a new pact)
 document.body.classList.toggle('pact', PACT);
 $('#startMsg').textContent = PACT ? (hasSave ? tr(`继续：Lv ${G.level} · 召唤 Lv ${G.pact.lvl} · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · Summon Lv ${G.pact.lvl} · floor ${G.deep}`) : tr('缔结第一份魂契', 'A new pact'))
   : hasSave ? tr(`继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · ${G.crypt.length} in the Crypt · floor ${G.deep}`) : tr('第一次进入墓穴', 'A new descent');
@@ -257,4 +257,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

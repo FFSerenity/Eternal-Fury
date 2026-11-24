@@ -110,6 +110,7 @@ export const QUAL = [
   { name: tr('精良', 'Magic'), col: '#6fa8ff', hex: 0x5f9cff, k: 1.4 },
   { name: tr('稀有', 'Rare'), col: '#ffcf4a', hex: 0xffc83a, k: 1.9 },
   { name: tr('史诗', 'Epic'), col: '#c77dff', hex: 0xb46cff, k: 2.4 },
+  { name: tr('传说', 'Legendary'), col: '#ff5a48', hex: 0xff4030, k: 3.0 }, // (魂契 gear only)
 ];
 export const WEAPONS = {
   brute:  { cat: tr('斧', 'Axe'), bases: [{ name: tr('骨斧', 'Bone Axe'), model: 'sk_axe', dm: 1, cd: 1 }, { name: tr('战斧', 'Hand Axe'), model: 'axe_1handed', dm: 0.82, cd: 0.82 }, { name: tr('巨斧', 'Great Axe'), model: 'axe_2handed', dm: 1.32, cd: 1.16 },
@@ -133,8 +134,42 @@ export function rollItem(id, il, q, slot = Math.random() < 0.62 ? 'w' : 'a', typ
   if (q === 2) { const [k, , f] = EXTRA[slot][pickI(2)]; it.v[k] = Math.round(f(il) * jit()); }
   return it;
 }
-export const itemBase = it => it.slot === 'w' ? WEAPONS[it.type].bases[it.b] : ARMORS[it.b];
-export const itemName = it => (it.q && it.q < 3 ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
+export const itemBase = it => it.hero ? HERO_GEAR[it.hero].bases[it.b] : it.slot === 'w' ? WEAPONS[it.type].bases[it.b] : ARMORS[it.b];
+export const itemName = it => (it.q && (it.hero || it.q < 3) ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
+// ---------- 魂契: the Bone Sentinel's own gear — a greatsword (both hands: no shield with it) or a sword, and a shield ----------
+// The weapon decides its style (greatsword → 大剑, sword → 剑盾). Base names go up with the item level; the qualities run white, blue,
+// yellow, purple and red, each one more extra line (from the slot's pool) and stronger numbers
+const hb = (cat, model, names, o = {}) => ({ cat, model, ...o, bases: names.map(name => ({ name, cat, model, cd: 1 })) });
+export const HERO_GEAR = {
+  gs: hb(tr('双手大剑', 'Greatsword'), 'hw_greatsword', [tr('骨刃大剑', 'Bonecleaver'), tr('亡者巨剑', 'Deathsworn Greatsword'), tr('魂钢大剑', 'Soulsteel Greatsword')], { slot: 'w', two: true, style: 'GS', dm: 1.3 }),
+  sword: hb(tr('单手剑', 'Sword'), 'hw_sword', [tr('骨剑', 'Bone Sword'), tr('亡者长剑', 'Deathsworn Blade'), tr('魂钢长剑', 'Soulsteel Sword')], { slot: 'w', style: 'SNS', dm: 1 }),
+  shield: hb(tr('盾牌', 'Shield'), 'hw_shield', [tr('骨盾', 'Bone Shield'), tr('亡者鸢盾', 'Deathward Kite'), tr('魂钢塔盾', 'Soulsteel Bulwark')], { slot: 'a' }),
+};
+export const HERO_AFX = { // extra lines: per slot pool; value at item level il (× quality)
+  w: { spd: il => 5 + 0.8 * il, crit: il => 3 + 0.4 * il, leech: il => 2 + 0.3 * il, hp: il => 6 + 2 * il },
+  gs: { spd: il => 5 + 0.8 * il, crit: il => 3 + 0.4 * il, leech: il => 2 + 0.3 * il, hp: il => 8 + 2.5 * il, arm: il => 4 + 2 * il },
+  a: { blk: il => 3 + 0.4 * il, eva: il => 2 + 0.3 * il, dmg: il => 5 + 2 * il, move: il => 4 + 0.6 * il },
+};
+export function rollHeroItem(id, il, q, kind = Math.random() < 0.6 ? (Math.random() < 0.5 ? 'gs' : 'sword') : 'shield') {
+  const H = HERO_GEAR[kind], qm = QUAL[q].k, it = { id, hero: kind, slot: H.slot, q, il, b: il < 6 ? 0 : il < 12 ? 1 : 2, v: {} };
+  if (H.slot === 'w') it.v.dmg = Math.round((8 + 3 * il) * qm * H.dm * jit());
+  else { it.v.hp = Math.round((8 + 3 * il) * qm * jit()); it.v.arm = Math.round((4 + 2 * il) * qm * jit()); }
+  const pool = Object.entries(HERO_AFX[kind === 'gs' ? 'gs' : H.slot]).sort(() => Math.random() - 0.5), xk = 1 + 0.12 * q;
+  for (const [k, f] of pool.slice(0, q)) it.v[k] = (it.v[k] || 0) + Math.max(1, Math.round(f(il) * xk * jit()));
+  return it;
+}
+// 魂契 drops: champions always drop something (blue or better), normal monsters sometimes; red is rare
+export function rollHeroDrop(id, il, champ) {
+  if (!champ && Math.random() > 0.09) return null; const r = Math.random();
+  const q = champ ? (r < 0.04 ? 4 : r < 0.15 ? 3 : r < 0.45 ? 2 : 1) : (r < 0.005 ? 4 : r < 0.025 ? 3 : r < 0.085 ? 2 : r < 0.35 ? 1 : 0);
+  return rollHeroItem(id, Math.max(1, il) + (champ ? 1 : 0), q);
+}
+// the forge in 魂契: the same points, purple and red possible, out comes the Sentinel's gear
+export function heroFurnaceOdds(items) { const p = items.reduce((a, it) => a + itemPts(it), 0);
+  const red = Math.min(0.1, p * 0.0006), pur = Math.min(0.3, p * 0.004), gold = Math.min(0.6, 0.01 + p * 0.014), blue = Math.min(1 - gold - pur - red, 0.15 + p * 0.07);
+  return { red, pur, gold, blue: Math.max(0, blue), white: Math.max(0, 1 - red - pur - gold - Math.max(0, blue)), pts: p }; }
+export const heroOddsQ = (o, r) => r < o.red ? 4 : r < o.red + o.pur ? 3 : r < o.red + o.pur + o.gold ? 2 : r < o.red + o.pur + o.gold + o.blue ? 1 : 0;
+export function heroFurnaceRoll(items, id) { const o = heroFurnaceOdds(items), il = Math.max(...items.map(it => it.il)), q = heroOddsQ(o, Math.random()); return rollHeroItem(id, il + (q >= 2 ? 1 : 0), q); }
 // ---------- 科技流: epic weapons that turn a summon into a tech unit (own look, own skill tree; take it off and it's back) ----------
 // the gatling is also the coffin easter egg; all of them come out of the forge when rare gear is smelted
 export const TECH = {
@@ -188,10 +223,16 @@ TREE.engineer = [
   { id: 'prism', name: tr('折射激光', 'Prism Lasers'), icon: '🔷', max: 3, unlock: true, desc: r => r ? tr(`无人机的激光命中后折射到附近 ${r} 个敌人，每次 ${pct(0.6)} 伤害`, `Drone lasers bounce on to ${r} more enem${r > 1 ? 'ies' : 'y'} nearby for ${pct(0.6)} damage each`) : tr('解锁：激光折射到附近的敌人', 'Unlock: lasers bounce to nearby enemies') },
 ];
 export const treeKey = en => { const T = techOf(en); return T ? T.key : en.type; };
-export const itemIcon = it => it.slot === 'w' ? TYPES[it.type].icon : '🛡️';
+export const itemIcon = it => it.hero ? (it.slot === 'w' ? '⚔️' : '🛡️') : it.slot === 'w' ? TYPES[it.type].icon : '🛡️';
 export function itemLines(it) {
   const v = it.v, B = itemBase(it), L = [];
-  const W = { dmg: tr('伤害', 'Damage'), cd: tr('攻击间隔', 'Attack interval'), spd: tr('攻击速度', 'Attack speed'), hp: tr('生命', 'Life'), arm: tr('护甲', 'Armour'), move: tr('移动速度', 'Move speed') };
+  const W = { dmg: tr('伤害', 'Damage'), cd: tr('攻击间隔', 'Attack interval'), spd: tr('攻击速度', 'Attack speed'), hp: tr('生命', 'Life'), arm: tr('护甲', 'Armour'), move: tr('移动速度', 'Move speed'),
+    crit: tr('暴击几率', 'Critical chance'), leech: tr('吸血', 'Life steal'), blk: tr('格挡 / 招架几率', 'Block / parry chance'), eva: tr('闪避', 'Evasion') };
+  if (it.hero) { const H = HERO_GEAR[it.hero], main = H.slot === 'w' ? ['dmg'] : ['hp', 'arm'];
+    for (const k of [...main, ...Object.keys(v).filter(k => !main.includes(k))]) if (v[k]) L.push(`${W[k]} +${v[k]}${k === 'arm' ? '' : '%'}`);
+    if (H.two) L.push('✦ ' + tr('双手武器：装上后盾牌格不能用', 'Two-handed: no shield with it'));
+    if (H.style) L.push('✦ ' + tr(`骸骨卫士拿上它：${H.style === 'GS' ? '大剑流派' : '剑盾流派'}`, `The Sentinel holding it fights ${H.style === 'GS' ? 'Greatsword' : 'Sword & Shield'}`));
+    return L; }
   if (it.slot === 'w') { L.push(`${W.dmg} +${v.dmg}%`); if (B.cd !== 1) L.push(`${W.cd} ${B.cd < 1 ? '-' : '+'}${Math.round(Math.abs(1 - B.cd) * 100)}%`); if (v.spd) L.push(`${W.spd} +${v.spd}%`); if (v.hp) L.push(`${W.hp} +${v.hp}%`); }
   else { L.push(`${W.hp} +${v.hp}%`, `${W.arm} +${v.arm}`); if (v.dmg) L.push(`${W.dmg} +${v.dmg}%`); if (v.move) L.push(`${W.move} +${v.move}%`); }
   if (it.uniq && TECH[it.uniq]) L.push(...TECH[it.uniq].lines.map(l => '✦ ' + l));
@@ -199,10 +240,12 @@ export function itemLines(it) {
 }
 // rough power, for the ▲ / ▼ comparison
 export function itemScore(it) { if (!it) return 0; const v = it.v, B = itemBase(it);
+  if (it.hero) return it.slot === 'w' ? (100 + v.dmg) * (1 + (v.spd || 0) / 100) * (1 + (v.crit || 0) / 120) * (1 + (v.leech || 0) / 60) * (1 + (v.hp || 0) / 300) * (1 + (v.arm || 0) / 200)
+    : (100 + v.hp) * (1 + v.arm / 60) * (1 + (v.blk || 0) / 60) * (1 + (v.eva || 0) / 60) * (1 + (v.dmg || 0) / 150) * (1 + (v.move || 0) / 200);
   return it.slot === 'w' ? (100 + v.dmg) / B.cd * (1 + (v.spd || 0) / 100) * (1 + (v.hp || 0) / 300) : (100 + v.hp) * (1 + v.arm / 60) * (1 + (v.dmg || 0) / 150) * (1 + (v.move || 0) / 200); }
-export const itemFits = (it, type) => it.slot === 'a' || it.type === type;
+export const itemFits = (it, type, hero) => hero ? !!it.hero : !it.hero && (it.slot === 'a' || it.type === type);
 // furnace: everything thrown in turns into one random item; more (and better) input, better odds
-export const itemPts = it => [1, 3, 8, 20][it.q] * (1 + it.il / 10);
+export const itemPts = it => [1, 3, 8, 20, 50][it.q] * (1 + it.il / 10);
 // 科技流 epics: every rare piece in the forge (weapon or shield) gives +3% (at most 15%); 魂钢能量 (soul steel) builds up by one per rare
 // piece smelted without an epic and guarantees one at TECH_PITY. Which one: weighted by the weapon types put in (one crossbow + rare shields
 // → the mortar; no weapons at all → any of them)

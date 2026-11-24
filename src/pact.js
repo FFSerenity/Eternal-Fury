@@ -13,6 +13,7 @@ import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
 import { S, loadSamples } from './audio.js';
 import { SKILLS } from './pactskills.js';
+import { rollHeroItem, HERO_GEAR } from './data.js';
 if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2']);
 
 // ---------- tunables ----------
@@ -41,13 +42,28 @@ export const heroName = () => tr('骸骨卫士', 'Bone Sentinel');
 // ---------- the skeleton's entry (one, rebuilt on every summon) ----------
 const P8 = G.pact;
 export const heroUnit = () => { const en = P8.en, u = en && en.unit; return u && !u.dead ? u : null; };
-function makeEntry() {
-  return (P8.en = { id: -1, type: 'brute', level: P8.lvl, xp: 0, mods: [], modLv: {}, champ: false, active: true, reviveT: 0, unit: null, sp: 0, skills: {}, gear: {}, hero: true, wset: P8.wset, pact: true });
+// one entry for good: the equipment panel works on it whether or not the skeleton is out; its gear is the pact's (saved)
+export function heroEntry() {
+  initGear(); const en = P8.en || (P8.en = { id: -1, type: 'brute', xp: 0, mods: [], modLv: {}, champ: false, active: true, reviveT: 0, unit: null, sp: 0, skills: {}, hero: true, pact: true });
+  en.level = P8.lvl; en.gear = P8.gear; en.wset = P8.wset = gearStyle(P8.gear); return en;
 }
+function makeEntry() { const en = heroEntry(); en.unit = null; return en; }
+// ---------- its gear: the weapon decides the style (greatsword → 大剑, sword or bare → 剑盾) ----------
+export const gearStyle = g => (g && g.w && g.w.hero && HERO_GEAR[g.w.hero].style) || 'SNS';
+// a new pact starts with a plain sword and shield; a save from before gear gets plain gear of the style it had
+export function initGear() {
+  if (P8.gear) return; const L = 1;
+  P8.gear = P8.wset === 'GS' ? { w: rollHeroItem(G.uid++, L, 0, 'gs') } : { w: rollHeroItem(G.uid++, L, 0, 'sword'), a: rollHeroItem(G.uid++, L, 0, 'shield') };
+}
+// a whole set at a quality (the test arena): the style's weapon, and a shield with the sword
+export function equipSet(style, q, il) { P8.gear = style === 'GS' ? { w: rollHeroItem(G.uid++, il, q, 'gs') } : { w: rollHeroItem(G.uid++, il, q, 'sword'), a: rollHeroItem(G.uid++, il, q, 'shield') }; PH.gear(heroEntry()); }
 
 // ---------- hooks the unit code calls (see PH in units.js) ----------
 PH.stats = u => {
-  const en = u.entry, W = SETS[en.wset] || SETS.SNS, b = heroBase(en.level, P8.stacks, en.wset);
+  const en = u.entry, W = SETS[en.wset] || SETS.SNS, b = heroBase(en.level, P8.stacks, en.wset), g = en.gear || {}, V = k => ((g.w && g.w.v[k]) || 0) + ((g.a && g.a.v[k]) || 0);
+  // what its gear gives: % damage / life / attack speed / move speed, flat armour, chances
+  b.dmg *= 1 + V('dmg') / 100; b.maxHp *= 1 + V('hp') / 100; b.armor += V('arm'); b.cd /= 1 + V('spd') / 100; b.speed *= 1 + V('move') / 100; b.evade = Math.min(0.6, b.evade + V('eva') / 100);
+  u.crit = 0.1 + V('crit') / 100; u.leechB = V('leech') / 100; u.blockB = V('blk') / 100; u.shield = !!g.a;
   Object.assign(u, b); u.range = W.range; u.r = 0.42; u.windup = W.wind; u.noStun = true; u.taunt = true; u.tauntR = 6; u.pact = true; u.fury = P8.stacks; // (crest and skills go by it)
 };
 PH.name = () => heroName();
@@ -57,7 +73,7 @@ PH.strike = (u, t) => {
   if (W.heavy) { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 1.1, 0.2, u.z + Math.cos(u.face) * 1.1, 14, { col: 0xb8a890, spd: 3, up: 1.4, life: 0.5, size: 0.3 }); }
   for (const h of hostilesOf(u)) { if (h.dead) continue; const d = Math.hypot(h.x - u.x, h.z - u.z); if (d > reach + h.r + (h === t ? 0.4 : 0)) continue;
     const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (h !== t && da > W.arc && d > 0.8) continue;
-    const crit = Math.random() < 0.1; damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; }
+    const crit = Math.random() < (u.crit ?? 0.1); damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; }
   if (hits) S.blade(!!W.heavy, crits); // one blade sound per swing, however many it cuts
 };
 // evasion: a number-less "dodge" and, when it is free to move, a quick dodge step (the Mixamo dodges, sped up)
@@ -165,7 +181,13 @@ export function levelUp() {
   const u = heroUnit(); if (u) { u.entry.level = P8.lvl; u.level = P8.lvl; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; C.parts.emit(u.x, 0.9, u.z, 30, { col: 0x8ff7ea, spd: 1.6, up: 3, life: 0.9, size: 0.28, grav: -1 }); }
   S.level(); save(); return true;
 }
-// switch weapon style: the skeleton out on the field re-arms on the spot
+// its gear changed (the equipment panel, the test arena): the style follows the weapon; the skeleton out on the field re-arms on the spot
+PH.gear = en => {
+  const k = gearStyle(P8.gear); en.gear = P8.gear; en.wset = P8.wset = k; const u = heroUnit();
+  if (u) { u.entry.gear = P8.gear; u.entry.wset = k; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.rebuildMesh(); C.parts.emit(u.x, 1, u.z, 18, { col: 0x8ff7ea, spd: 1.2, up: 2.2, life: 0.6, size: 0.24, grav: -1 }); }
+  save();
+};
+// switch weapon style (old saves / tests): the skeleton out on the field re-arms on the spot
 export function setStyle(k) {
   if (!SETS[k] || P8.wset === k) return; P8.wset = k; const u = heroUnit();
   if (u) { u.entry.wset = k; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.rebuildMesh(); C.parts.emit(u.x, 1, u.z, 24, { col: 0x8ff7ea, spd: 1.4, up: 2.5, life: 0.7, size: 0.26, grav: -1 }); }

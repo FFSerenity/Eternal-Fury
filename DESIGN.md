@@ -102,10 +102,25 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - Not yet: the skeleton wearing gear (drops / bag / forge still work), more weapon styles (axe, spear, mace are modelled), skills you choose or aim,
   a second skeleton, using the extracted root motion (lunges / leaps that travel).
 
+- Its soul light (魂光) also shows its 战魂, one step every 10 stacks up to 100: the cyan of its eyes shining out of it from inside.
+  10+ the bones glow from within (tinted toward the light, not burnt white), lights in the ribcage / skull / pelvis show through the gaps,
+  the eyes burn brighter; 30+ a cyan edge; 40+ wisps rise off it; 50+ the light moves up through it in bands; 60+ a glow on the ground and
+  trails from the eyes; 70+ the seams of the black armour light up; 80+ soul fire licks off the shoulders and skull; 90+ an aura around
+  it; 100: white-hot at the core, two streams of light spiralling round it, a ring of soul force pulsing out every 2.4 s (assets.js soulTick,
+  the shader's uSoul). Note: the stats per stack grow linearly, so far up (100) it hits very hard; a cap may be wanted later.
+- Gear (魂契 only): drops and the forge give the Sentinel's own gear — a greatsword (two hands: the shield slot is locked while it is
+  held; putting one in sends the shield back to the bag), a sword, and a shield; two slots as before. The weapon sets the style
+  (greatsword → 大剑, sword or none → 剑盾); with no shield there is no blocking. Qualities: white, blue (1 extra line), yellow (2),
+  purple (3), red 传说 (4): weapon damage %, shield life % and armour, extra lines from attack speed / crit / life steal / life (+ armour
+  on the greatsword) or block / evasion / damage / move speed on the shield. Normal monsters drop 9% (red 0.5%), champions always
+  (blue or better, red 4%). Rare and up glow in their colour in its hands (an aura, sparks; red smoulders) and on the ground (a beam,
+  red's the tallest). A new pact starts with a plain sword and shield; an older save gets plain gear of the style it had.
+  The equipment panel opens from the Pact panel or the bag (⚔ 装备卫士 / 🔥 熔炉 switch); crypt-mode items in an old bag can only be smelted.
+
 ## 试炼场 / Test Arena (a tool for tuning)
 On the start screen (⚔ 试炼场) or `?arena`: the current save is loaded into one big empty hall, and nothing done there is saved (leaving
 reloads the page). The panel on the right spawns monsters (kind or mixed, count, level, range from the Sentinel, life ×1–50, champions,
-training dummies that neither move nor fight, auto refill to keep the count, loot drops on or off — off by default), sets the Sentinel's Fury, summon level and style, the
+training dummies that neither move nor fight, auto refill to keep the count, loot drops on or off — off by default), sets the Sentinel's Fury, summon level, a whole gear set by style and quality, the
 summoner's level, and can make the Sentinel unkillable or the summoner invulnerable with endless mana. The meter at the top reads the
 damage the summons do (last 5 s and averaged over fight time, i.e. time with a blow landed in the last 2 s), the summoner's own damage,
 kills with the average time from first hit to death, and damage taken per second.
