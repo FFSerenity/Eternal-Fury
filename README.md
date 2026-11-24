@@ -19,9 +19,12 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
 
 ## Soul Pact mode (魂契, new)
 Picked on the start screen (its own save). One summoned skeleton — the realistic **Bone Sentinel** — does the fighting:
-- **E** (or 💀) summons it: a 1.5 s cast, no cooldown; it climbs out of a rune circle at the summon skill's level.
+- **E** (or 💀) summons it: a 1.5 s cast, no cooldown; it climbs out of a rune circle. The summon skill doesn't level: its strength is Fury and gear.
 - It builds **Fury** (战魂) from kills by its own hand: each stack adds damage, attack speed, move speed and life. When it falls, all Fury is lost — summon it again.
-- **Q** 唤魂 turns corpses into **soul energy**; spend it in the Pact panel (**Tab** / 💀 Pact) to strengthen the summon.
+- **Q** 唤魂 turns corpses into **soul energy**: the souls fly across the screen into the **soul vessel** (the glowing flask, bottom left).
+  **Hold the vessel** (or hold **E** / the summon button — it reads "Pour" — while the Sentinel is out) to pour it into the Sentinel:
+  souls stream from the flask into its chest, it glows brighter the longer it drinks, and it gains Fury (one kill's worth = 2.5 soul).
+  After a fall, what you saved charges it back up. (Old saves get back all the soul they spent on summon levels.)
 - Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes) or **Greatsword** (heavy cleaves that knock back, less evasion) — set by the weapon it holds.
 - Gear drops for the Sentinel: greatswords (two-handed, no shield), swords and shields, in white / blue / yellow / purple / red; equip from the Pact panel or the bag.
 - As Fury grows its soul light (cyan, like its eyes) shines out of it from inside, a step every 10 stacks up to 100.

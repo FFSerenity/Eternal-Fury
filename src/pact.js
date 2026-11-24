@@ -1,8 +1,9 @@
 // 魂契 (Soul Pact) mode: the summoner binds one skeleton — the realistic Boneforged Sentinel — that does the fighting and grows
 // by its own kills (战魂 stacks: damage, attack speed, move speed), and loses all of that when it falls.
-// Summoning is a skill (no cooldown, a cast with a rune circle; the skeleton's level = the skill's level); 唤魂 no longer captures,
-// it turns corpses into 魂能 (soul energy) that levels the summon skill. Monsters move slowly here, so fights stand still and the
-// skeleton is the centre of them while the summoner moves around it.
+// Summoning is a skill (no cooldown, a cast with a rune circle; it stays at level 1); 唤魂 no longer captures, it turns corpses into
+// 魂能 (soul energy) that flies into the soul vessel (soulvessel.js) and is poured from there into the skeleton out on the field as
+// 战魂 stacks — so a fallen skeleton can be charged up again from what was saved. Monsters move slowly here, so fights stand still
+// and the skeleton is the centre of them while the summoner moves around it.
 import * as THREE from 'three';
 import { G, save, PACT } from './state.js';
 import { tr } from './i18n.js';
@@ -14,6 +15,7 @@ import { burst, shake } from './fx.js';
 import { S, loadSamples } from './audio.js';
 import { SKILLS } from './pactskills.js';
 import { rollHeroItem, HERO_GEAR } from './data.js';
+import { soulToJar } from './soulvessel.js';
 if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2']);
 
 // ---------- tunables ----------
@@ -34,7 +36,7 @@ export function heroBase(L, s, set) {
 // kills needed for the next stack (champions count 4, warriors 2)
 export const stackNeed = s => 3 + Math.floor(s * 0.6);
 const killWorth = v => v.boss ? 12 : v.champ ? 4 : v.kind === 'brute' ? 2 : 1; // (a boss: 12)
-// 魂能 from a corpse, and the price of the next summon level
+// 魂能 from a corpse; lvlCost: what a summon level used to cost (only to pay old saves back, pactMigrate)
 export const soulOf = c => Math.max(1, Math.round(({ imp: 1, archer: 2, shaman: 2, brute: 3 }[c.kind] || 1) * (1 + 0.25 * (c.level - 1)) * (c.boss ? 12 : c.champ ? 3 : 1)));
 export const lvlCost = L => Math.round(10 * Math.pow(L, 1.45));
 export const heroName = () => tr('骸骨卫士', 'Bone Sentinel');
@@ -89,8 +91,10 @@ PH.evade = (src, u) => {
     u.kx += sx * 2.2; u.kz += sz * 2.2; C.parts.emit(u.x, 0.9, u.z, 6, { col: 0x8ff7ea, spd: 0.4, up: 0.4, grav: 0, life: 0.35, size: 0.35, spread: 0.3 }); }
 };
 // a kill by the skeleton: progress toward the next 战魂 stack
-PH.kill = (u, v) => {
-  P8.kills += killWorth(v); let up = 0;
+PH.kill = (u, v) => gainKills(u, killWorth(v));
+// progress toward the next stacks (a kill, or 魂能 poured in), and everything a new stack brings
+function gainKills(u, n) {
+  P8.kills += n; let up = 0;
   while (P8.kills >= stackNeed(P8.stacks)) { P8.kills -= stackNeed(P8.stacks); P8.stacks++; up++; }
   if (!up) return;
   const f = u.hp / u.maxHp; u.stats(); u.hp = Math.min(u.maxHp, u.maxHp * f + u.maxHp * 0.08);
@@ -103,7 +107,22 @@ PH.kill = (u, v) => {
     else if (sk) { shock(u.x, u.z, 0xff5a6a, 2.6); C.say(tr(`骸骨卫士 战魂 ${s} 层 · 觉醒技能 ${sk.icon} ${sk.name}`, `Bone Sentinel at ${s} Fury · it wakes ${sk.icon} ${sk.name}`), true); }
     else if (s % 5 === 0) { shock(u.x, u.z, 0xffd27a, 2.4); C.say(tr(`骸骨卫士 战魂 ${s} 层：伤害 +${s * 6}%，攻速 +${s * 4}%`, `Bone Sentinel at ${s} Fury: +${s * 6}% damage, +${s * 4}% attack speed`)); } }
   save();
-};
+}
+// ---------- pouring 魂能 into the skeleton (from the soul vessel) ----------
+// 魂能 buys kill progress: soulPerKill for each kill's worth, so a stack costs its kills × soulPerKill (harvesting every corpse gives
+// roughly half as many stacks again as the kills themselves); a stack fills in stackSec however big it is
+export const INFUSE = { soulPerKill: 2.5, stackSec: 0.7 };
+export const infuseCost = () => Math.max(1, Math.ceil((stackNeed(P8.stacks) - P8.kills) * INFUSE.soulPerKill - 1e-6)); // to the next stack
+export function infuseTick(u, dt) {
+  let k = stackNeed(P8.stacks) / INFUSE.stackSec * dt, soul = k * INFUSE.soulPerKill;
+  if (soul > G.soul) { soul = G.soul; k = soul / INFUSE.soulPerKill; }
+  G.soul = Math.max(0, G.soul - soul); if (G.soul < 1e-4) G.soul = 0; gainKills(u, k); return soul;
+}
+// the summon skill no longer levels: an old save gets back every bit of 魂能 it spent on it (into the vessel)
+export function pactMigrate() {
+  if (!(P8.lvl > 1)) return 0; let r = 0; for (let L = 1; L < P8.lvl; L++) r += lvlCost(L);
+  G.soul += r; P8.lvl = 1; G.soulRefund = r; return r;
+}
 // it falls: every stack is gone; summon it again
 PH.death = u => {
   const lost = P8.stacks; P8.stacks = 0; P8.kills = 0; P8.alive = false; if (P8.en) P8.en.unit = null;
@@ -150,11 +169,11 @@ export function pactPlayer(P, dt, IN) {
   if (P.state === 'summon') {
     if (IN.joy || (IN.hold && IN.moveTo)) { if (fx) fx.cancel(); fx = null; P.state = 'idle'; P.mp = Math.min(P.maxMp, P.mp + SUMMON.mana); C.say(tr('召唤被打断', 'Summon interrupted')); return false; }
     P.wantX = P.wantZ = 0; P.st += dt; const k = Math.min(1, P.st / SUMMON.cast); if (fx) fx.update(k, dt, P);
-    if (k >= 1) { const at = P.sumAt; if (fx) fx.finish(); fx = null; P.state = 'idle'; spawnHero(at.x, at.z); C.say(tr(`${heroName()} Lv ${P8.lvl} 应召而来`, `${heroName()} Lv ${P8.lvl} answers the call`)); }
+    if (k >= 1) { const at = P.sumAt; if (fx) fx.finish(); fx = null; P.state = 'idle'; spawnHero(at.x, at.z); C.say(tr(`${heroName()}应召而来`, `The ${heroName()} answers the call`)); }
     return true;
   }
   if (!IN.summon) return false; IN.summon = false;
-  if (heroUnit()) { C.say(tr(`${heroName()}已经在战场上`, `The ${heroName()} is already out`)); return false; }
+  if (heroUnit()) { IN.infuse = true; return false; } // out already: E / the summon button held pours the vessel into it (until let go)
   if (P.mp < SUMMON.mana) { C.say(tr('法力不足', 'Not enough mana')); return false; }
   P.mp -= SUMMON.mana; P.state = 'summon'; P.st = 0; P.sumAt = spot(P); P.faceT = Math.atan2(P.sumAt.x - P.x, P.sumAt.z - P.z); IN.moveTo = null; IN.attack = null;
   fx = new SummonFx(P.sumAt.x, P.sumAt.z); S.raise(); return true;
@@ -162,24 +181,19 @@ export function pactPlayer(P, dt, IN) {
 export const summonK = () => { const P = G.player; return P && P.state === 'summon' ? Math.min(1, P.st / SUMMON.cast) : 0; };
 // a new floor: the skeleton comes along if it was out (with its stacks)
 export function pactFloor(P) { if (fx) { fx.cancel(); fx = null; } if (P8.alive) spawnHero(P.x + Math.sin(P.face) * 1.4, P.z + Math.cos(P.face) * 1.4, true); }
-// 唤魂 in this mode: the corpse breaks into a soul that flies to the summoner as 魂能
+// 唤魂 in this mode: the corpse breaks into souls that fly across the screen into the soul vessel as 魂能
 export function harvest(c) {
   if (!G.corpses.includes(c)) return; const v = soulOf(c); removeCorpse(c);
-  C.parts.emit(c.x, 0.5, c.z, 22, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1.2 });
-  soulOrb(c.x, 0.8, c.z, () => G.player, () => { G.soul += v; const P = G.player; S.caught(); P.flash = 0.4; say(P.x, P.z, tr(`+${v} 魂能`, `+${v} soul`), '#8ff7ea', 15, 2.1); save(); });
+  C.parts.emit(c.x, 0.5, c.z, 22, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1.2 }); S.caught();
+  say(c.x, c.z, tr(`+${v} 魂能`, `+${v} soul`), '#8ff7ea', 14, 2.0); soulToJar(c.x, 0.9, c.z, v);
 }
 // per frame: the skeleton heals up between fights
 export function pactTick(dt) {
+  if (G.soulRefund) { C.say(tr(`召唤技能不再升级：之前花在上面的 ${G.soulRefund} 魂能已退回魂瓶（左下角），按住魂瓶可以灌注给卫士`, `The summon skill no longer levels: the ${G.soulRefund} soul spent on it is back in the soul vessel (bottom left) — hold it to pour into the Sentinel`), true, 7000); G.soulRefund = 0; save(); }
   if (fx && G.player && G.player.state !== 'summon') { fx.cancel(); fx = null; } // the summoner died mid-cast
   const u = heroUnit(); if (!u || u.spawnT > 0) return;
   const busy = G.enemies.some(e => e.aggro && Math.hypot(e.x - u.x, e.z - u.z) < 10);
   u.hp = Math.min(u.maxHp, u.hp + u.maxHp * (busy ? 0.004 : 0.05) * dt);
-}
-// spend 魂能 on the summon skill; a skeleton already out gets the new level at once (keeps its stacks)
-export function levelUp() {
-  const c = lvlCost(P8.lvl); if (G.soul < c) return false; G.soul -= c; P8.lvl++;
-  const u = heroUnit(); if (u) { u.entry.level = P8.lvl; u.level = P8.lvl; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; C.parts.emit(u.x, 0.9, u.z, 30, { col: 0x8ff7ea, spd: 1.6, up: 3, life: 0.9, size: 0.28, grav: -1 }); }
-  S.level(); save(); return true;
 }
 // its gear changed (the equipment panel, the test arena): the style follows the weapon; the skeleton out on the field re-arms on the spot
 PH.gear = en => {

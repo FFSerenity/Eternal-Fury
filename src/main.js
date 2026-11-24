@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { G, save, load, wipe, bagPut, PACT, MODE, setMode } from './state.js';
-import { pactPlayer, pactFloor, pactTick, harvest, heroEntry } from './pact.js';
+import { pactPlayer, pactFloor, pactTick, harvest, heroEntry, pactMigrate } from './pact.js';
+import { initJar, jarTick, jarDraw, jarReset } from './soulvessel.js';
 import { PACKS, WILD_PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, rollHeroItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch, heroWeaponPose, heroPart } from './assets.js';
@@ -68,7 +69,7 @@ function makeFloor(depth, arena = false) {
   // timed effects still running: take their scene objects away (an effect's fn may also do gameplay — a blast, a drop — so only those
   // marked clean, whose fn just removes things, or with their own end(), are run; the rest are dropped)
   for (const f of G.fx) { if (f.end) f.end(); else if (f.clean && f.fn) f.fn(); }
-  G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null; G.bossLock = null; clearBossBar();
+  G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null; G.bossLock = null; clearBossBar(); if (PACT) jarReset();
   if (G.floor) G.floor.dispose(scene); clearFx(); clearTechFx();
   const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth, arena); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; G.arena = arena; if (depth > 0) G.deep = depth;
   SH.uAmb.value.setRGB(...F.amb); SH.uLightR.value = F.lightR; renderer.setClearColor(depth === 0 ? 0x0b0d12 : 0x07060a);
@@ -197,12 +198,12 @@ function updatePlayer(dt) {
 
 // ---------- start screen ----------
 let started = false;
-const hasSave = load(); if (PACT) heroEntry(); // (its gear: a plain sword and shield on a new pact)
+const hasSave = load(); if (PACT) { pactMigrate(); heroEntry(); initJar(); } // (its gear: a plain sword and shield on a new pact; an old save's summon levels paid back into the soul vessel)
 document.body.classList.toggle('pact', PACT);
-$('#startMsg').textContent = PACT ? (hasSave ? tr(`继续：Lv ${G.level} · 召唤 Lv ${G.pact.lvl} · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · Summon Lv ${G.pact.lvl} · floor ${G.deep}`) : tr('缔结第一份魂契', 'A new pact'))
+$('#startMsg').textContent = PACT ? (hasSave ? tr(`继续：Lv ${G.level} · 魂能 ${Math.floor(G.soul)} · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · ${Math.floor(G.soul)} soul · floor ${G.deep}`) : tr('缔结第一份魂契', 'A new pact'))
   : hasSave ? tr(`继续：Lv ${G.level} · 墓典 ${G.crypt.length} 只 · 第 ${G.deep} 层`, `Continue: Lv ${G.level} · ${G.crypt.length} in the Crypt · floor ${G.deep}`) : tr('第一次进入墓穴', 'A new descent');
 // two modes, each with its own save: switching reloads the page in the other one
-$('#modeDesc').textContent = PACT ? tr('只召唤一具骸骨卫士：它亲手杀敌积攒战魂越战越强，战死就清零重来。唤魂化尸为魂能，用来强化召唤。', 'Bind a single Bone Sentinel: it grows stronger with every kill of its own, and loses it all when it falls. Raise turns corpses into soul energy that strengthens the summon.')
+$('#modeDesc').textContent = PACT ? tr('只召唤一具骸骨卫士：它亲手杀敌积攒战魂越战越强，战死就清零重来。唤魂化尸为魂能存进魂瓶，随时灌注给卫士充战魂。', 'Bind a single Bone Sentinel: it grows stronger with every kill of its own, and loses it all when it falls. Raise turns corpses into soul energy kept in a vessel, to pour into the Sentinel as Fury whenever you like.')
   : tr('收服倒下的怪物，组一支骷髅军团。', 'Capture fallen monsters and build a skeleton army.');
 for (const b of document.querySelectorAll('#modeRow .md')) { b.classList.toggle('cur', b.dataset.m === MODE);
   b.addEventListener('click', () => { if (b.dataset.m === MODE) return; setMode(b.dataset.m); location.href = location.pathname; }); }
@@ -238,7 +239,7 @@ function loop(now) {
   if (started) { G.t += dt; setNavTime(G.t);
     const P = G.player;
     G.enemies = []; G.friends = []; for (const u of G.units) { if (u.dead) continue; if (u.side === 'enemy') G.enemies.push(u); else G.friends.push(u); }
-    updatePlayer(dt); updateWilds(P); if (PACT) pactTick(dt); if (G.arena) arenaTick(dt); bossTick(dt);
+    updatePlayer(dt); updateWilds(P); if (PACT) { pactTick(dt); jarTick(dt); } if (G.arena) arenaTick(dt); bossTick(dt);
     const active = [];
     for (const u of G.units) { if (u.dead || u === P) continue; if (u.side === 'enemy' && !u.aggro && Math.hypot(u.x - P.x, u.z - P.z) > 26) { u.mesh.root.visible = false; continue; } u.mesh.root.visible = true; updateUnit(u, dt); active.push(u); }
     if (!P.dead) active.push(P); integrate(active, dt);
@@ -262,6 +263,6 @@ function loop(now) {
   parts.update(dt);
   P.mesh.mat.uniforms.uFlash.value = P.flash * 0.6;
   renderer.render(scene, camera);
-  drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
+  drawOverlay(); if (PACT) jarDraw(); updateHUD(dt, PM.fps); updateMap(dt);
 }
 window.__gt = { spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

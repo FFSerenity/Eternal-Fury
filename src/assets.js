@@ -425,12 +425,12 @@ function soulGlow(model, root, head) {
 }
 const _sp = new THREE.Vector3(), SOUL_FX = { col: SOUL_C, spd: 0.25, up: 0.9, grav: -0.9, life: 0.8, size: 0.2, spread: 0.12 };
 function soulTick(u, dt, emit) {
-  const m = u.mesh, S = m.sg; if (!S) return; const k = soulTier(globalThis.__soulL ?? u.fury ?? 0), s = k / 10, t = (S.t += dt);
+  const m = u.mesh, S = m.sg; if (!S) return; const k = soulTier(globalThis.__soulL ?? u.fury ?? 0), b = u.soulBoost || 0, s = Math.min(1, k / 10 + 0.45 * b), t = (S.t += dt); // b: 魂能 being poured in (soulvessel.js)
   m.u.uSoul.value.set(s, t, m.root.position.y, globalThis.__soulDbg ? 1 : 0);
-  const on = k > 0 && m.root.visible && !u.dead, fade = m.u.uFade.value, pulse = 0.86 + 0.14 * Math.sin(t * 2.6), flick = 0.92 + 0.08 * Math.sin(t * 13.7) * Math.sin(t * 5.3);
+  const on = (k > 0 || b > 0.02) && m.root.visible && !u.dead, fade = m.u.uFade.value, pulse = 0.86 + 0.14 * Math.sin(t * 2.6), flick = 0.92 + 0.08 * Math.sin(t * 13.7) * Math.sin(t * 5.3);
   const lamp = (g, op, sc) => { if (!g) return; g.visible = on && op > 0; if (!g.visible) return; g.material.opacity = op * fade * pulse * flick; g.scale.setScalar(g.userData.s0 * sc * (0.94 + 0.06 * pulse)); };
   lamp(S.core, 0.25 + 0.6 * s, 0.6 + 0.9 * s); lamp(S.skull, 0.2 + 0.55 * s, 0.6 + 0.7 * s); lamp(S.hips, k >= 2 ? 0.15 + 0.4 * s : 0, 0.6 + 0.6 * s);
-  lamp(S.aura, k >= 9 ? (k === 10 ? 0.32 : 0.18) : 0, k === 10 ? 1.15 : 0.95);
+  lamp(S.aura, Math.max(k >= 9 ? (k === 10 ? 0.32 : 0.18) : 0, 0.3 * b), k === 10 ? 1.15 : 0.95);
   if (S.core.visible && k === 10) S.core.material.color.setHex(0xc8ffff); else S.core.material.color.setHex(SOUL_C); // white-hot at the very top
   const eye = m.glows[0]; if (eye) { eye.userData.s0 ??= eye.scale.x; eye.scale.setScalar(eye.userData.s0 * (1 + 0.7 * s)); eye.material.opacity = Math.min(1, 0.75 + 0.25 * s) * fade; }
   const gd = S.ground; gd.visible = on && k >= 6; if (gd.visible) { gd.position.y = 0.04 - m.root.position.y; gd.scale.setScalar(1.6 + 0.25 * (k - 6) + 0.12 * pulse); gd.material.opacity = (0.16 + 0.07 * (k - 6)) * pulse * fade; }
@@ -440,6 +440,7 @@ function soulTick(u, dt, emit) {
     if (p.a >= 1) { m.root.remove(p.r); p.r.geometry.dispose(); p.r.material.dispose(); S.pulses.splice(i, 1); } }
   if (!on || !emit) return;
   const A = S.acc, at = (b, o) => { b.getWorldPosition(_sp); emit(_sp.x + (Math.random() - 0.5) * 0.2, _sp.y + (Math.random() - 0.5) * 0.2, _sp.z + (Math.random() - 0.5) * 0.2, o); };
+  if (b > 0.05) { S.bAcc = (S.bAcc || 0) + dt * b * 26; while (S.bAcc >= 1) { S.bAcc--; at(S.bones[Math.floor(Math.random() * S.bones.length)], { ...SOUL_FX, size: 0.16, life: 0.55, up: 1.4 }); } } // soul seeping out while it drinks
   if (k >= 4) { A[0] += dt * (k - 3) * 5; while (A[0] >= 1) { A[0]--; at(S.bones[Math.floor(Math.random() * S.bones.length)], { ...SOUL_FX, size: 0.14 + 0.02 * k, life: 0.6 + 0.04 * k }); } } // wisps
   if (k >= 8) { A[1] += dt * (k - 7) * 9; while (A[1] >= 1) { A[1]--; at(S.sh[Math.floor(Math.random() * S.sh.length)], { col: Math.random() < 0.3 ? 0xd8ffff : SOUL_C, spd: 0.2, up: 2.2, grav: -1.6, life: 0.42, size: 0.34, spread: 0.08 }); } } // soul fire
   if (k >= 6 && eye) { A[2] += dt * (k - 5) * 6; while (A[2] >= 1) { A[2]--; eye.getWorldPosition(_sp); emit(_sp.x, _sp.y, _sp.z, { col: SOUL_C, spd: 0.15, up: 0.5, grav: -0.6, life: 0.35, size: 0.1, spread: 0.04 }); } } // eye trails

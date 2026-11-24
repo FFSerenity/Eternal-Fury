@@ -65,10 +65,15 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - Monsters move at 60% speed, and the slow kinds (warrior, archer, mage) are brought up to 90% of a minion (minion ~2.6 m/s, the rest ~2.4);
   the summoner (3.45 m/s) outruns everything; the skeleton walks slow and heavy (sword & shield 1.55 m/s, greatsword 1.75; never hurries,
   no run yet) and blinks back beside the summoner at 10 m (15 m while it has a target), half the usual distance.
-- 召唤 (E): no cooldown, 10 mana, 1.5 s cast (rune circle), then the skeleton rises (Mixamo Zombie Stand Up at its own pace, ~3 s). Its level = the skill level.
+- 召唤 (E): no cooldown, 10 mana, 1.5 s cast (rune circle), then the skeleton rises (Mixamo Zombie Stand Up at its own pace, ~3 s). The skill stays at
+  level 1 (Nov 2026: no more levels; old saves get the 魂能 they spent back, pactMigrate).
 - 战魂 (Fury): kills by the skeleton's own hand (elite 4, warrior 2, others 1); stack n needs 3 + ⌊0.6n⌋ kills. Per stack: +6% damage,
   +4% attack speed, +2% move speed (cap +30%), +2.5% life, +0.4% evasion (cap +12%). Death: all stacks gone, summon again.
-- 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3. Skill level L → L+1 costs 10·L^1.45.
+- 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3, boss ×12. The souls fly across the screen
+  into the 魂瓶 (soul vessel, bottom left; soulvessel.js; looks half full at 60, never full); held (the flask, E, or the summon button —
+  "灌注 / Pour" while the skeleton is out), it pours into the skeleton: souls stream from its neck into its chest, it brightens (soul light
+  +0.45 at full, after 1.6 s of pouring, wisps seeping out) and gains kill progress at 2.5 魂能 a kill (INFUSE in pact.js) — a stack
+  fills in 0.7 s whatever its size. Harvesting every corpse gives about half as many stacks again as the kills themselves.
 - Skeleton at level L: life (230 + 40(L−1)) × style, damage (16 + 4.5(L−1)) × style, armour 18 + 3(L−1) + style; taunts within 6 m; never staggered.
   Sword & Shield: life ×1.3, armour +14, evasion 32%, attack every ~1.4 s, narrow arc. Greatsword: damage ×1.5, evasion 16%, ~2 s, wide arc, knock-back.
 - Bearing: a dazed stand (Mixamo Idle, elbows eased out and forearms leaning slightly in), a brutal walk with sword & shield, the briefcase walk with the greatsword — no guard stance (that waits
@@ -98,7 +103,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   9.8 m; the 2nd and 3rd hit what stands beyond the one before for 60% / 40%). Non-elites left under 25% are cut down.
 - Its helmet crest shows its 战魂 (Fury from its own kills, lost when it falls): as modelled below 5, then dyed in the gear colours —
   5 blue, 10 gold (glowing, sparks), 15 violet fire, 20 crimson fire (flames running out along the fin, a halo, embers); the swing trail
-  takes the same colour. The summon skill only sets the level it comes out at, and grows slowly.
+  takes the same colour. The summon skill doesn't level (its strength is 战魂 and gear); 魂能 is poured in as 战魂 instead.
 - The summoner's Bone Spear does half damage here and the summoner levels at 60% speed: support, heal (Mend), harvest.
 - Not yet: the skeleton wearing gear (drops / bag / forge still work), more weapon styles (axe, spear, mace are modelled), skills you choose or aim,
   a second skeleton, using the extracted root motion (lunges / leaps that travel).

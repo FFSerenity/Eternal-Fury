@@ -44,7 +44,7 @@ export function initUI(o) { applyLang(); cam = o.camera; groundAt = o.groundAt; 
 export function resizeUI(w, h) { W = w; H = h; const c = $('#ov'), dpr = Math.min(devicePixelRatio || 1, 2); c.width = w * dpr; c.height = h * dpr; c.style.width = w + 'px'; c.style.height = h + 'px'; ovScale = dpr; }
 let ovScale = 1;
 const V = new THREE.Vector3();
-function toScreen(x, y, z) { V.set(x, y, z).project(cam); return [(V.x + 1) / 2 * W, (1 - V.y) / 2 * H, V.z < 1]; }
+export function toScreen(x, y, z) { V.set(x, y, z).project(cam); return [(V.x + 1) / 2 * W, (1 - V.y) / 2 * H, V.z < 1]; }
 
 // ---------- messages ----------
 let msgT = 0;
@@ -99,7 +99,7 @@ function bindInput(cv) {
   addEventListener('keydown', e => { if (e.repeat && e.key !== 'Shift') return; const k = e.key.toLowerCase(); unlock();
     if (k === 'shift') IN.shift = true; else if (k === 'q') IN.raiseKey = true; else if (k === 'w') IN.mend = true; else if (k === 'e') IN.summon = true; else if (k === 'tab' || k === 'c') { e.preventDefault(); toggleCrypt(); } else if (k === 'i' || k === 'b') { e.preventDefault(); toggleBag(); }
     else if (k === 'm') cycleMap(); else if (k === 'enter') IN.stairs = true; else if (k === 'escape') { closeCrypt(); closeGear(); } });
-  addEventListener('keyup', e => { if (e.key === 'Shift') IN.shift = false; });
+  addEventListener('keyup', e => { if (e.key === 'Shift') IN.shift = false; else if (e.key.toLowerCase() === 'e') IN.infuse = false; }); // (E held with the Sentinel out: pouring the soul vessel)
 }
 // screen-space stick direction -> world direction (camera looks diagonally: screen up = world (-1,0,-1))
 function screenDir(sx, sy) { const r = Math.SQRT1_2; return { x: (sx + sy) * r * 1, z: (sy - sx) * r * 1, k: Math.hypot(sx, sy) }; }
@@ -112,7 +112,7 @@ function bindButtons() {
   hold($('#sAtk'), () => { IN.autoAtk = true; }, () => { IN.autoAtk = false; });
   hold($('#sRaise'), () => { IN.raiseKey = true; });
   hold($('#sMend'), () => { IN.mend = true; });
-  hold($('#sSummon'), () => { IN.summon = true; }); if (PACT) bindPact();
+  hold($('#sSummon'), () => { IN.summon = true; }, () => { IN.infuse = false; }); if (PACT) bindPact();
   hold($('#bCrypt'), () => toggleCrypt());
   hold($('#bGear'), () => toggleBag());
   // party cards (top left): tap a summon to open its equipment, an empty slot to open the 墓典

@@ -68,5 +68,8 @@ export const S = {
   lock() { if (!ok() || !gate('lk', 200)) return; [1568, 1568, 2093].forEach((f, i) => tone('square', f, f, 0.06, 0.035, i * 0.11)); },
   orbital() { if (!ok()) return; tone('sawtooth', 1600, 120, 0.7, 0.1); tone('sine', 70, 30, 0.8, 0.5); hiss(900, 0.5, 0.8, 0.45, 0.02, 'lowpass'); hiss(5200, 1, 0.3, 0.2); },
   fix() { if (!ok() || !gate('fx', 300)) return; tone('triangle', 1320, 1500, 0.08, 0.04); tone('triangle', 1980, 1980, 0.1, 0.03, 0.07); },
+  // the soul vessel: a soul landing in it (a soft glassy drop), and each soul poured into the Sentinel (a small bright chime)
+  gulp() { if (!ok() || !gate('gp', 70)) return; const f = 900 + Math.random() * 300; tone('sine', f, f * 1.9, 0.09, 0.07); tone('triangle', f * 2.5, f * 2.4, 0.12, 0.025, 0.02); },
+  infuse() { if (!ok() || !gate('if', 85)) return; const f = 1400 + Math.random() * 700; tone('sine', f, f * 1.25, 0.14, 0.04); hiss(5200, 2, 0.06, 0.04); },
   rally() { if (!ok() || !gate('ra', 300)) return; tone('square', 500, 800, 0.1, 0.04); },
 };

@@ -85,7 +85,7 @@ function html() {
   <div class="aR"><span class="aL">${tr('首领', 'Boss')}</span>${BOSS_ORDER.map(k => `<button class="boss" data-act="boss:${k}">${bossName(k).replace(/骷髅|Skeleton/, '').trim()}</button>`).join('')}</div></div>
   <div class="aP" data-p="me">${PACT ? `
   <div class="aR">${step('fury', tr('战魂', 'Fury'))}${chips('furyQ', [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20], [25, 25]])}</div>
-  <div class="aR">${step('slvl', tr('召唤等级', 'Summon Lv'))}</div>
+  <div class="aR"><span class="aL">${tr('魂能', 'Soul')}</span><button data-act="soul:50">+50</button><button data-act="soul:500">+500</button><button data-act="soul:0">${tr('清空', 'Empty')}</button></div>
   <div class="aR"><span class="aL">${tr('装备', 'Gear')}</span>${chips('wset', Object.keys(SETS).map(k => [k, SETS[k].name]))}</div>
   <div class="aR"><span class="aL">${tr('品质', 'Quality')}</span>${chips('gq', QUAL.map((q, i) => [i, `<i style="color:${q.col};font-style:normal">●</i>${q.name}`]))}</div>
   <div class="aSm">${tr('点流派或品质：按当前怪物等级换上一整套新装备（大剑一把，或剑 + 盾）', 'Tap a style or quality: equips a fresh set at the monster level (a greatsword, or a sword and shield)')}</div>
@@ -97,7 +97,7 @@ function sync() { // buttons that show a choice or a toggle
     for (const b of c.children) b.classList.toggle('on', String(v) === b.dataset.v); }
   for (const b of el.querySelectorAll('[data-tg]')) b.classList.toggle('on', !!O[b.dataset.tg]);
   for (const b of el.querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === O.tab); for (const p of el.querySelectorAll('.aP')) p.style.display = p.dataset.p === O.tab ? '' : 'none';
-  $('#a_lvl').textContent = O.lvl; $('#a_plvl').textContent = G.level; if (PACT) { $('#a_fury').textContent = G.pact.stacks; $('#a_slvl').textContent = G.pact.lvl; }
+  $('#a_lvl').textContent = O.lvl; $('#a_plvl').textContent = G.level; if (PACT) { $('#a_fury').textContent = G.pact.stacks; }
 }
 function onClick(e) {
   const b = e.target.closest('button'); if (!b) { if (e.target.closest('.aH')) { el.classList.toggle('min'); minLabel(); } return; } // (the header folds it)
@@ -107,9 +107,10 @@ function onClick(e) {
   else if (b.dataset.tab) O.tab = b.dataset.tab;
   else if (b.dataset.step) { const [k, d] = b.dataset.step.split(':'), n = +d;
     if (k === 'lvl') O.lvl = Math.max(1, Math.min(60, O.lvl + n)); else if (k === 'plvl') setLevel(G.level + n);
-    else if (k === 'fury') setFury(G.pact.stacks + n); else if (k === 'slvl') { G.pact.lvl = Math.max(1, Math.min(60, G.pact.lvl + n)); heroRefresh(); } }
+    else if (k === 'fury') setFury(G.pact.stacks + n); }
   else { const a = b.dataset.act;
-    if (a.startsWith('boss:')) spawnBossHere(a.slice(5)); else if (a === 'spawn') spawnPack(); else if (a === 'clear') clearField(); else if (a === 'reset') resetStats(); else if (a === 'summon') summonNow(); else if (a === 'heal') fullHeal();
+    if (a.startsWith('soul:')) { const n = +a.slice(5); G.soul = n ? G.soul + n : 0; } // (fills or empties the soul vessel)
+    else if (a.startsWith('boss:')) spawnBossHere(a.slice(5)); else if (a === 'spawn') spawnPack(); else if (a === 'clear') clearField(); else if (a === 'reset') resetStats(); else if (a === 'summon') summonNow(); else if (a === 'heal') fullHeal();
     else if (a === 'leave') { const q = new URLSearchParams(location.search); q.delete('arena'); location.href = location.pathname + (q.toString() ? '?' + q : ''); } }
   sync(); draw(true);
 }
