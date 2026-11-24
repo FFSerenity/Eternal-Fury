@@ -82,7 +82,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier: they wake at 5 / 10 / 15 / 20 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).
   Charge (3.5–8 m, 8 s): sword & shield drops into its low guard stance and drives straight in behind the shield with a long rush of air,
-  barging aside what is in the way, and ends by fanning the shield up overhead (a blend from the guard pose to SNS_Combo's shield-high frame) that knocks the target down and pops it off its feet; the greatsword leaps in a
+  barging aside what is in the way, and ends by fanning the shield up overhead (a blend from the guard pose to SNS_Combo's shield-high frame) that knocks the target down and pops it off its feet (the blend eases out: the shield is up in a few frames, held a moment, then a quick return); the greatsword leaps in a
   long arc like the crypt's warriors and splits the ground where it lands.
   Block / Parry (passive, blows from the front): sword & shield blocks 30% (−80%, missiles stopped whole), the greatsword parries 25%
   (−60%); each earns a counter slipped in between its swings — the guard pose for a beat, then sword & shield cuts down and a crescent of
@@ -91,10 +91,19 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   ~5.5 m at half damage.
   Sundering Strike (15 s): sword & shield roars — rings of force race out, a column of light, the nearest are thrown back — then its
   sword catches fire and the burning blow sends a wave of fire with scorched cracks down a 5.5 m cone; the greatsword fills its blade with
-  fire from the hilt up and sweeps 270° (GS_Combo), fire rolling out over the arc. Non-elites left under 25% are cut down.
+  fire from the hilt up and sweeps 270° (GS_Combo), fire rolling out over the arc in three waves, each farther than the last (5.5 / 7.6 /
+  9.8 m; the 2nd and 3rd hit what stands beyond the one before for 60% / 40%). Non-elites left under 25% are cut down.
 - Its helmet crest shows its 战魂 (Fury from its own kills, lost when it falls): as modelled below 5, then dyed in the gear colours —
   5 blue, 10 gold (glowing, sparks), 15 violet fire, 20 crimson fire (flames running out along the fin, a halo, embers); the swing trail
   takes the same colour. The summon skill only sets the level it comes out at, and grows slowly.
 - The summoner's Bone Spear does half damage here and the summoner levels at 60% speed: support, heal (Mend), harvest.
 - Not yet: the skeleton wearing gear (drops / bag / forge still work), more weapon styles (axe, spear, mace are modelled), skills you choose or aim,
   a second skeleton, using the extracted root motion (lunges / leaps that travel).
+
+## 试炼场 / Test Arena (a tool for tuning)
+On the start screen (⚔ 试炼场) or `?arena`: the current save is loaded into one big empty hall, and nothing done there is saved (leaving
+reloads the page). The panel on the right spawns monsters (kind or mixed, count, level, range from the Sentinel, life ×1–50, champions,
+training dummies that neither move nor fight, auto refill to keep the count), sets the Sentinel's Fury, summon level and style, the
+summoner's level, and can make the Sentinel unkillable or the summoner invulnerable with endless mana. The meter at the top reads the
+damage the summons do (last 5 s and averaged over fight time, i.e. time with a blow landed in the last 2 s), the summoner's own damage,
+kills with the average time from first hit to death, and damage taken per second.

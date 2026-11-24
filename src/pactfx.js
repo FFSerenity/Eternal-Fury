@@ -97,16 +97,17 @@ export function qiFan(x, z, face, col, R) {
   qiWaves(x, z, col, 3, face - 0.75, 1.5); // three crescents riding in it
 }
 // the greatsword's Sundering Strike: fire rolling out over a 270° arc around it, scorching the ground as it goes
-export function fireArc(x, z, face, R, span) {
+export function fireArc(x, z, face, R, span, life = 0.55, op = 1) { const first = op >= 1;
   const th0 = Math.atan2(-Math.cos(face), Math.sin(face)) - span / 2, geo = new THREE.RingGeometry(0.8, 1, 64, 1, th0, span).rotateX(-Math.PI / 2), band = new THREE.Group();
-  const under = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff4a10, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide })); // reads on a light floor
+  const under = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff4a10, transparent: true, opacity: 0.6 * op, depthWrite: false, side: THREE.DoubleSide })); // reads on a light floor
   const glow = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffb050, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   glow.position.y = 0.005; band.add(under, glow); band.position.set(x, 0.07, z); under.renderOrder = glow.renderOrder = 4; C.scene.add(band); let last = 0;
-  G.fx.push({ clean: true, t: 0.55, tick: k => { const e = 1 - (1 - k) * (1 - k), r = 0.6 + (R - 0.6) * e; band.scale.setScalar(r); under.material.opacity = 0.6 * (1 - k); glow.material.opacity = 0.9 * (1 - k);
+  G.fx.push({ clean: true, t: life, tick: k => { const e = 1 - (1 - k) * (1 - k), r = 0.6 + (R - 0.6) * e; band.scale.setScalar(r); under.material.opacity = 0.6 * op * (1 - k); glow.material.opacity = 0.9 * op * (1 - k);
       const n = Math.floor((k - last) * 70); last += n / 70; // flames thrown up along the front of the wave
-      for (let i = 0; i < n * 3; i++) { const a = face - span / 2 + Math.random() * span, px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r;
+      for (let i = 0; i < n * (first ? 3 : 2); i++) { const a = face - span / 2 + Math.random() * span, px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r;
         C.parts.emit(px, 0.15, pz, 1, { col: fire(), spd: 0.5, up: 2.6 + Math.random() * 1.6, grav: -1.2, life: 0.45 + Math.random() * 0.3, size: 0.42, spread: 0.25 }); } },
     fn: () => { C.scene.remove(band); geo.dispose(); under.material.dispose(); glow.material.dispose(); } });
+  if (!first) { wave(x, z, 0xff8a30, R + 0.3, life, 0.35, 0.55 * op); return; } // the later waves: the band and its flames, no new cracks
   for (let i = 0; i < 5; i++) { const a = face - span / 2 + (i + 0.5) / 5 * span, d = R * (0.45 + 0.15 * (i % 2)), px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d;
     G.fx.push({ clean: true, t: 0.08 + 0.05 * i, fn: () => { slamMark(px, pz, 0.85, 0xff5a1a, 2.6); C.parts.emit(px, 0.2, pz, 7, { col: 0x4e443c, spd: 2.4, up: 2, grav: 9, life: 0.5, size: 0.26, spread: 0.4 }); } }); }
   wave(x, z, 0xffb050, R + 0.5, 0.6, 0.45, 0.8);

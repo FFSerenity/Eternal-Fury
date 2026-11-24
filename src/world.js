@@ -8,8 +8,9 @@ import { genWilds, buildWilds, WILD } from './wilds.js';
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 export class Floor {
-  constructor(seed, depth) {
+  constructor(seed, depth, arena = false) {
     this.depth = depth; this.torches = []; this.fields = new Map();
+    if (arena) { this.hall(rng(seed)); return; }
     if (depth === 0) { this.camp(rng(seed)); return; }
     this.amb = [0.30, 0.31, 0.44]; this.lightR = 8.5;
     const R = rng(seed), W = 60, H = 60; this.W = W; this.H = H;
@@ -39,6 +40,13 @@ export class Floor {
     for (const r of rooms) { const d = d0[Math.floor(r.cy) * W + Math.floor(r.cx)]; if (d > fd && d < 1e8) { fd = d; far = r; } }
     this.end = far; this.stairs = { x: Math.floor(far.cx), z: Math.floor(far.cy) }; // a grid vertex: the grate covers the 4 cells around it
     this.R = R;
+  }
+  // ---------- the test arena (试炼场): one big walled hall, nothing in it; no way down (it is left from its panel) ----------
+  hall(R) {
+    const W = 44, H = 44, r = { x: 8, y: 8, w: 28, h: 28, cx: 22, cy: 22 }; this.W = W; this.H = H; this.R = R; this.amb = [0.40, 0.40, 0.54]; this.lightR = 10; this.arena = true;
+    const g = this.g = new Uint8Array(W * H);
+    for (let z = r.y - 1; z <= r.y + r.h; z++) for (let x = r.x - 1; x <= r.x + r.w; x++) g[z * W + x] = x < r.x || z < r.y || x >= r.x + r.w || z >= r.y + r.h ? 2 : 1;
+    this.rooms = [r]; this.start = r; this.end = r; this.stairs = { x: -40, z: -40 }; // (off the map: the grate and its glow are built out of sight)
   }
   // ---------- the graveyard camp (start area): an open clearing with a crypt that leads down, inside a big generated stretch of wilds ----------
   camp(R) {

@@ -272,7 +272,7 @@ export function updateHUD(dt, fps) {
   bar('#hpB', P.hp / P.maxHp); bar('#mpB', P.mp / P.maxMp); bar('#xpB', G.xp / xpNeed(G.level));
   if (hudT > 0) return; hudT = 0.2;
   $('#lvl').textContent = tr(`Lv ${G.level} 召唤师`, `Lv ${G.level} Summoner`); $('#hpT').textContent = `${Math.ceil(P.hp)} / ${Math.round(P.maxHp)}`; $('#mpT').textContent = `${Math.floor(P.mp)} / ${Math.round(P.maxMp)}`;
-  $('#floorTag').textContent = G.depth === 0 ? (G.wild ? tr('墓园荒野', 'The Wilds') : tr('墓园营地', 'Graveyard Camp')) : tr(`墓穴 · 第 ${G.depth} 层`, `Crypt · Floor ${G.depth}`); $('#cryptN').textContent = G.crypt.length; $('#gearN').textContent = G.bag.length; if (fps != null) $('#fps').textContent = fps;
+  $('#floorTag').textContent = G.arena ? tr('试炼场', 'Test Arena') : G.depth === 0 ? (G.wild ? tr('墓园荒野', 'The Wilds') : tr('墓园营地', 'Graveyard Camp')) : tr(`墓穴 · 第 ${G.depth} 层`, `Crypt · Floor ${G.depth}`); $('#cryptN').textContent = G.crypt.length; $('#gearN').textContent = G.bag.length; if (fps != null) $('#fps').textContent = fps;
   // party cards: rebuilt only when something on them changes (so taps are not lost), hp bars updated in place
   if (PACT) pactHUD(); else { const party = $('#party'), act = G.crypt.filter(e => e.active), psig = JSON.stringify([partySize(G.level), act.map(en => [en.id, en.level, en.sp, Math.ceil(en.reviveT), en.mods, treeKey(en)])]);
   if (psig !== partySig) { partySig = psig; party.innerHTML = '';

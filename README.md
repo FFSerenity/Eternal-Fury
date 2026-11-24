@@ -22,6 +22,9 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes) or **Greatsword** (heavy cleaves that knock back, less evasion).
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
 
+**⚔ Test Arena** (start screen, or `?arena`): an empty hall on top of your save, with a panel to spawn monsters (dummies too), set Fury,
+level and weapon style, and a damage meter (DPS, kills, time to kill, damage taken). Nothing there is saved.
+
 ## Summons
 - Kill monsters, then cast **唤魂**: it channels on every corpse within 6 m at once (corpses stay 30 s; each extra corpse costs a little more mana). Capture chance depends on the monster (normal > champion) and your level.
   Enemy shamans resurrect corpses too, so grab them first.

@@ -98,7 +98,8 @@ export function damage(src, dst, amt, o = {}) {
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
-  dst.hp -= d; dst.flash = Math.max(dst.flash || 0, o.heavy || o.crit ? 1 : o.sum ? 0.5 : 0.75); dst.barT = 3; dst.lastHit = G.t;
+  const hp0 = dst.hp; dst.hp -= d; if (dst.immortal && dst.hp < 1) dst.hp = 1; if (PH.dmg) PH.dmg(src, dst, Math.min(d, Math.max(0, hp0)), o); // (the test arena: no-death toggles, its damage meter)
+  dst.flash = Math.max(dst.flash || 0, o.heavy || o.crit ? 1 : o.sum ? 0.5 : 0.75); dst.barT = 3; dst.lastHit = G.t;
   if (o.knock && !(dst.deployT > 0) && !dst.pact) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
   if (dst.kind !== 'player' && !dst.noStun && !(dst.deployT > 0) && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }
   if (dst.side === 'enemy' && src && !src.dead) { if (!dst.target || Math.random() < 0.4) dst.target = src; if (!dst.aggro) { dst.aggro = true; alertPack(dst, src); } }
@@ -776,7 +777,7 @@ export function updateUnit(u, dt) {
         const mr = rk(u, 'mass'); if (mr) for (const o of G.friends) { if (o === f || o.dead || o.hp >= o.maxHp || dist(o, f) > 2.5 + 0.5 * mr) continue; const h2 = h * (0.35 + 0.15 * mr);
           o.hp = Math.min(o.maxHp, o.hp + h2); say(o.x, o.z, '+' + Math.round(h2), '#7dff9a', 13); C.parts.emit(o.x, 0.6, o.z, 8, { col: 0x7dff9a, spd: 0.6, up: 2, life: 0.7, grav: -1 }); } } } }
     else u.state = 'idle'; }
-  else if (u.side === 'enemy') enemyThink(u, dt);
+  else if (u.side === 'enemy') { if (u.dummy) u.wantX = u.wantZ = 0; else enemyThink(u, dt); } // the test arena's training dummies stand still
   else if (u.side === 'ally') allyThink(u, dt);
 }
 function resurrect(by, c) {
@@ -862,7 +863,7 @@ export function playerAnim(u, kind) {
   else if (kind === 'mend') { play(u.mesh, 'Spellcast_Raise', { once: true, restart: true, speed: 1.6, fade: 0.08 }); u.animLock = clipLen('Spellcast_Raise') / 1.6 * 0.8; }
   else if (kind === 'revive') { play(u.mesh, 'Idle', { restart: true, fade: 0 }); u.animLock = 0; }
 }
-function rise(u, name, sp) { play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clipLen(name) / sp * 0.92; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
+export function rise(u, name, sp) { play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clipLen(name) / sp * 0.92; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
 // 机枪骷髅: legs walk / run / stand, arms always hold the gatling up with both hands (aiming, firing with recoil, or throwing a grenade)
 function gunnerAnim(u, sp) { // (and the 炮手骷髅: same two-handed stance)
   const m = u.mesh, a = ANIM.imp;

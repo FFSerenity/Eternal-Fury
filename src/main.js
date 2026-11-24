@@ -19,6 +19,7 @@ import { openCoffin, setGear, addXP } from './units.js';
 import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt, goFull } from './ui.js';
 import { initMap, updateMap } from './minimap.js';
+import { initArena, arenaTick } from './arena.js';
 import { S, unlock } from './audio.js';
 
 const $ = s => document.querySelector(s), QS = new URLSearchParams(location.search);
@@ -58,7 +59,7 @@ initUI({ camera, groundAt, canvas, reset: what => what === 'all' ? resetAll() : 
 
 // ---------- floors ----------
 let packId = 1;
-function makeFloor(depth) {
+function makeFloor(depth, arena = false) {
   if (G.player && G.player.chanFx) endChannel(G.player);
   for (const u of G.units) if (u.side !== 'player') u.remove(); for (const c of G.corpses) scene.remove(c.mesh.root); for (const s of G.shots) scene.remove(s.root);
   for (const g of G.ghosts) scene.remove(g.m ? g.m.root : g.orb); G.ghosts = []; for (const c of G.clouds) scene.remove(c.disc); G.clouds = []; G.bolts = []; for (const L of G.loot) scene.remove(L.root); G.loot = [];
@@ -67,7 +68,7 @@ function makeFloor(depth) {
   for (const f of G.fx) { if (f.end) f.end(); else if (f.clean && f.fn) f.fn(); }
   G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
   if (G.floor) G.floor.dispose(scene); clearFx(); clearTechFx();
-  const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; if (depth > 0) G.deep = depth;
+  const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth, arena); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; G.arena = arena; if (depth > 0) G.deep = depth;
   SH.uAmb.value.setRGB(...F.amb); SH.uLightR.value = F.lightR; renderer.setClearColor(depth === 0 ? 0x0b0d12 : 0x07060a);
   const R = F.R, st = F.start;
   if (!G.player) { G.player = new Unit('player', 'player', st.cx, st.cy, { level: G.level }); G.units.push(G.player); }
@@ -76,7 +77,7 @@ function makeFloor(depth) {
   if (PACT) pactFloor(P); // 魂契: the skeleton comes along
   // monster packs in every other room; some packs get a champion with an affix
   const byDist = F.rooms.slice(1).sort((a, b) => Math.hypot(a.cx - st.cx, a.cy - st.cy) - Math.hypot(b.cx - st.cx, b.cy - st.cy));
-  if (depth > 0) for (const r of byDist) { const near = byDist.indexOf(r), n = r.w * r.h > 90 ? 2 : 1;
+  if (depth > 0 && !arena) for (const r of byDist) { const near = byDist.indexOf(r), n = r.w * r.h > 90 ? 2 : 1;
     for (let k = 0; k < n; k++) { const easy = depth === 1 && near < 2, tpl = easy ? (near === 0 ? [['imp', 2]] : [['imp', 2], ['archer', 1]]) : PACKS[Math.floor(R() * PACKS.length)], c0 = F.randomSpot(r), pid = packId++; const units = [];
       if (easy && k > 0) break;
       for (const [type, cnt] of tpl) { const extra = type === 'imp' ? Math.floor(depth / 3) : 0; for (let j = 0; j < cnt + extra; j++) {
@@ -87,7 +88,8 @@ function makeFloor(depth) {
       G.units.push(...units); } }
   // the wilds around the camp: packs wait at spots all over the map and are only made when the summoner comes within sight range
   G.pend = depth === 0 && F.packSpots ? F.packSpots.slice() : []; G.wild = false;
-  placeCamera(true); message(depth === 0 ? tr('墓园营地', 'Graveyard Camp') : tr(`墓穴 · 第 ${depth} 层`, `Crypt · Floor ${depth}`), true); if (depth === 0 && G.deep > 1) message(tr(`穿过墓穴大门可回到第 ${G.deep} 层`, `The crypt door leads back to floor ${G.deep}`)); save();
+  placeCamera(true); message(arena ? tr('试炼场', 'Test Arena') : depth === 0 ? tr('墓园营地', 'Graveyard Camp') : tr(`墓穴 · 第 ${depth} 层`, `Crypt · Floor ${depth}`), true);
+  if (arena) message(tr('右侧面板：刷怪、调战魂、看伤害统计。这里的一切都不会存档', 'The panel on the right: spawn monsters, set Fury, read the damage meter. Nothing here is saved')); if (depth === 0 && G.deep > 1) message(tr(`穿过墓穴大门可回到第 ${G.deep} 层`, `The crypt door leads back to floor ${G.deep}`)); save();
 }
 
 // a pack in the wilds: tougher and more often led by a champion the farther it waits from the camp; the places always hold a champion
@@ -201,9 +203,12 @@ $('#help').innerHTML = PACT ? (touchUI ? tr('左半屏拖动：移动　·　「
   : tr('左键：移动 / 点怪攻击　·　右键：骨矛　·　E：召唤骸骨卫士（施法 1.5 秒）<br>Q：唤魂（尸体化成魂能）　·　W：愈合　·　Tab：魂契面板（强化召唤、切换武器流派）　·　I：背包', 'Left click: move / attack · Right click: Bone Spear · E: summon the Bone Sentinel (1.5 s cast)<br>Q: Raise (corpses become soul energy) · W: Mend · Tab: the Pact (strengthen the summon, weapon style) · I: Bag')) : touchUI ? tr('左半屏拖动：移动　·　右下「骨矛」按住连发（自动瞄准）<br>打倒怪物后按「唤魂」收服身边所有尸体　·　「墓典」编辑出战', 'Drag on the left half to move · hold Bone Spear to fire (auto-aim)<br>After a fight, tap Raise to capture every corpse around you · Crypt: pick your party') :
   tr('左键：移动 / 点怪攻击　·　右键：朝鼠标方向放骨矛（Shift+左键同效）<br>Q：唤魂（收服身边一圈内的所有尸体）　·　W：愈合　·　Tab：墓典　·　I：背包　·　走到楼梯点击或按 Enter 下楼', 'Left click: move / attack · Right click: Bone Spear toward the cursor (or Shift + left)<br>Q: Raise (capture every corpse around you) · W: Mend · Tab: Crypt · I: Bag · Enter on the stairs to go down');
 $('#bStart').addEventListener('click', () => { if (!A.ready) return; unlock(); if (touchUI) goFull(); $('#start').classList.add('hide'); started = true; });
+// 试炼场: a sandbox hall on top of the current save (nothing is written back; leaving reloads)
+function enterArena() { G.noSave = true; if (PACT) G.pact.alive = true; makeFloor(Math.max(1, G.deep), true); initArena(touchUI); }
+$('#bArena').addEventListener('click', () => { if (!A.ready) return; unlock(); if (touchUI) goFull(); if (!G.arena) enterArena(); $('#start').classList.add('hide'); started = true; });
 $('#bNew').addEventListener('click', () => { if (!confirm(tr('清除存档重新开始？', 'Delete the save and start over?'))) return; wipe(); location.reload(); });
-const bS = $('#bStart'), label = bS.textContent; bS.disabled = true;
-loadAll(k => { bS.textContent = tr(`载入中 ${Math.round(k * 100)}%`, `Loading ${Math.round(k * 100)}%`); }).then(() => { makeIcons(); bS.disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
+const bS = $('#bStart'), label = bS.textContent; bS.disabled = true; $('#bArena').disabled = true;
+loadAll(k => { bS.textContent = tr(`载入中 ${Math.round(k * 100)}%`, `Loading ${Math.round(k * 100)}%`); }).then(() => { makeIcons(); bS.disabled = false; $('#bArena').disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); if (QS.has('arena')) enterArena(); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
   .catch(e => { console.error(e); bS.textContent = tr('资源载入失败，请刷新', 'Loading failed — please refresh'); });
 
 // the shader takes a handful of torch lights: upload the ones nearest the summoner
@@ -226,7 +231,7 @@ function loop(now) {
   if (started) { G.t += dt; setNavTime(G.t);
     const P = G.player;
     G.enemies = []; G.friends = []; for (const u of G.units) { if (u.dead) continue; if (u.side === 'enemy') G.enemies.push(u); else G.friends.push(u); }
-    updatePlayer(dt); updateWilds(P); if (PACT) pactTick(dt);
+    updatePlayer(dt); updateWilds(P); if (PACT) pactTick(dt); if (G.arena) arenaTick(dt);
     const active = [];
     for (const u of G.units) { if (u.dead || u === P) continue; if (u.side === 'enemy' && !u.aggro && Math.hypot(u.x - P.x, u.z - P.z) > 26) { u.mesh.root.visible = false; continue; } u.mesh.root.visible = true; updateUnit(u, dt); active.push(u); }
     if (!P.dead) active.push(P); integrate(active, dt);
