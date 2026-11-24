@@ -36,9 +36,10 @@ const DG = `${K}/KayKit-Dungeon-Remastered-1.0/addons/kaykit_dungeon_remastered/
 const HB = `${K}/KayKit-Halloween-Bits-1.0/addons/kaykit_halloween_bits/Assets/gltf`;
 const kb = f => (fs.statSync(f).size / 1024).toFixed(0) + ' KB';
 
-async function character(src, name) {
+async function character(src, name, drop) {
   if (!want(name)) return;
   const doc = await io.read(src);
+  if (drop) for (const n of doc.getRoot().listNodes()) if (drop.test(n.getName())) n.dispose(); // (accessories no one uses)
   dropAnims(doc); await doc.transform(prune(), flatten()); mergeSkinned(doc);
   await doc.transform(weld(), dedup(), prune(), COMPRESS, unpartition());
   const out = `${OUT}/${name}.glb`; await io.write(out, doc);
@@ -79,17 +80,21 @@ async function props(name, files, noTex = false) {
 const CL = `${SK}/Characters/gltf`;
 await character(`${AD}/Characters/gltf/Mage.glb`, 'mage');
 for (const [n, f] of [['sk_minion', 'Skeleton_Minion'], ['sk_warrior', 'Skeleton_Warrior'], ['sk_rogue', 'Skeleton_Rogue'], ['sk_mage', 'Skeleton_Mage']]) await character(`${CL}/${f}.glb`, n);
+// the wilds' living foes (Adventurers pack): each keeps its own weapons and shields on the hand slots; the game shows the ones a foe carries
+for (const [n, f] of [['hu_knight', 'Knight'], ['hu_barbarian', 'Barbarian'], ['hu_rogue', 'Rogue'], ['hu_rogue_hood', 'Rogue_Hooded']]) await character(`${AD}/Characters/gltf/${f}.glb`, n, /^(Mug|1H_Crossbow|Throwable)$/);
 await anims(`${CL}/Skeleton_Minion.glb`, ['Idle', 'Idle_Combat', 'Unarmed_Idle', 'Walking_A', 'Walking_D_Skeletons', 'Running_A', 'Running_B',
   '1H_Melee_Attack_Chop', '1H_Melee_Attack_Stab', '1H_Melee_Attack_Slice_Diagonal', '2H_Melee_Attack_Chop', '2H_Melee_Attack_Spin', '1H_Ranged_Shoot', '2H_Ranged_Shoot',
   'Spellcast_Shoot', 'Spellcast_Raise', 'Spellcast_Summon', 'Spellcasting', 'Spellcast_Long', 'Hit_A', 'Hit_B', 'Death_A', 'Death_A_Pose', 'Death_C_Skeletons', 'Death_C_Pose',
   'Death_C_Skeletons_Resurrect', 'Skeletons_Awaken_Floor', 'Skeletons_Inactive_Floor_Pose', 'Spawn_Ground_Skeletons', 'Taunt', 'Cheer',
   '1H_Melee_Attack_Jump_Chop', 'Dodge_Forward', 'Running_C', '2H_Ranged_Aiming', '2H_Ranged_Shooting', 'Throw', '2H_Melee_Attack_Slice', '1H_Melee_Attack_Slice_Horizontal',
-  'Walking_Backwards', 'Running_Strafe_Left', 'Running_Strafe_Right']);
+  'Walking_Backwards', 'Running_Strafe_Left', 'Running_Strafe_Right',
+  // the living foes of the wilds: dual wield, two-handed stances, the knight's guard, the berserker's whirl, a second death
+  'Dualwield_Melee_Attack_Chop', 'Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Stab', '2H_Melee_Idle', '2H_Melee_Attack_Spinning', 'Blocking', 'Block_Hit', 'Death_B']);
 const SA = `${SK}/Assets/gltf`, AA = `${AD}/Assets/gltf`;
 await props('weapons', [['sk_axe', `${SA}/Skeleton_Axe.gltf`], ['sk_blade', `${SA}/Skeleton_Blade.gltf`], ['sk_crossbow', `${SA}/Skeleton_Crossbow.gltf`], ['sk_staff', `${SA}/Skeleton_Staff.gltf`],
   ['sk_shield', `${SA}/Skeleton_Shield_Small_A.gltf`], ['sk_arrow', `${SA}/Skeleton_Arrow.gltf`], ['mage_staff', `${AA}/staff.gltf`], ['spellbook', `${AA}/spellbook_open.gltf`],
   ...['axe_1handed', 'axe_2handed', 'dagger', 'sword_1handed', 'crossbow_1handed', 'crossbow_2handed', 'wand', 'shield_round', 'shield_square', 'shield_spikes'].map(n => [n, `${AA}/${n}.gltf`]),
-  ['sk_shield_large', `${SA}/Skeleton_Shield_Large_A.gltf`]]);
+  ['sk_shield_large', `${SA}/Skeleton_Shield_Large_A.gltf`], ['smokebomb', `${AA}/smokebomb.gltf`]]);
 const dg = n => [n, fs.existsSync(`${DG}/${n}.gltf.glb`) ? `${DG}/${n}.gltf.glb` : `${DG}/${n}.glb`];
 await props('dungeon', ['floor_tile_small', 'floor_tile_small_broken_A', 'floor_tile_small_broken_B', 'floor_tile_small_weeds_A', 'floor_tile_small_decorated', 'floor_dirt_small_A',
   'wall_half', 'pillar', 'torch_mounted', 'barrel_small', 'barrel_large', 'box_large', 'box_small', 'crates_stacked', 'chest', 'chest_gold', 'candle_lit', 'candle_triple', 'column',
@@ -109,3 +114,15 @@ await props('forest', ['Tree_1_A', 'Tree_1_B', 'Tree_2_A', 'Tree_2_B', 'Tree_2_C
   'Grass_1_A_Singlesided', 'Grass_1_B_Singlesided', 'Grass_1_C_Singlesided', 'Grass_2_A_Singlesided', 'Grass_2_B_Singlesided', 'Grass_2_C_Singlesided',
   'Rock_1_A', 'Rock_1_C', 'Rock_1_D', 'Rock_1_F', 'Rock_1_H', 'Rock_1_J', 'Rock_1_K', 'Rock_2_B', 'Rock_2_C', 'Rock_2_E', 'Rock_2_G',
   'Rock_3_A', 'Rock_3_C', 'Rock_3_E', 'Rock_3_G', 'Rock_3_I', 'Rock_3_K', 'Rock_3_M'].map(fn), true);
+
+// ---------- creatures with their own rig and clips: the flying vermin of the wilds (Quaternius Ultimate Monsters, CC0) ----------
+// one file each: the model (one skinned mesh on the pack's small colour atlas) and its own clips, which the game keeps per model
+const UM = process.env.UMON || '/home/claude/assets_src/umon/flying/glTF';
+async function creature(src, name) {
+  if (!want(name) || !fs.existsSync(src)) return;
+  const doc = await io.read(src);
+  await doc.transform(resample({ tolerance: 0.0005 }), prune({ keepLeaves: true }), dedup(), COMPRESS, unpartition());
+  const out = `${OUT}/${name}.glb`; await io.write(out, doc);
+  console.log(name.padEnd(16), kb(out), doc.getRoot().listAnimations().map(a => a.getName()).join(' '));
+}
+for (const [n, f] of [['fly_bat', 'Goleling'], ['fly_ghost', 'Ghost'], ['fly_wraith', 'Ghost_Skull']]) await creature(`${UM}/${f}.gltf`, n);

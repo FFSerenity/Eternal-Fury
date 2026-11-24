@@ -125,6 +125,28 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   it) with a big ⚔ 装备卫士 button, and the 战魂 skills as a row of badges on a track filled up to its Fury (each in its crest tier's
   colour, locked ones grey); the picked badge is described in one fixed box underneath.
 
+## 野外的敌人 / The wilds' foes (Nov 2026)
+The wilds hold no skeletons: the living (KayKit Adventurers — Knight, Barbarian, Rogue, Rogue Hooded, and the Mage *with* its hat;
+the summoner is the bare-headed Mage) and flying vermin (Quaternius Ultimate Monsters — Goleling as the bat, Ghost, Ghost Skull).
+A hat or helmet taken off makes another foe from the same model (bear-hat berserker / bald raider, helmeted templar / bare-headed squire).
+Each is a skeleton kind underneath (FOES.cls: its AI, its blows, the skeleton its corpse rises as — the rule above) with its own numbers
+and look (assets.js FOE_LOOK: which of the model's own weapons it carries) and one trick (foes.js):
+
+| foe | kind | trick |
+|---|---|---|
+| 盗墓贼 Grave Robber | 小兵 | under 70% life: smoke bomb, gone 0.45 s, out behind its target; the next stab always crits |
+| 掠夺者 Raider | 小兵 | 2.4–7 m away: a thrown axe (×1.5), every 5–7 s |
+| 侍从 Squire | 小兵 | blows from the front ×0.65 (not while it swings) |
+| 弩手 Crossbowman | 弩手 | every 7–9.5 s: aims 1.1 s down a marked lane, then a piercing bolt ×2.4 |
+| 圣殿骑士 Templar | 战士 | blows from the front ×0.45, bolts and spells too (not while it swings) |
+| 处刑者 Headsman | 战士 | ×1.6 against anyone under 40% life |
+| 狂战士 Berserker | 战士 | target within 3.4 m, every 7–9 s: a roar (0.4 s) then 1.7 s of whirlwind (×0.45 every 0.38 s); under 40%: +30% speed, −30% cooldown |
+| 驱魔师 Exorcist | 法师 | heals the most hurt of its own (under 65%) within 7.5 m every 4–5.5 s; never raises the dead |
+| 蝙蝠 Bat | 小兵 | after each bite darts off 0.5–0.8 s; half the usual capture chance |
+| 幽灵 Ghost / 怨灵 Wraith | 弩手 | slow homing soul-fire that chills (the wraith: three); no body, no corpse |
+
+Not yet: tiers (品级) — every foe rises as a plain skeleton of its kind for now.
+
 ## 首领 / Bosses (both modes, Nov 2026)
 The four 科技流 skeletons are the crypt's bosses: one waits by the way down on every 5th floor (5 炮手 → 10 机枪 → 15 机甲 → 20 机械师,
 then round again two levels higher; level = floor + 2), and the grate glows red and stays shut until it falls. Each fights with the tech

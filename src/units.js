@@ -1,7 +1,7 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
 import { G, save, bagPut, PACT } from './state.js';
-import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
+import { TYPES, FOES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
 import { auraMat, glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
 import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose } from './assets.js';
@@ -25,7 +25,8 @@ export class Unit {
   constructor(kind, side, x, z, o = {}) {
     this.id = nextId++; this.kind = kind; this.side = side; this.x = x; this.z = z; this.vx = this.vz = this.kx = this.kz = 0; this.wantX = this.wantZ = 0;
     this.level = o.level || 1; this.mods = o.mods || []; this.modLv = o.modLv || {}; this.champ = !!o.champ; this.entry = o.entry || null; this.packId = o.packId ?? -1;
-    this.T = TYPES[kind] || null; this.state = 'idle'; this.st = 0; this.cdT = rand(0.2, 0.8); this.target = null; this.face = rand(0, TAU);
+    // a foe of the wilds fights as its kind (T: the kind's numbers under its own); a ghost drifts through bodies (noBody)
+    this.foe = o.foe || null; this.T = this.foe ? { ...TYPES[kind], ...FOES[this.foe] } : TYPES[kind] || null; this.noBody = !!(this.foe && this.T.noCorpse); this.state = 'idle'; this.st = 0; this.cdT = rand(0.2, 0.8); this.target = null; this.face = rand(0, TAU);
     this.boss = o.boss || null; this.home = { x, z }; this.aggro = false; this.scanT = rand(0, 0.35); this.flash = 0; this.stun = 0; this.dead = false; this.barT = 0;
     this.flank = Math.random() < 0.5 ? -1 : 1; this.strafeT = 0; this.strafeDir = 0; this.resCD = rand(2, 4); this.healCD = 2; this.walkPh = rand(0, 6); this.lostT = 0;
     this.stats();
@@ -36,11 +37,11 @@ export class Unit {
       scale: o.scale ?? (champ ? (ally ? 1.1 : 1.25) : 1),
       tint: this.mods.includes('stone') ? 0xb8b4ac : this.mods.includes('fire') && champ ? 0xffc8a8 : 0xffffff,
       emis: 0x000000, rim: 0x000000, elems: champ && mod0 ? this.mods.slice() : null, soul: ally,
-      outline: 0x120a10, outlineW: champ ? 0.06 : 0.05,
+      outline: 0x120a10, outlineW: champ ? 0.06 : 0.05, foe: this.foe,
     };
     this.mesh = makeUnitMesh(kind, { ...this.meshOpts, gear: this.entry && this.entry.gear, hero: this.entry && this.entry.hero, wset: this.entry && this.entry.wset });
     this.mesh.root.position.set(x, 0, z); this.mesh.root.rotation.y = this.face; C.scene.add(this.mesh.root);
-    this.spawnT = 0; this.animLock = 0; this.mixAcc = 0; play(this.mesh, ANIM[kind].idle, { at: Math.random() });
+    this.spawnT = 0; this.animLock = 0; this.mixAcc = 0; play(this.mesh, AN(this).idle, { at: Math.random() });
     if (ally) { const rg = ring(0.45, 0.5, 0x3fe0d0, 0.35); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
     if (champ && mod0) { const rg = ring(0.56, 0.685, mod0.col, 0.55); rg.position.y = 0.03; this.mesh.root.add(rg); this.ringMesh = rg; }
   }
@@ -60,7 +61,7 @@ export class Unit {
     if (this.mods.includes('fast')) { const l = mlv(this, 'fast'); this.speed *= 1.35 + 0.1 * l; this.cd *= 0.75 - 0.05 * l; }
     if (this.mods.includes('stone')) { const l = mlv(this, 'stone'); this.armor += 35 + 25 * l; this.maxHp *= 1.2 + 0.1 * l; this.speed *= 0.85; this.noStun = true; }
     this.taunt = ally && this.kind === 'brute'; this.tauntR = 5;
-    if (!this.entry) return;
+    if (!this.entry) { if (this.foe && PH.foeStats) PH.foeStats(this); return; }
     const r = id => rk(this, id), tech = this.tech = techOf(this.entry), gunHeld = !!tech && tech.key === 'gunner', mortar = !!tech && tech.key === 'bomber', mech = !!tech && tech.key === 'mech', eng = !!tech && tech.key === 'engineer';
     if (this.kind === 'brute' && !mech) { this.maxHp *= 1 + 0.12 * r('bone'); this.armor += 5 * r('bone'); this.tauntR = 5 + 1.5 * r('taunt'); }
     else if (this.kind === 'imp' && !gunHeld) { this.cd *= 1 - 0.07 * r('haste'); this.speed *= 1 + 0.04 * r('haste'); } // the gunner's tree has no attack speed
@@ -77,13 +78,14 @@ export class Unit {
     // 机械师骷髅: the drones do most of the work (drones.js); a bit sturdier, a touch more reach
     this.eng = eng; if (eng) { this.maxHp *= 1.25; this.armor += 6; this.range = 7.5; }
     if (this.boss && PH.bossStats) PH.bossStats(this); // 首领 (boss.js)
+    if (this.foe && PH.foeStats) PH.foeStats(this); // the wilds' foes (foes.js)
   }
   remove() { C.scene.remove(this.mesh.root); if (this.dr) clearDrones(this); }
   // new weapon / shield in hand after an equipment change
   rebuildMesh() {
     const old = this.mesh; this.mesh = makeUnitMesh(this.kind, { ...this.meshOpts, gear: this.entry && this.entry.gear, hero: this.entry && this.entry.hero, wset: this.entry && this.entry.wset });
     this.mesh.root.position.copy(old.root.position); this.mesh.root.rotation.y = this.face; if (this.ringMesh) { old.root.remove(this.ringMesh); this.mesh.root.add(this.ringMesh); }
-    C.scene.remove(old.root); C.scene.add(this.mesh.root); play(this.mesh, ANIM[this.kind].idle, {}); this.mesh.mixer.update(0);
+    C.scene.remove(old.root); C.scene.add(this.mesh.root); play(this.mesh, AN(this).idle, {}); this.mesh.mixer.update(0);
   }
 }
 
@@ -96,6 +98,7 @@ export function damage(src, dst, amt, o = {}) {
   if (!dst || dst.dead) return 0;
   if (dst.evade && !o.dot && Math.random() < dst.evade && PH.evade) { PH.evade(src, dst); return 0; } // 魂契 skeleton: evasion
   if (dst.pact && PH.guard && !o.dot) { const k = PH.guard(src, dst, o); if (k <= 0) return 0; amt *= k; } // 魂契 skeleton: Block / Parry (passive)
+  if (dst.T && dst.T.guard && PH.foeGuard && !o.dot) amt *= PH.foeGuard(src, dst, o); // a knight's shield takes blows from the front (foes.js)
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
@@ -126,11 +129,13 @@ function kill(u, src) {
   u.dead = true; u.hp = 0; u.poison = null; u.chillT = 0; u.mesh.u.uStat.value.w = 0;
   if (u.side === 'enemy' && u.isDrone) { if (PH.droneDown) PH.droneDown(u); u.remove(); return; } // a boss's repair drone: shot down (drones.js / boss.js)
   if (u.side === 'enemy') {
+    if (u.foe && PH.foeEnd) PH.foeEnd(u);
     S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 }); C.parts.emit(u.x, 0.5, u.z, 8, { col: 0xd8ccb8, spd: 2.6, up: 2.4, grav: 8, life: 0.6, size: 0.16 }); if (u.champ) { shake(0.08, u.x, u.z); burst(u.x, 0.8, u.z, 0xffd8a0, 1.6); const P = G.player; if (P && Math.hypot(P.x - u.x, P.z - u.z) < 12 && !(G.slowCD > G.t)) { G.slowT = 0.22; G.slowCD = G.t + 1.5; } }
     const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.boss ? 12 : u.champ ? 3 : 1); addXP(PACT ? xp * 0.6 : xp); if (src && src.pact && PH.kill) PH.kill(src, u);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
     deathBlast(u, 0.7); if (u.boss && PH.bossDie) PH.bossDie(u, src); const it = G.noDrop || u.boss ? null : (PACT ? rollHeroDrop : rollDrop)(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level; the test arena can turn drops off */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
-    if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
+    if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.T.brave && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
+    if (u.T.noCorpse) { if (PH.foeVanish) PH.foeVanish(u); fadeOut(u); return; } // a ghost leaves nothing to raise
     makeCorpse(u);
   } else if (u.side === 'ally') {
     S.die(); if (u.dr) clearDrones(u, true); const en = u.entry;
@@ -142,7 +147,7 @@ function kill(u, src) {
     u.respawnT = 2.8; u.state = 'dead'; C.say(tr('你倒下了……', 'You have fallen…'), true); play(u.mesh, ANIM.player.die, { once: true, fade: 0.1 });
   }
 }
-function fadeOut(u) { const m = u.mesh; play(m, ANIM[u.kind].die, { once: true, speed: 1.3, fade: 0.08 }); if (u.ringMesh) m.root.remove(u.ringMesh); let lk = 0;
+function fadeOut(u) { const m = u.mesh; play(m, AN(u).die, { once: true, speed: 1.3, fade: 0.08 }); if (u.ringMesh) m.root.remove(u.ringMesh); let lk = 0;
   G.fx.push({ clean: true, t: 1.4, tick: (k) => { m.mixer.update((k - lk) * 1.4); lk = k; m.u.uFade.value = Math.min(1, (1 - k) * 2.2); for (const gs of m.glows) gs.material.opacity = 0.85 * Math.min(1, (1 - k) * 2.2); }, fn: () => u.remove() }); }
 function fireBlast(u) {
   S.boom(); C.parts.emit(u.x, 0.4, u.z, 40, { col: 0xff8a2a, spd: 5, up: 2, life: 0.7, size: 0.35 }); burst(u.x, 0.6, u.z, 0xff9a40, 3.2); shake(0.2, u.x, u.z);
@@ -244,15 +249,16 @@ function panic(e, from) { if (e.state === 'panic') return; if (PACT) { if (e.pan
 // ---------- corpses & capturing ----------
 function makeCorpse(u) {
   const m = u.mesh; m.u.uTint.value.multiplyScalar(0.72); m.u.uFlash.value = 0; if (u.ringMesh) m.root.remove(u.ringMesh); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
-  m.root.scale.set(1, 1, 1); const hard = u.dieHard, name = ANIM[u.kind].die, sp = hard ? 1.55 : 1.2; play(m, name, { once: true, speed: sp, fade: 0.05 });
+  m.root.scale.set(1, 1, 1); const hard = u.dieHard, name = AN(u).die, sp = hard ? 1.55 : 1.2; play(m, name, { once: true, speed: sp, fade: 0.05 });
+  if (m.fly) { const y0 = m.model.position.y; G.fx.push({ clean: true, t: 0.4, tick: k => { m.model.position.y = y0 * (1 - k * k); }, fn: () => { m.model.position.y = 0; } }); } // a flyer drops out of the air
   const l = Math.hypot(u.dieDx || 0, u.dieDz || 0) || 1, dx = (u.dieDx || Math.sin(u.face + Math.PI)) / l, dz = (u.dieDz || Math.cos(u.face + Math.PI)) / l, v = hard ? 4.6 : 1.8;
   // (a boss's bones can't be raised; in 魂契 they are a lot of soul)
-  const c = { kind: u.kind, level: u.level, mods: u.mods.slice(), champ: u.champ, boss: u.boss, claim: u.boss && !PACT ? 'boss' : null, x: u.x, z: u.z, rx: u.x, rz: u.z, t: 30, mesh: m, packId: u.packId, animT: clipLen(name) / sp + 0.1,
+  const c = { kind: u.kind, foe: u.foe, capK: u.T.capK, level: u.level, mods: u.mods.slice(), champ: u.champ, boss: u.boss, claim: u.boss && !PACT ? 'boss' : null, x: u.x, z: u.z, rx: u.x, rz: u.z, t: 30, mesh: m, packId: u.packId, animT: clipLen(name, m) / sp + 0.1,
     vx: dx * v, vz: dz * v, hop: hard ? 0.3 : 0, hopT: 0, flash: 1 };
   G.corpses.push(c);
   if (m.root.visible) { const big = u.kind === 'brute' || u.champ; debris(u.x, 0.7, u.z, dx, dz, (hard ? 5 : 2) + (big ? 2 : 0) + Math.floor(Math.random() * 2), hard ? 4.2 : 2.2); }
 }
-export function captureChance(c) { return Math.max(0.05, Math.min(0.95, TYPES[c.kind].capture * (c.champ ? 0.5 : 1) * (1 + 0.05 * (G.level - 1)) - 0.03 * Math.max(0, c.level - G.level))); }
+export function captureChance(c) { return Math.max(0.05, Math.min(0.95, TYPES[c.kind].capture * (c.capK ?? 1) * (c.champ ? 0.5 : 1) * (1 + 0.05 * (G.level - 1)) - 0.03 * Math.max(0, c.level - G.level))); }
 export function removeCorpse(c) { const i = G.corpses.indexOf(c); if (i >= 0) G.corpses.splice(i, 1); C.scene.remove(c.mesh.root); }
 export function finishRaise(c) {
   if (!G.corpses.includes(c)) return;
@@ -262,7 +268,7 @@ export function finishRaise(c) {
     G.crypt.push(en); const room = activeCount() < partySize(G.level);
     if (room) { en.active = true; spawnAlly(en, c.rx ?? c.x, c.rz ?? c.z, 'reassemble'); } else soulToSummoner(c);
     S.caught(); C.parts.emit(c.x, 0.5, c.z, 30, { col: 0x6ff7e8, spd: 1.5, up: 3, life: 1.0, size: 0.3, grav: -1 });
-    C.say(tr(`收服了 ${affixName(c.mods, c.champ) + TYPES[c.kind].name}！`, `Captured ${affixName(c.mods, c.champ) + TYPES[c.kind].name}!`) + (room ? '' : tr('（灵魂收入墓典）', ' (soul stored in the Crypt)'))); save();
+    C.say((c.foe ? tr(`${FOES[c.foe].name}的尸骨站了起来——`, `The ${FOES[c.foe].name}'s bones stand up — `) : '') + tr(`收服了 ${affixName(c.mods, c.champ) + TYPES[c.kind].name}！`, `Captured ${affixName(c.mods, c.champ) + TYPES[c.kind].name}!`) + (room ? '' : tr('（灵魂收入墓典）', ' (soul stored in the Crypt)'))); save();
   } else { S.fail(); C.parts.emit(c.x, 0.3, c.z, 24, { col: 0x8a8090, spd: 1.2, up: 1.2, life: 0.9, size: 0.3 }); say(c.x, c.z, tr('唤魂失败', 'Raise failed'), '#b9a8c8', 16); }
 }
 // party full: the captured monster still stands up, then turns into a soul that flies into the summoner
@@ -367,28 +373,37 @@ const SPEAR_G = merge([part(new THREE.ConeGeometry(0.07, 0.7, 6), 0xf6f0e0, [0, 
 const ARROW_G = merge([part(new THREE.CylinderGeometry(0.018, 0.018, 0.6, 5), 0x8a6a40, [0, 0, 0], [Math.PI / 2, 0, 0]), part(new THREE.ConeGeometry(0.04, 0.1, 5), 0xdddddd, [0, 0, 0.33], [Math.PI / 2, 0, 0])]);
 export function shoot(src, kind, tx, tz, o = {}) {
   let dx = tx - src.x, dz = tz - src.z; if (o.ang) { const c = Math.cos(o.ang), sn = Math.sin(o.ang); [dx, dz] = [dx * c - dz * sn, dx * sn + dz * c]; }
-  const d = Math.hypot(dx, dz) || 1, sp = (kind === 'spear' ? 16 : kind === 'arrow' ? 12 : 8.5) * PACE.act;
-  const s = { kind, src, side: src.side === 'enemy' ? 'enemy' : 'friend', x: src.x + dx / d * 0.4, z: src.z + dz / d * 0.4, y: kind === 'fire' ? 0.9 : 0.85, vx: dx / d * sp, vz: dz / d * sp,
-    dmg: o.dmg ?? src.dmg, life: (o.life ?? 1.1) / PACE.act, hit: new Set(), root: new THREE.Group(), pierce: o.pierce || 0, splash: o.splash || 1.4 };
+  const d = Math.hypot(dx, dz) || 1, sp = (o.sp ?? (kind === 'spear' ? 16 : kind === 'arrow' || kind === 'bolt' ? 12 : 8.5)) * PACE.act;
+  const s = { kind, src, side: src.side === 'enemy' ? 'enemy' : 'friend', x: src.x + dx / d * 0.4, z: src.z + dz / d * 0.4, y: kind === 'fire' ? 0.9 : kind === 'wisp' ? (src.mesh.fly || 0) + 0.7 : 0.85, vx: dx / d * sp, vz: dz / d * sp,
+    dmg: o.dmg ?? src.dmg, life: (o.life ?? 1.1) / PACE.act, hit: new Set(), root: new THREE.Group(), pierce: o.pierce || 0, splash: o.splash || 1.4, home: o.home || null, chill: o.chill || 0, sp };
   if (kind === 'spear') { const m = new THREE.Mesh(SPEAR_G, toonMat({ emis: 0x2a3a3a })); s.root.add(m, glowSprite(0x9ff7ff, 0.9, 0.6)); }
   else if (kind === 'arrow') s.root.add(new THREE.Mesh(ARROW_G, toonMat()));
-  else s.root.add(glowSprite(0xff8a2a, 1.3), glowSprite(0xffe080, 0.5));
+  else if (kind === 'bolt') { const m = new THREE.Mesh(ARROW_G, toonMat({ emis: 0x3a0a00 })); m.scale.set(1.5, 1.5, 1.8); s.root.add(m, glowSprite(0xff5a3a, 1.0, 0.7)); } // the crossbowman's aimed shot
+  else if (kind === 'axe') { const pg = propGeo('axe_1handed'), m = new THREE.Mesh(pg.geo, toonMat({ map: pg.map, vc: false })), piv = new THREE.Group(); // a thrown axe, end over end
+    m.scale.setScalar(0.5); m.position.y = -(pg.box.max.y + pg.box.min.y) * 0.25; piv.add(m); s.root.add(piv); s.spin = piv; }
+  else if (kind === 'wisp') { const col = (src.mesh && src.mesh.ghost) || 0xb070ff; s.col = col; s.root.add(glowSprite(col, 1.2, 0.9), glowSprite(0xffffff, 0.42, 0.95)); } // a ghost's soul-fire
   const el = src.champ && src.mods.length && ELEM[src.mods[Math.floor(Math.random() * src.mods.length)]]; if (el) { s.el = el; s.root.add(glowSprite(el.col, kind === 'fire' ? 2.0 : 0.8, 0.85)); }
   s.root.position.set(s.x, s.y, s.z); s.root.rotation.y = Math.atan2(dx, dz); C.scene.add(s.root); G.shots.push(s);
-  if (kind === 'spear') S.spear(); else if (kind === 'arrow') S.arrow(); else S.fire();
+  if (kind === 'spear') S.spear(); else if (kind === 'arrow' || kind === 'bolt' || kind === 'axe') S.arrow(); else if (kind === 'wisp') S.zap(); else S.fire();
   return s;
 }
 export function updateShots(dt) {
   updateTracers(dt); updateNades(dt); updateTechFx(dt);
   const F = C.floor; let j = 0;
   for (const s of G.shots) {
+    if (s.home && !s.home.dead) { // homing (a ghost's soul-fire): turns toward its target a little at a time
+      const a = Math.atan2(s.vx, s.vz), want = Math.atan2(s.home.x - s.x, s.home.z - s.z); let da = ((want - a + Math.PI * 3) % TAU) - Math.PI; da = Math.max(-1.7 * dt, Math.min(1.7 * dt, da));
+      s.vx = Math.sin(a + da) * s.sp; s.vz = Math.cos(a + da) * s.sp; s.y += ((s.home.mesh.fly ? 0.9 : 0.85) - s.y) * Math.min(1, dt * 2); }
+    if (s.spin) s.spin.rotation.x += dt * 17;
     s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z);
     if (s.kind === 'fire' && Math.random() < 0.6) C.parts.emit(s.x, s.y, s.z, 1, { col: 0xff8a2a, spd: 0.4, up: 0.5, life: 0.35, size: 0.3, grav: 0 });
+    if (s.kind === 'wisp' && Math.random() < 0.7) C.parts.emit(s.x, s.y, s.z, 1, { col: s.col, spd: 0.25, up: 0.3, life: 0.45, size: 0.26, grav: -0.3 });
     if (s.el && Math.random() < 0.8) C.parts.emit(s.x, s.y, s.z, 1, s.el.part);
     if (!dead) for (const u of (s.side === 'enemy' ? G.friends : G.enemies)) { if (u.dead || s.hit.has(u)) continue;
       if (Math.hypot(u.x - s.x, u.z - s.z) < u.r + 0.22) { s.hit.add(u);
         if (s.kind === 'fire') { dead = true; break; }
-        damage(s.src, u, s.dmg * rand(0.85, 1.15), { knock: s.kind === 'spear' ? 1.2 : 0, shot: s.kind, fx: s.x - s.vx, fz: s.z - s.vz }); impact(s.x, s.y, s.z, s.kind === 'spear' ? 0xbff8ff : s.el ? s.el.col : 0xffe6c0, s.kind === 'spear' ? 0.9 : 0.7); if (s.kind === 'spear') C.parts.emit(s.x, s.y, s.z, 5, { col: 0xe8e0d0, spd: 2, life: 0.3, size: 0.15 }); else if (s.pierce > 0) s.pierce--; else { dead = true; break; } } }
+        damage(s.src, u, s.dmg * rand(0.85, 1.15), { knock: s.kind === 'spear' ? 1.2 : s.kind === 'bolt' ? 2.5 : 0, shot: s.kind, fx: s.x - s.vx, fz: s.z - s.vz }); impact(s.x, s.y, s.z, s.kind === 'spear' ? 0xbff8ff : s.col || (s.el ? s.el.col : 0xffe6c0), s.kind === 'spear' ? 0.9 : 0.7);
+        if (s.chill && !u.dead) { u.chillT = Math.max(u.chillT || 0, s.chill); C.parts.emit(u.x, 0.8, u.z, 8, { col: 0xcfeeff, spd: 1.2, up: 1, grav: 2, life: 0.45, size: 0.18 }); } if (s.kind === 'spear') C.parts.emit(s.x, s.y, s.z, 5, { col: 0xe8e0d0, spd: 2, life: 0.3, size: 0.15 }); else if (s.pierce > 0) s.pierce--; else { dead = true; break; } } }
     if (dead) { if (s.kind === 'fire') { S.boom(); C.parts.emit(s.x, 0.5, s.z, 22, { col: 0xff8a2a, spd: 3, up: 2, life: 0.5, size: 0.3 }); burst(s.x, 0.6, s.z, 0xff9a3a, 1.8); shake(0.035, s.x, s.z);
         for (const u of (s.side === 'enemy' ? G.friends : G.enemies)) if (!u.dead && Math.hypot(u.x - s.x, u.z - s.z) < s.splash + u.r) damage(s.src, u, s.dmg, { knock: 1.5, fx: s.x, fz: s.z }); }
       C.scene.remove(s.root); continue; }
@@ -400,17 +415,17 @@ export function updateShots(dt) {
 // ---------- AI ----------
 // walk toward (tx, tz): straight when the way is clear for this unit's width, else down the flow field. A unit that has barely moved
 // for half a second (pressed against a corner) follows the flow field only for a while
-function seek(u, tx, tz, spd) { const t = G.t;
+export function seek(u, tx, tz, spd) { const t = G.t;
   if (u.skT == null || t - u.skT >= 0.5) { if (u.skT != null && t - u.skT < 0.8 && Math.hypot(u.x - u.skX, u.z - u.skZ) < spd * (t - u.skT) * 0.25) u.flowT = t + 1.5;
     u.skT = t; u.skX = u.x; u.skZ = u.z; }
   C.floor.dirTo(u.x, u.z, tx, tz, tmp, Math.max(0.36, u.r + 0.06), t < (u.flowT || 0)); u.wantX = tmp.x * spd; u.wantZ = tmp.z * spd; }
-function flee(u, fx, fz, spd) {
+export function flee(u, fx, fz, spd) {
   let ax = u.x - fx, az = u.z - fz; const l = Math.hypot(ax, az) || 1; ax /= l; az /= l;
   for (const ang of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.5, -2.5]) { const c = Math.cos(ang), s = Math.sin(ang), dx = ax * c - az * s, dz = ax * s + az * c;
     if (C.floor.walk(u.x + dx * 0.9, u.z + dz * 0.9) && C.floor.walk(u.x + dx * 1.6, u.z + dz * 1.6)) { u.wantX = dx * spd; u.wantZ = dz * spd; return true; } }
   u.wantX = u.wantZ = 0; return false;
 }
-const faceTo = (u, t) => { u.faceT = Math.atan2(t.x - u.x, t.z - u.z); };
+export const faceTo = (u, t) => { u.faceT = Math.atan2(t.x - u.x, t.z - u.z); };
 function startWindup(u, t) {
   if (u.mortar) { u.state = 'windup'; u.st = 0; u.wind = 0.5 / PACE.act; u.tgt = t; faceTo(u, t); return; } // takes aim (the arms: twoHandAnim)
   if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire); the arms are animated in gunnerAnim
@@ -424,13 +439,14 @@ function strike(u) {
   if (!t || t.dead) return;
   if (u.gun) { u.burst = 6; u.burstT = 0; u.burstN = 0; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
   if (u.mortar) { fireShell(u, shellTarget(u, t)); return; }
+  if (u.foe && PH.foeStrike && PH.foeStrike(u, t)) return; // a foe's own blow (a ghost's soul-fire; foes.js)
   if (MELEE(u.kind)) { u.kx += Math.sin(u.face) * 1.3; u.kz += Math.cos(u.face) * 1.3; } // step into the blow
   if (u.pact && PH.strike) { PH.strike(u, t); return; }
   if (u.mech) { u.grind = 3; u.grindT = 0; return; } // the drill bites: three grinding hits (drillTick)
   if (u.kind === 'brute') { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 0.8, 0.2, u.z + Math.cos(u.face) * 0.8, 16, { col: 0xb8a890, spd: 3, up: 1.5, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d > u.range + u.r + h.r + 0.35) continue;
-      const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1), { knock: 4, melee: true, heavy: true }); } }
-  else if (u.kind === 'imp') { const lg = u.lungeHit; u.lungeHit = false; if (dist(u, t) < (u.range + u.r + t.r) * (lg ? 1.6 : 1.35)) { damage(u, t, u.dmg * rand(0.85, 1.15) * (lg ? 1.25 * (1 + 0.2 * rk(u, 'lunge')) : 1), { crit: u.side === 'ally' && (lg || Math.random() < 0.15 + 0.06 * rk(u, 'crit')), critX: 2 + 0.1 * rk(u, 'crit'), melee: true });
+      const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % TAU) - Math.PI); if (da < 1.1 || d < 0.9) damage(u, h, u.dmg * rand(0.9, 1.1) * (u.foe && PH.foeMul ? PH.foeMul(u, h) : 1), { knock: 4, melee: true, heavy: true }); } }
+  else if (u.kind === 'imp') { const lg = u.lungeHit, bs = u.backstab; u.lungeHit = u.backstab = false; if (dist(u, t) < (u.range + u.r + t.r) * (lg || bs ? 1.6 : 1.35)) { damage(u, t, u.dmg * rand(0.85, 1.15) * (lg ? 1.25 * (1 + 0.2 * rk(u, 'lunge')) : 1), { crit: bs || (u.side === 'ally' && (lg || Math.random() < 0.15 + 0.06 * rk(u, 'crit'))), critX: bs ? 2.2 : 2 + 0.1 * rk(u, 'crit'), melee: true });
       if (lg && u.chainLeft > 0) { let nx = null, nd = 5; for (const e of hostilesOf(u)) { if (e.dead || e === t) continue; const de = dist(u, e); if (de < nd && de > 0.8 && C.floor.los(u.x, u.z, e.x, e.z)) { nd = de; nx = e; } }
         if (nx) { u.chainLeft--; u.chainNext = nx; } } } }
   else if (u.kind === 'archer') { const lead = Math.min(0.5, dist(u, t) / 12), n = 1 + rk(u, 'multi'), tx = t.x + (t.vx || 0) * lead, tz = t.z + (t.vz || 0) * lead;
@@ -544,7 +560,7 @@ function updateTracers(dt) { let j = 0; // a short bright streak flying from the
     const hx = A[0] + (B[0] - A[0]) * k, hy = A[1] + (B[1] - A[1]) * k, hz = A[2] + (B[2] - A[2]) * k, sx = A[0] + (B[0] - A[0]) * k0, sy = A[1] + (B[1] - A[1]) * k0, sz = A[2] + (B[2] - A[2]) * k0;
     m.position.set(sx, sy, sz); m.scale.set(0.045, 0.045, Math.max(0.05, Math.hypot(hx - sx, hy - sy, hz - sz))); m.lookAt(hx, hy, hz); TR[j++] = r; }
   TR.length = j; }
-function meleeLogic(u, t) {
+export function meleeLogic(u, t) {
   const d = dist(u, t), reach = u.range + u.r + t.r;
   if (d > reach * 0.95) { let tx = t.x, tz = t.z;
     if (d < 3.2) { const ang = Math.atan2(u.z - t.z, u.x - t.x) + u.flank * 0.45; tx = t.x + Math.cos(ang) * reach * 0.85; tz = t.z + Math.sin(ang) * reach * 0.85;
@@ -553,7 +569,7 @@ function meleeLogic(u, t) {
     seek(u, tx, tz, u.speed); }
   else { u.wantX = u.wantZ = 0; faceTo(u, t); if (u.cdT <= 0) startWindup(u, t); }
 }
-function rangedLogic(u, t, dt, near, far) {
+export function rangedLogic(u, t, dt, near, far) {
   const d = dist(u, t), vis = C.floor.los(u.x, u.z, t.x, t.z); u.kiteCD = (u.kiteCD || 0) - dt;
   if (!vis || d > far + 0.5) { seek(u, t.x, t.z, u.speed); return; }
   // summons hold their ground and keep shooting (running away from chasers only got them stuck on corners)
@@ -568,7 +584,7 @@ function rangedLogic(u, t, dt, near, far) {
   if (u.strafeDir && C.floor.walk(u.x + px * u.strafeDir * 0.8, u.z + pz * u.strafeDir * 0.8)) { u.wantX = px * u.strafeDir * u.speed * 0.45; u.wantZ = pz * u.strafeDir * u.speed * 0.45; } else u.wantX = u.wantZ = 0;
   faceTo(u, t); if (u.cdT <= 0) startWindup(u, t);
 }
-function nearestHostile(u, maxD, needLos = true) { let b = null, bd = maxD; for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d < bd && (!needLos || C.floor.los(u.x, u.z, h.x, h.z))) { bd = d; b = h; } } return b; }
+export function nearestHostile(u, maxD, needLos = true) { let b = null, bd = maxD; for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d < bd && (!needLos || C.floor.los(u.x, u.z, h.x, h.z))) { bd = d; b = h; } } return b; }
 
 function enemyThink(u, dt) {
   enemyScan(u, dt);
@@ -595,7 +611,8 @@ function goHome(u, dt) {
   if (dh > 2.5) seek(u, u.home.x, u.home.z, u.speed * 0.6); else { u.wantX *= 0.9; u.wantZ *= 0.9; if (!u.boss && Math.random() < dt * 0.4) { const a = rand(0, TAU); u.wantX = Math.cos(a) * 0.8; u.wantZ = Math.sin(a) * 0.8; } }
 }
 function enemyAct(u, t, dt) {
-  if (u.kind === 'imp' && !u.champ && !u.panicked && u.hp < u.maxHp * 0.3) { u.panicked = true; if (Math.random() < 0.1) { panic(u, t); return; } }
+  if (u.foe && PH.foeAct && PH.foeAct(u, t, dt)) return; // the wilds' foes: their tricks first (foes.js)
+  if (u.kind === 'imp' && !u.T.brave && !u.champ && !u.panicked && u.hp < u.maxHp * 0.3) { u.panicked = true; if (Math.random() < 0.1) { panic(u, t); return; } }
   if (u.kind === 'brute' || u.kind === 'imp') meleeLogic(u, t);
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 4, 7.5);
   else if (u.kind === 'shaman') {
@@ -818,6 +835,7 @@ export function updateUnit(u, dt) {
   else if (u.state === 'leap') updateLeap(u, dt);
   else if (u.state === 'lunge') updateLunge(u, dt);
   else if (u.state === 'pskill') { if (PH.skillTick) PH.skillTick(u, dt); else u.state = 'idle'; } // 魂契 skeleton's skills (pactskills.js)
+  else if (u.state === 'fskill') { if (PH.foeTick) PH.foeTick(u, dt); else u.state = 'idle'; } // a foe's trick under way (foes.js)
   else if (u.state === 'throw') { u.st += dt; u.wantX = u.wantZ = 0; if (!u.thrown && u.st >= u.wind) { u.thrown = true; launchNade(u, u.nadeAt); } if (u.st >= u.wind + 0.3) { u.state = 'idle'; u.thrown = false; } }
   else if (u.state === 'cast') { u.st += dt; u.wantX = u.wantZ = 0;
     if (u.castC) { if (!G.corpses.includes(u.castC)) { u.state = 'idle'; u.castC = null; } else { if (Math.random() < 0.5) C.parts.emit(u.castC.x, 0.3, u.castC.z, 1, { col: 0xc070ff, spd: 0.5, up: 2, life: 0.6, grav: -1 });
@@ -838,6 +856,8 @@ function resurrect(by, c) {
   n.face = c.mesh.root.rotation.y; rise(n, 'Death_C_Skeletons_Resurrect', 1.4);
   S.raise(); C.parts.emit(c.x, 0.5, c.z, 24, { col: 0xc070ff, spd: 1.4, up: 2.5, life: 0.8 }); say(c.x, c.z, tr('复活了！', 'Risen!'), '#c88cff', 16);
 }
+// a monster by name: one of the four skeleton kinds, or one of the wilds' foes (which fights as its kind)
+export function mkEnemy(type, x, z, o = {}) { const f = FOES[type]; return f ? new Unit(f.cls, 'enemy', x, z, { ...o, foe: type }) : new Unit(type, 'enemy', x, z, o); }
 // movement, separation, walls, visuals
 let frame = 0, camX = 0, camZ = 0; const WP = new THREE.Vector3(), TMPC = new THREE.Color();
 export function integrate(units, dt) {
@@ -896,9 +916,25 @@ export const ANIM = {
   archer: { idle: 'Idle_Combat', walk: 'Walking_A', run: 'Running_A', atk: ['1H_Ranged_Shoot'], hit: 'Hit_B', die: 'Death_C_Skeletons', runAt: 2.4 },
   shaman: { idle: 'Idle', walk: 'Walking_D_Skeletons', run: 'Running_A', atk: ['Spellcast_Shoot'], cast: 'Spellcast_Summon', hit: 'Hit_A', die: 'Death_C_Skeletons', runAt: 2.6 },
 };
+// the wilds' foes: the living walk and die like people (not the skeletons' shamble and collapse); the vermin have their own clips
+// (idleA: the stance once it has seen you — the crossbow up, the shield raised)
+export const FANIM = {
+  robber:    { idle: 'Idle_Combat', walk: 'Walking_A', run: 'Running_A', atk: ['Dualwield_Melee_Attack_Stab', 'Dualwield_Melee_Attack_Slice'], hit: 'Hit_B', die: 'Death_A', runAt: 2.4 },
+  raider:    { idle: 'Idle_Combat', walk: 'Walking_A', run: 'Running_B', atk: ['Dualwield_Melee_Attack_Chop', 'Dualwield_Melee_Attack_Slice'], hit: 'Hit_A', die: 'Death_B', runAt: 2.4 },
+  xbow:      { idle: 'Idle', idleA: '2H_Ranged_Aiming', walk: 'Walking_A', run: 'Running_A', atk: ['2H_Ranged_Shoot'], hit: 'Hit_B', die: 'Death_A', runAt: 2.4 },
+  squire:    { idle: 'Idle_Combat', walk: 'Walking_A', run: 'Running_A', atk: ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Stab'], hit: 'Hit_A', die: 'Death_B', runAt: 2.4 },
+  templar:   { idle: 'Idle_Combat', idleA: 'Blocking', walk: 'Walking_A', run: 'Running_B', atk: ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal'], hit: 'Hit_A', die: 'Death_A', runAt: 2.2 },
+  headsman:  { idle: '2H_Melee_Idle', walk: 'Walking_A', run: 'Running_B', atk: ['2H_Melee_Attack_Chop', '2H_Melee_Attack_Slice'], hit: 'Hit_A', die: 'Death_B', runAt: 2.2 },
+  berserker: { idle: '2H_Melee_Idle', walk: 'Walking_A', run: 'Running_B', atk: ['2H_Melee_Attack_Chop', '2H_Melee_Attack_Slice'], hit: 'Hit_A', die: 'Death_A', runAt: 2.2 },
+  exorcist:  { idle: 'Idle', walk: 'Walking_A', run: 'Running_A', atk: ['Spellcast_Shoot'], cast: 'Spellcasting', hit: 'Hit_A', die: 'Death_A', runAt: 2.6 },
+  bat:       { idle: 'Flying_Idle', walk: 'Flying_Idle', run: 'Fast_Flying', atk: ['Headbutt'], hit: 'HitReact', die: 'Death', runAt: 2.6 },
+  ghost:     { idle: 'Flying_Idle', walk: 'Flying_Idle', run: 'Fast_Flying', atk: ['Punch'], hit: 'HitReact', die: 'Death', runAt: 2.6 },
+  wraith:    { idle: 'Flying_Idle', walk: 'Flying_Idle', run: 'Fast_Flying', atk: ['Punch'], hit: 'HitReact', die: 'Death', runAt: 2.6 },
+};
+export const AN = u => (u.foe && FANIM[u.foe]) || ANIM[u.kind];
 // fraction of each attack clip at which the blow lands (used to line the swing up with the windup; measured from where the blade moves fastest / reaches furthest)
 const HIT_AT = { '1H_Melee_Attack_Stab': 0.4, '1H_Melee_Attack_Chop': 0.56, '1H_Melee_Attack_Slice_Diagonal': 0.42, '1H_Melee_Attack_Slice_Horizontal': 0.26, '2H_Melee_Attack_Chop': 0.52, '2H_Melee_Attack_Slice': 0.36,
-  '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4,
+  '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4, '2H_Ranged_Shoot': 0.2, Dualwield_Melee_Attack_Stab: 0.42, Dualwield_Melee_Attack_Slice: 0.4, Dualwield_Melee_Attack_Chop: 0.45, Headbutt: 0.42, Punch: 0.4,
   // the 魂契 skeleton's Mixamo swings: when the blade passes closest to a body 1.5 m in front (measured on the retargeted clips)
   SNS_Atk2: 0.41, SNS_Atk3: 0.52, GS_Atk2: 0.51, GS_Atk3: 0.51, GS_Atk4: 0.44 };
 const SWING_AT = { SNS_Atk2: 0.4, SNS_Atk3: 0.51, GS_Atk2: 0.5, GS_Atk3: 0.5, GS_Atk4: 0.39 }; // and its blade at full speed: the swish (the cut sounds at the hit)
@@ -908,7 +944,7 @@ const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running
 export function attackAnim(u, wind) {
   if (u.mesh.hero) { const m = u.mesh, name = m.atk[m.atkI++ % m.atk.length], len = m.clips[name].duration, sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.42) / Math.max(0.05, wind))); play(m, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
     S.swoosh(m.wset === 'GS', (SWING_AT[name] ?? HIT_AT[name] ?? 0.42) * len / sp, (SWING_LEAD[name] ?? 0.2) * len / sp); return; }
-  const list = u.mech ? ['1H_Melee_Attack_Stab'] : ANIM[u.kind].atk, name = list[Math.floor(Math.random() * list.length)], len = clipLen(name), sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.4) / Math.max(0.05, wind)));
+  const list = u.mech ? ['1H_Melee_Attack_Stab'] : AN(u).atk, name = list[Math.floor(Math.random() * list.length)], len = clipLen(name, u.mesh), sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.4) / Math.max(0.05, wind)));
   play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
 }
 export function playerAnim(u, kind) {
@@ -933,19 +969,21 @@ function gunnerAnim(u, sp) { // (and the 炮手骷髅: same two-handed stance)
   playUpper(m, partClip(firing ? '2H_Ranged_Shooting' : '2H_Ranged_Aiming', 'upper'), { fade: firing ? 0.06 : 0.2, speed: firing ? 1.4 : 1 });
 }
 function animate(u, dt, sp) {
-  const m = u.mesh, a = ANIM[u.kind];
+  const m = u.mesh, a = AN(u);
+  if (m.fly != null && !u.dead) m.model.position.y = m.fly + Math.sin(G.t * 3.1 + u.id) * 0.09; // hovering, bobbing
   if (m.gun) { m.gun.barrel.rotation.z += m.gun.spin * dt; m.gun.spin = Math.max(0, m.gun.spin - dt * 22); }
   if (m.drill) { m.drill.bit.rotation.y += m.drill.spin * dt; m.drill.spin = Math.max(0, m.drill.spin - dt * 30); }
   if (u.spawnT > 0) return;
   if ((m.gun || u.mortar) && u.state !== 'leap') { gunnerAnim(u, sp); return; }
   if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover' || u.state === 'leap' || u.state === 'lunge' || u.state === 'rocket') return; }
-  if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload' || u.state === 'call' || u.state === 'pskill') return;
+  if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload' || u.state === 'call' || u.state === 'pskill' || u.state === 'fskill') return;
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
   if (m.hero) { const ref = m.wset === 'GS' ? 2.02 : 1.56; // walk only (no run yet); strides from the clips' root travel, world m/s
     if (sp > 0.3) play(m, 'Walk_' + (m.wset || 'SNS'), { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Stand', { fade: 0.3 }); return; } // by name: the styles' own guarded Idle must not win
-  const k = CHARS[u.kind].scale * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
+  if (m.fly != null) { play(m, sp > a.runAt || u.state === 'panic' ? a.run : sp > 0.35 ? a.walk : a.idle, { speed: sp > 0.35 ? 1.25 : 1, fade: 0.2 }); return; } // flyers: no stride to match
+  const k = (m.sc || CHARS[u.kind].scale) * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }
-  else play(m, a.idle, { fade: 0.22 });
+  else play(m, (u.aggro && a.idleA) || a.idle, { fade: 0.22 });
 }

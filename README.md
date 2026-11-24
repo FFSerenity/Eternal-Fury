@@ -108,6 +108,22 @@ green — with bushes along their edges, grass tufts in the open and big rock cr
 palette is repainted at load time so every tree's leaves get their own shade).
 Trees standing between the camera and open ground are bare ones, so they hide less of the fight. The minimap maps the wilds as you walk them
 (trees dark green, paths brown).
+**Who lives out there**: no skeletons in the wilds — the living who come to rob the graves, in gangs, and the flying vermin of the night,
+in swarms (data.js FOES, foes.js). Each fights as one of the four skeleton kinds and has one trick of its own:
+- 盗墓贼 Grave Robber (hooded rogue, two daggers): hurt, it drops a smoke bomb and comes out behind you for a backstab (always a crit).
+- 掠夺者 Raider (bald barbarian, two axes): hurls an axe from a few steps away.
+- 弩手 Crossbowman (rogue, heavy crossbow): now and then aims — a red lane on the ground — and that bolt goes through everyone in it.
+- 侍从 Squire (bare-headed knight, sword and round shield): its shield takes the edge off blows from the front.
+- 圣殿骑士 Templar (helmeted knight, sword and badge shield): most of what hits it from the front is blocked, bolts and spells too —
+  hit it from the side or the back.
+- 处刑者 Headsman (dark knight, two-handed sword): slow, heavy blows; against anyone under 40% life an execution (×1.6).
+- 狂战士 Berserker (barbarian in a bear hat, two-handed axe): a roar, then a whirlwind into the crowd; under 40% life it goes berserk.
+- 驱魔师 Exorcist (mage in a pointed hat, wand and spellbook — the summoner is the bare-headed one): heals its wounded, throws fire.
+- 蝙蝠 Bat: bites, darts away, dives back in. 幽灵 Ghost / 怨灵 Wraith (farther out): drift through bodies and spit slow, homing
+  soul-fire that chills (the wraith three at once); they leave no corpse.
+The living keep their own corpses, which rise only as skeletons: a robber's bones as a 骷髅小兵, a templar's as a 骷髅战士, a
+crossbowman's as a 骷髅弩手, an exorcist's as a 骷髅法师 (bats as minions, at half the usual chance). The crypt below keeps its skeletons.
+The test arena spawns any of them (the 野外 row).
 Inside the crypt, standing on the glowing grate only shows the **⬇ Descend** button: you go down only when you press it (or Enter), so you never drop a floor by accident with loot still lying around.
 Each crypt floor is generated: rooms and corridors, torch-lit far walls, props, and a grate down to the next floor.
 
@@ -126,6 +142,7 @@ world space, through both T-poses (`tools/bl_ybot.py`; Mixamo's own retarget ben
 ## Credits
 3D models and animations: **KayKit** by Kay Lousberg (www.kaylousberg.com) — Character Pack: Skeletons, Character Pack: Adventurers,
 Dungeon Remastered, Halloween Bits and Forest Nature Pack. Licensed CC0 1.0; thank you, Kay!
+The wilds' bats and ghosts are from **Quaternius**' Ultimate Monsters pack (quaternius.com, CC0 1.0).
 The Soul Pact skeleton ("Boneforged Sentinel") and its weapons ("Runebound Armory") were generated with **Meshy** (meshy.ai), licensed
 CC BY 4.0. Its animations are from **Mixamo** (Adobe): Pro Sword and Shield Pack, Great Sword Pack, Zombie Stand Up, Dodging.
 Its blade sounds are mixed from **Kenney**'s Impact Sounds and RPG Audio (www.kenney.nl, CC0); its swing swishes are from **artisticdude**'s

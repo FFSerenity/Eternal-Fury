@@ -7,11 +7,12 @@ import { toonMat, outlineMat, charUniforms, glowSprite, auraMat, realMat, ring, 
 import { ELEM, WEAPONS, ARMORS, QUAL } from './data.js';
 import { PACT } from './state.js';
 
-export const A = { chars: {}, clips: {}, props: {}, hero: null, heroClips: {}, heroWeap: {}, ready: false };
-const CHAR_FILES = ['mage', 'sk_minion', 'sk_warrior', 'sk_rogue', 'sk_mage'], PROP_FILES = ['weapons', 'dungeon', 'graveyard', 'forest'];
+export const A = { chars: {}, clips: {}, props: {}, crits: {}, hero: null, heroClips: {}, heroWeap: {}, ready: false };
+const CHAR_FILES = ['mage', 'sk_minion', 'sk_warrior', 'sk_rogue', 'sk_mage', 'hu_knight', 'hu_barbarian', 'hu_rogue', 'hu_rogue_hood'], PROP_FILES = ['weapons', 'dungeon', 'graveyard', 'forest'];
+const CRIT_FILES = ['fly_bat', 'fly_ghost', 'fly_wraith']; // the wilds' flying vermin: own rig, own clips (Quaternius)
 export async function loadAll(onProgress = () => {}) {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
-  const jobs = [...CHAR_FILES.map(f => ['char', f]), ['anims', 'anims'], ...PROP_FILES.map(f => ['props', f]),
+  const jobs = [...CHAR_FILES.map(f => ['char', f]), ...CRIT_FILES.map(f => ['crit', f]), ['anims', 'anims'], ...PROP_FILES.map(f => ['props', f]),
     ...(PACT ? [['hero', 'hero'], ['heropack', 'hero_sns'], ['heropack', 'hero_gs'], ['heroweap', 'hero_weapons']] : [])]; // the realistic skeleton: 魂契 only
   let done = 0;
   await Promise.all(jobs.map(async ([kind, name]) => {
@@ -19,6 +20,7 @@ export async function loadAll(onProgress = () => {}) {
     // colours are treated as display colours everywhere (no colour management), so textures must not be sRGB-decoded
     g.scene.traverse(o => { if (o.material && o.material.map) o.material.map.colorSpace = THREE.NoColorSpace; });
     if (kind === 'char') A.chars[name] = g.scene;
+    else if (kind === 'crit') A.crits[name] = { scene: g.scene, clips: Object.fromEntries(g.animations.map(c => [c.name, c])) };
     else if (kind === 'anims') for (const c of g.animations) A.clips[c.name] = c;
     else if (kind === 'hero') { const fingers = heroFists(g.scene); for (const c of g.animations) { c.tracks = c.tracks.filter(t => !fingers.has(t.name.split('.')[0])); A.heroClips[c.name] = c; }
       if (A.heroClips.Stand) spreadArms(g.scene, A.heroClips.Stand, ...(globalThis.__spread || ARM_SPREAD));
@@ -105,19 +107,39 @@ export const CHARS = {
   archer: { file: 'sk_rogue', scale: 0.48, weapons: [['sk_crossbow', 'handslot.r']] },
   shaman: { file: 'sk_mage', scale: 0.5, weapons: [['sk_staff', 'handslot.r']] },
 };
+// the wilds' foes (data.js FOES): the Adventurers with the weapons each carries shown (show: the hand-slot meshes kept; hide: a hat or
+// helmet taken off — the same model bare-headed is another foe), or a flying creature with its own clips (crit) hovering at hover
+export const FOE_LOOK = {
+  robber:    { file: 'hu_rogue_hood', scale: 0.46, show: ['Knife', 'Knife_Offhand'] },
+  raider:    { file: 'hu_barbarian', scale: 0.5, show: ['1H_Axe', '1H_Axe_Offhand'], hide: ['Barbarian_Hat'] },
+  xbow:      { file: 'hu_rogue', scale: 0.48, show: ['2H_Crossbow'] },
+  squire:    { file: 'hu_knight', scale: 0.48, show: ['1H_Sword', 'Round_Shield'], hide: ['Knight_Helmet', 'Knight_Cape'] },
+  templar:   { file: 'hu_knight', scale: 0.56, show: ['1H_Sword', 'Badge_Shield'] },
+  headsman:  { file: 'hu_knight', scale: 0.58, show: ['2H_Sword'], tint: 0x8c8492 },
+  berserker: { file: 'hu_barbarian', scale: 0.6, show: ['2H_Axe'] },
+  exorcist:  { file: 'mage', scale: 0.5, show: ['1H_Wand', 'Spellbook_open'] },
+  bat:       { crit: 'fly_bat', scale: 0.3, hover: 0.75 },
+  ghost:     { crit: 'fly_ghost', scale: 0.24, hover: 0.3, ghost: 0x9a6cff },
+  wraith:    { crit: 'fly_wraith', scale: 0.29, hover: 0.35, ghost: 0x6cf0ff },
+};
+// the hand-slot item a mesh belongs to (its own name, or its parent's when the loader split it into primitives)
+const slotItem = obj => { let o = obj; while (o.parent && !/^handslot/.test(o.parent.name)) { o = o.parent; if (!o.parent) return null; } return o.parent ? o.name : null; };
 // height of the soul flame above the head bone (KayKit units; hats and helmets are taller)
 const SOUL_Y = { imp: 1.2, brute: 1.45, archer: 1.3, shaman: 1.6 };
 const SPHERE = new THREE.Sphere(new THREE.Vector3(0, 1.2, 0), 2.4);
 // a unit's visual: root (position / facing, unscaled: rings live here) -> model (scaled KayKit character)
 export function makeUnitMesh(kind, o = {}) {
   if (o.hero && A.hero) return makeHeroMesh(o);
-  const def = CHARS[kind], model = skClone(A.chars[def.file]), u = charUniforms(o), mats = new Map();
+  const fl = o.foe && FOE_LOOK[o.foe]; if (fl && fl.crit) return makeCritMesh(fl, o);
+  const def = fl || CHARS[kind], model = skClone(A.chars[def.file]), u = charUniforms(o), mats = new Map();
   const olW = o.outlineW ?? 0.05, olSk = outlineMat(o.outline ?? 0x120a10, olW, u.uFade), adds = [];
   const matFor = map => { if (!mats.has(map)) mats.set(map, toonMat({ u, map, vc: false })); return mats.get(map); };
   const tl = o.gear && o.gear.w && o.gear.w.uniq && TECH_LOOK[o.gear.w.uniq], hideX = tl && tl.kind === kind && tl.hide || null; // a tech look can swap out part of the model (the mech's helmet)
+  let blade0 = null; // a foe's own blade (for the swing trail)
   model.traverse(obj => {
     if (!obj.isMesh) return;
     if ((def.hide && def.hide.includes(obj.name)) || (hideX && hideX.includes(obj.name))) { obj.visible = false; return; }
+    if (def.show) { const it = slotItem(obj); if (it && !def.show.includes(it)) { obj.visible = false; return; } if (it && !blade0 && /Sword|Axe|Knife/.test(it) && !/Offhand/.test(it) && (kind === 'imp' || kind === 'brute')) blade0 = obj; }
     obj.material = matFor(obj.material.map); obj.castShadow = obj.receiveShadow = false;
     if (obj.isSkinnedMesh) { obj.boundingSphere = SPHERE.clone(); const ol = new THREE.SkinnedMesh(obj.geometry, olSk); ol.bind(obj.skeleton, obj.bindMatrix); ol.boundingSphere = SPHERE.clone(); adds.push([obj.parent, ol]); }
     else { const s = obj.scale.x || 1; adds.push([obj, new THREE.Mesh(obj.geometry, outlineMat(o.outline ?? 0x120a10, olW / s, u.uFade))]); }
@@ -166,10 +188,30 @@ export function makeUnitMesh(kind, o = {}) {
       const m = new THREE.Mesh(kp.geo, matW(kp.map)); new THREE.Matrix4().copy(b.matrixWorld).invert().multiply(model.matrixWorld).decompose(m.position, m.quaternion, m.scale); b.add(m);
       adds.push([m, new THREE.Mesh(kp.geo, outlineMat(o.outline ?? 0x120a10, olW / (m.scale.x || 1), u.uFade))]); } }
   for (const [parent, ol] of adds) parent.add(ol);
+  if (blade0 && !blade) { blade0.geometry.computeBoundingBox(); const bb = blade0.geometry.boundingBox, zm = (bb.max.z + bb.min.z) / 2, a = new THREE.Object3D(), b2 = new THREE.Object3D();
+    a.position.set(0, bb.max.y * 0.32, zm); b2.position.set(0, bb.max.y * 1.02, zm); blade0.add(a, b2); blade = { a, b: b2, col: el ? el.col : 0xffe2c8 }; }
+  if (fl && fl.tint) u.uTint.value.multiply(new THREE.Color(fl.tint));
   model.scale.setScalar(def.scale * (o.scale ?? 1) * (gunner ? look.scale : 1));
   const root = new THREE.Group(); root.add(model);
   const mixer = new THREE.AnimationMixer(model);
-  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, muz, drill, rod, blade, aura, elem: el ? elems[0] : null, elems };
+  return { root, model, pivot: model, mixer, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows, soul, gun, muz, drill, rod, blade, aura, elem: el ? elems[0] : null, elems, sc: def.scale };
+}
+// a flying creature (Quaternius, its own rig and clips): hovers at def.hover, bobbing (units.js animate); a ghost glows from inside
+const CRIT_TIPS = ['Head', 'Torso', 'LowerArm.L', 'LowerArm.R', 'Body2'];
+function makeCritMesh(def, o) {
+  const C0 = A.crits[def.crit], model = skClone(C0.scene), u = charUniforms(o), olW = (o.outlineW ?? 0.05) * 1.2, olSk = outlineMat(o.outline ?? 0x120a10, olW, u.uFade), adds = [], mats = new Map();
+  const matFor = map => { if (!mats.has(map)) mats.set(map, toonMat({ u, map, vc: false })); return mats.get(map); };
+  model.traverse(obj => { if (!obj.isMesh) return; obj.material = matFor(obj.material.map); obj.castShadow = obj.receiveShadow = false; obj.frustumCulled = false;
+    if (obj.isSkinnedMesh) { const ol = new THREE.SkinnedMesh(obj.geometry, olSk); ol.bind(obj.skeleton, obj.bindMatrix); ol.frustumCulled = false; adds.push([obj.parent, ol]); } });
+  for (const [p, ol] of adds) p.add(ol);
+  const elems = (o.elems || []).filter(m => ELEM[m]), el = elems.length ? ELEM[elems[0]] : null, tips = [], glows = [];
+  if (el) { u.uRim.value.set(el.col).multiplyScalar(0.95); u.uEmis.value.set(el.emis).multiplyScalar(0.3); for (const n of CRIT_TIPS) { const b = model.getObjectByName(n); if (b) tips.push(b); } }
+  let core = null; if (def.ghost) { if (!el) { u.uRim.value.setHex(def.ghost).multiplyScalar(0.9); u.uEmis.value.setHex(def.ghost).multiplyScalar(0.22); }
+    const t = model.getObjectByName('Torso') || model; core = new THREE.Group(); t.add(core); const a = glowSprite(def.ghost, 2.6, 0.5), c = glowSprite(0xffffff, 0.8, 0.45); core.add(a, c); glows.push(a, c); }
+  model.scale.setScalar(def.scale * (o.scale ?? 1)); model.position.y = def.hover;
+  const root = new THREE.Group(); root.add(model);
+  return { root, model, pivot: model, mixer: new THREE.AnimationMixer(model), clips: C0.clips, actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u, tips, glows,
+    soul: null, gun: null, muz: null, drill: null, rod: null, blade: null, aura: null, elem: el ? elems[0] : null, elems, sc: def.scale, fly: def.hover, ghost: def.ghost || 0, core };
 }
 // ---------- the realistic hero skeleton (魂契 mode; modelled with Meshy, Mixamo rig, CC BY 4.0) ----------
 // its own model and clips; the game asks for KayKit clip names, heroClip() maps them onto the few the hero has
@@ -471,7 +513,7 @@ export function heroWeaponPose(u, dt, emit) {
   if (emit && m.dragW > 0.7 && Math.hypot(u.vx, u.vz) > 0.6 && Math.random() < dt * 14) { const x = _p.x + _d.x * L, z = _p.z + _d.z * L;
     emit(x, floor + 0.02, z, Math.random() < 0.6 ? { col: 0xffb35a, spd: 1.4, up: 1.2, grav: 6, life: 0.3, size: 0.09 } : { col: 0x9a8f86, spd: 0.4, up: 0.4, grav: 0, life: 0.6, size: 0.22 }); }
 }
-export function clipLen(name) { const c = A.clips[name]; return c ? c.duration : 1; }
+export function clipLen(name, m) { const c = (m && m.clips && m.clips[name]) || A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current
 export function play(m, name, o = {}) {
   if (m.hero) { name = heroClip(name, m.wset); if (!name) return null; }

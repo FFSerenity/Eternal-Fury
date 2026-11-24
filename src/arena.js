@@ -2,15 +2,15 @@
 // Nothing done here is saved (G.noSave): leaving reloads the page, back to the save as it was.
 import { G, PACT } from './state.js';
 import { tr } from './i18n.js';
-import { C, PH, Unit, removeCorpse, rise } from './units.js';
-import { MODS } from './data.js';
+import { C, PH, Unit, mkEnemy, removeCorpse, rise } from './units.js';
+import { MODS, FOES } from './data.js';
 import { heroUnit, equipSet, spawnHero, SETS } from './pact.js';
 import { QUAL } from './data.js';
 import { spawnBoss, BOSS_ORDER, bossName } from './boss.js';
 import { S } from './audio.js';
 import { clearDrones } from './drones.js';
 
-const KINDS = ['imp', 'brute', 'archer', 'shaman'];
+const KINDS = ['imp', 'brute', 'archer', 'shaman'], WILD = Object.keys(FOES);
 const O = { tab: 'mob', drop: false, gq: 0, type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false };
 const ST = { dmg: 0, dmgP: 0, taken: 0, kills: 0, ttk: 0, fight: 0, lastHit: -9, log: [] };
 let el = null, refillT = 0, uiT = 0, pid = 900000;
@@ -36,12 +36,12 @@ function spawnPack(n = O.count) {
   if (cx == null) { cx = F.start.cx; cz = F.start.cy; }
   const keys = Object.keys(MODS), pk = pid++;
   for (let k = 0; k < n; k++) {
-    const type = O.type === 'mix' ? KINDS[Math.floor(Math.random() * KINDS.length)] : O.type, a = k * 2.4, r = k ? 0.85 * Math.sqrt(k) : 0;
+    const type = O.type === 'mix' ? KINDS[Math.floor(Math.random() * KINDS.length)] : O.type === 'wmix' ? WILD[Math.floor(Math.random() * WILD.length)] : O.type, a = k * 2.4, r = k ? 0.85 * Math.sqrt(k) : 0;
     let x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r; if (!F.fits(x, z, 0.35)) { x = cx; z = cz; }
-    const e = new Unit(type, 'enemy', x, z, { level: O.lvl, packId: pk, champ: O.elite, mods: O.elite ? [keys[Math.floor(Math.random() * keys.length)]] : [] });
+    const e = mkEnemy(type, x, z, { level: O.lvl, packId: pk, champ: O.elite, mods: O.elite ? [keys[Math.floor(Math.random() * keys.length)]] : [] });
     e.maxHp *= O.hpMul; e.hp = e.maxHp; e.dummy = O.dummy; e.arena = true; e.face = Math.atan2(h.x - x, h.z - z);
     if (!O.dummy) { e.aggro = true; e.target = h; }
-    G.units.push(e); rise(e, 'Spawn_Ground_Skeletons', 2.2);
+    G.units.push(e); if (e.foe) e.spawnT = 0.3; else rise(e, 'Spawn_Ground_Skeletons', 2.2); // (the living and the vermin just appear)
     C.parts.emit(x, 0.3, z, 12, { col: 0x9a7cff, spd: 1.4, up: 1.8, life: 0.6, size: 0.24 });
   }
   S.rally();
@@ -76,6 +76,7 @@ function html() {
   <div class="aTabs"><button data-tab="mob">${tr('刷怪', 'Monsters')}</button><button data-tab="me">${PACT ? tr('卫士 · 召唤师', 'Sentinel · you') : tr('召唤师', 'Summoner')}</button><button data-act="reset">${tr('重置统计', 'Reset meter')}</button></div>
   <div class="aP" data-p="mob">
   <div class="aR">${chips('type', kinds)}</div>
+  <div class="aR"><span class="aL">${tr('野外', 'Wilds')}</span>${chips('type', [...WILD.map(f => [f, FOES[f].name]), ['wmix', tr('混合', 'Mixed')]])}</div>
   <div class="aR"><span class="aL">${tr('数量', 'Count')}</span>${chips('count', [[1, 1], [3, 3], [5, 5], [10, 10], [20, 20]])}</div>
   <div class="aR">${step('lvl', tr('等级', 'Level'))}<span class="aL sp">${tr('距离', 'Range')}</span>${chips('dist', [[3, 3], [7, 7], [11, 11]])}</div>
   <div class="aR"><span class="aL">${tr('血量', 'Life')}</span>${chips('hpMul', [[1, '×1'], [3, '×3'], [10, '×10'], [50, '×50']])}</div>

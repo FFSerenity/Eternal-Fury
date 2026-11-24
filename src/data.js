@@ -67,6 +67,50 @@ export const PACKS = [
   [['imp', 3], ['archer', 2]],
   [['archer', 2], ['shaman', 1], ['imp', 2]],
 ];
+// ---------- the wilds' own foes: the living who come to rob the graves, and the flying vermin of the night ----------
+// Each fights as one of the four skeleton kinds (cls: its AI, its blows, its corpse) with its own look, numbers and one trick (foes.js).
+// Their bodies rise as skeletons only: a corpse is raised as the skeleton of its kind (cls), never as the foe itself.
+// fly: hovers (its own model and clips); noCorpse: leaves nothing to raise; brave: never panics; capK: × the kind's capture chance
+export const FOES = {
+  robber:    { cls: 'imp', name: tr('盗墓贼', 'Grave Robber'), icon: '🗡️', hp: 22, dmg: 4, speed: 4.6, range: 0.85, cd: 0.85, windup: 0.18, armor: 2, r: 0.33, xp: 7,
+    desc: tr('结伙来挖坟的贼。挨了打会扔烟雾弹，闪到背后捅一刀（必定暴击）。', 'Grave robbers in gangs. When hurt it drops a smoke bomb and reappears behind you for a backstab (always a critical hit).') },
+  raider:    { cls: 'imp', name: tr('掠夺者', 'Raider'), icon: '🪓', hp: 32, dmg: 5, speed: 4.2, range: 0.9, cd: 0.95, windup: 0.22, armor: 6, r: 0.36, xp: 9, brave: true,
+    desc: tr('双斧野蛮人，隔着几步就会把一把斧头甩过来。', 'A dual-axe barbarian; from a few steps away it hurls an axe at you.') },
+  xbow:      { cls: 'archer', name: tr('弩手', 'Crossbowman'), icon: '🏹', hp: 28, dmg: 7, speed: 3.3, range: 7.5, cd: 1.7, windup: 0.42, armor: 6, r: 0.33, xp: 11,
+    desc: tr('端着重弩。时不时停下瞄准，地上会亮出一道红线——那一箭穿透所有人，闪开它。', 'Carries a heavy crossbow. Now and then it stops to aim and a red line marks the ground — that bolt goes through everyone. Step aside.') },
+  squire:    { cls: 'imp', name: tr('侍从', 'Squire'), icon: '🗡️', hp: 30, dmg: 4.5, speed: 4.0, range: 0.95, cd: 0.95, windup: 0.22, armor: 12, r: 0.36, xp: 8, guard: 0.65,
+    desc: tr('没戴头盔的年轻骑士，单手剑加圆盾，成群冲上来；正面挨打时圆盾能挡掉一点。', 'A young knight without a helmet, sword and round shield, in numbers; its shield takes the edge off blows from the front.') },
+  templar:   { cls: 'brute', name: tr('圣殿骑士', 'Templar'), icon: '🛡️', hp: 70, dmg: 10, speed: 2.6, range: 1.2, cd: 1.6, windup: 0.55, armor: 25, r: 0.48, xp: 16, brave: true, guard: 0.45,
+    desc: tr('举盾的骑士：正面挨的打大半被盾挡掉（弩箭和法术也一样），绕到侧面或背后打它。', 'A knight behind a shield: most of what hits it from the front is blocked, bolts and spells too. Hit it from the side or the back.') },
+  headsman:  { cls: 'brute', name: tr('处刑者', 'Headsman'), icon: '⚔️', hp: 85, dmg: 16, speed: 2.4, range: 1.45, cd: 2.1, windup: 0.8, armor: 18, r: 0.5, xp: 20, brave: true,
+    desc: tr('拖着双手大剑，出手很慢但很重；对血量不到四成的目标，这一剑是斩首（伤害 ×1.6）。', 'Drags a two-handed sword: slow, heavy blows, and against anyone under 40% life the blow is an execution (×1.6 damage).') },
+  berserker: { cls: 'brute', name: tr('狂战士', 'Berserker'), icon: '🪓', hp: 78, dmg: 11, speed: 2.8, range: 1.3, cd: 1.6, windup: 0.55, armor: 12, r: 0.5, xp: 18, brave: true,
+    desc: tr('抡着双手斧冲进人堆打旋风；血量掉到四成以下会狂暴，更快更猛。', 'Spins into the crowd with a two-handed axe; under 40% life it goes berserk — faster and fiercer.') },
+  exorcist:  { cls: 'shaman', name: tr('驱魔师', 'Exorcist'), icon: '📖', hp: 30, dmg: 8, speed: 3.0, range: 7, cd: 2.4, windup: 0.5, armor: 5, r: 0.34, xp: 14,
+    desc: tr('戴尖帽、捧法术书的法师，跟在人类队伍后面：给受伤的同伴治疗，远远地扔圣火球。先杀它。', 'A hatted mage with a spellbook behind the living: it heals its wounded and throws holy fire from afar. Kill it first.') },
+  bat:       { cls: 'imp', name: tr('蝙蝠', 'Bat'), icon: '🦇', hp: 11, dmg: 2.6, speed: 5.0, range: 0.75, cd: 0.9, windup: 0.14, armor: 0, r: 0.28, xp: 3, fly: true, brave: true, capK: 0.5,
+    desc: tr('成群飞来，咬一口就拉开，再扑回来。', 'Comes in swarms: bites, darts away, dives back in.') },
+  ghost:     { cls: 'archer', name: tr('幽灵', 'Ghost'), icon: '👻', hp: 18, dmg: 5.5, speed: 2.8, range: 6.5, cd: 2.0, windup: 0.45, armor: 0, r: 0.34, xp: 8, fly: true, noCorpse: true, brave: true,
+    desc: tr('飘在半空，穿过人群，朝你吐慢悠悠追踪的魂火，打中会冻僵减速。死了只剩一缕烟，没有尸体。', 'Drifts through the crowd and spits slow, homing soul-fire that chills. Leaves no corpse, only a wisp.') },
+  wraith:    { cls: 'archer', name: tr('怨灵', 'Wraith'), icon: '💀', hp: 34, dmg: 8, speed: 2.8, range: 7, cd: 2.4, windup: 0.6, armor: 4, r: 0.38, xp: 14, fly: true, noCorpse: true, brave: true,
+    desc: tr('骷髅脸的老幽灵，一次吐出三团魂火。', 'An old skull-faced ghost; spits three soul-fires at once.') },
+};
+// packs in the wilds (spawnWildPack): the living come in gangs, the vermin in swarms; wraiths only farther out
+export const WILD_PACKS = [
+  [['robber', 3], ['exorcist', 1]],
+  [['robber', 3], ['xbow', 1]],
+  [['raider', 2], ['robber', 2]],
+  [['templar', 1], ['xbow', 2]],
+  [['berserker', 1], ['raider', 2]],
+  [['headsman', 1], ['robber', 2]],
+  [['templar', 1], ['robber', 2], ['xbow', 1]],
+  [['squire', 3], ['exorcist', 1]],
+  [['templar', 1], ['squire', 2], ['exorcist', 1]],
+  [['squire', 2], ['xbow', 2]],
+  [['bat', 5]],
+  [['ghost', 3]],
+  [['bat', 4], ['ghost', 1]],
+];
 export const xpNeed = L => Math.round(18 * Math.pow(L, 1.55));
 // party slots: 1 to start, then more at these levels (gaps of 4, 5 and 6 levels)
 export const PARTY_AT = [5, 10, 16];

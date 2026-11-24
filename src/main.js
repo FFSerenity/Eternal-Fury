@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import { G, save, load, wipe, bagPut, PACT, MODE, setMode } from './state.js';
 import { pactPlayer, pactFloor, pactTick, harvest, heroEntry } from './pact.js';
-import { PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, rollHeroItem, PACE, affixName, TECH, makeTech } from './data.js';
+import { PACKS, WILD_PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, rollHeroItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch, heroWeaponPose, heroPart } from './assets.js';
 import * as PFX from './pactfx.js';
 import './gun.js';
 import './tech.js';
 import './forest.js';
+import './foes.js';
 import { makeIcons } from './icons.js';
 import { tr, ZH } from './i18n.js';
 import { SoulChannel } from './vfx.js';
@@ -16,7 +17,7 @@ import { clearTechFx, droneShadows } from './drones.js';
 import * as FXM from './fx.js';
 import { Floor, setNavTime } from './world.js';
 import { openCoffin, setGear, addXP } from './units.js';
-import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
+import { C, Unit, mkEnemy, updateUnit, integrate, updateCorpses, updateShots, shoot, finishRaise, spawnAlly, damage, say, captureChance, playerAnim, updateGhosts, rk, updateHazards, slowK, updateLoot, dropLoot, fuse, fusionOdds } from './units.js';
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt, goFull } from './ui.js';
 import { initMap, updateMap } from './minimap.js';
 import { initArena, arenaTick } from './arena.js';
@@ -95,16 +96,18 @@ function makeFloor(depth, arena = false) {
   if (arena) message(tr('右侧面板：刷怪、调战魂、看伤害统计。这里的一切都不会存档', 'The panel on the right: spawn monsters, set Fury, read the damage meter. Nothing here is saved')); if (depth === 0 && G.deep > 1) message(tr(`穿过墓穴大门可回到第 ${G.deep} 层`, `The crypt door leads back to floor ${G.deep}`)); save();
 }
 
-// a pack in the wilds: tougher and more often led by a champion the farther it waits from the camp; the places always hold a champion
+// a pack in the wilds: no skeletons out here — the living who come to rob the graves, in gangs, and the flying vermin, in swarms (data.js
+// FOES / WILD_PACKS). Tougher and more often led by a champion the farther it waits from the camp; the places always hold a champion
 function spawnWildPack(sp) {
-  const R = Math.random, zone = sp.d < 50 ? 0 : sp.d < 78 ? 1 : 2, base = Math.max(1, G.deep - 1 + zone), pid = packId++, units = [];
-  const tpl = PACKS[Math.floor(R() * PACKS.length)].map(([t, n]) => [t, n]); if (R() < 0.25 + 0.2 * zone) tpl.push(['imp', 2 + Math.floor(R() * 3)]);
-  if (sp.poi) tpl.push(...PACKS[Math.floor(R() * PACKS.length)]);
+  const R = Math.random, zone = sp.d < 50 ? 0 : sp.d < 78 ? 1 : 2, base = Math.max(1, G.deep - 1 + zone), pid = packId++, units = [], pick = () => WILD_PACKS[Math.floor(R() * WILD_PACKS.length)];
+  const tpl = pick().map(([t, n]) => [t, n]); if (R() < 0.2 + 0.15 * zone) tpl.push([['robber', 2], ['squire', 2], ['bat', 3], ['xbow', 1]][Math.floor(R() * 4)]);
+  if (zone > 0 && R() < 0.3) tpl.push(['wraith', 1]);
+  if (sp.poi) tpl.push(...pick());
   for (const [type, cnt] of tpl) for (let j = 0; j < cnt; j++) { let x = sp.x + (R() - 0.5) * 4, z = sp.z + (R() - 0.5) * 4; if (!G.floor.fits(x, z, 0.3)) { x = sp.x + (R() - 0.5) * 0.6; z = sp.z + (R() - 0.5) * 0.6; }
-    units.push(new Unit(type, 'enemy', x, z, { level: base + (R() < 0.25 ? 1 : 0), packId: pid })); }
-  if (sp.poi || R() < 0.15 + 0.1 * zone) { const cand = units.filter(u => u.kind !== 'imp'), u0 = cand.length ? cand[Math.floor(R() * cand.length)] : units[0], keys = Object.keys(MODS), mods = [keys[Math.floor(R() * keys.length)]];
+    units.push(mkEnemy(type, x, z, { level: base + (R() < 0.25 ? 1 : 0), packId: pid })); }
+  if (sp.poi || R() < 0.15 + 0.1 * zone) { const cand = units.filter(u => u.kind !== 'imp' || u.foe === 'raider'), u0 = cand.length ? cand[Math.floor(R() * cand.length)] : units[0], keys = Object.keys(MODS), mods = [keys[Math.floor(R() * keys.length)]];
     if (sp.poi && zone > 0) { const m2 = keys[Math.floor(R() * keys.length)]; if (m2 !== mods[0]) mods.push(m2); }
-    u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: base + 1, packId: pid, champ: true, mods }); units[units.indexOf(u0)] = ch; }
+    u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: base + 1, packId: pid, champ: true, mods, foe: u0.foe }); units[units.indexOf(u0)] = ch; }
   G.units.push(...units);
 }
 function updateWilds(P) {
@@ -261,4 +264,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
