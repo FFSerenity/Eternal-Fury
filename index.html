@@ -329,9 +329,9 @@ body.touch:has(#mmap.small) #floorTag{top:calc(max(10px,var(--sat)) + 162px)}bod
 
 /* 魂契 */
 #soulT{display:none}
-/* the soul vessel (soulvessel.js): a glowing flask of 魂能 at the bottom left; held down, it pours into the Sentinel */
-#jar{display:none;position:absolute;left:max(12px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom));width:76px;text-align:center;pointer-events:auto;touch-action:none;cursor:pointer;z-index:2}
-body.pact #jar{display:block}#jar svg{display:block;width:76px;height:95px;margin:0 auto;overflow:visible;filter:drop-shadow(0 2px 5px rgba(0,0,0,.65))}
+/* the soul orb (soulvessel.js): a glass globe of 魂能 in a rune-carved cradle at the bottom left; held down, it pours into the Sentinel */
+#jar{display:none;position:absolute;left:max(12px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom));width:84px;text-align:center;pointer-events:auto;touch-action:none;cursor:pointer;z-index:2}
+body.pact #jar{display:block}#jar svg{display:block;width:84px;height:101px;margin:0 auto;overflow:visible;filter:drop-shadow(0 2px 5px rgba(0,0,0,.65))}
 #jar .jN{display:block;margin-top:-3px;font-weight:900;font-size:14px;line-height:1.1;color:#8ff7ea;text-shadow:0 1px 3px #000,0 0 8px rgba(95,242,255,.55)}
 #jar .jH{display:block;font-size:10px;font-weight:700;color:#c8eef0;opacity:.85;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap;margin-left:-20px;margin-right:-20px}
 #jar .wv1{animation:jw1 2.6s linear infinite}#jar .wv2{animation:jw2 3.8s linear infinite}@keyframes jw1{to{transform:translateX(-40px)}}@keyframes jw2{from{transform:translateX(-40px)}to{transform:translateX(0)}}
@@ -340,7 +340,7 @@ body.pact #jar{display:block}#jar svg{display:block;width:76px;height:95px;margi
 #jar.pour .wv1{animation-duration:.6s}#jar.pour .wv2{animation-duration:.9s}#jar.pour svg{animation:jsh .11s linear infinite;filter:drop-shadow(0 2px 5px rgba(0,0,0,.65)) drop-shadow(0 0 10px rgba(95,242,255,.8))}
 @keyframes jsh{25%{transform:translate(.6px,-.5px) rotate(.8deg)}75%{transform:translate(-.6px,.3px) rotate(-.8deg)}}
 #jar.pour .jH{color:#8ff7ea}
-body.touch #jar{width:66px}body.touch #jar svg{width:66px;height:82px}
+body.touch #jar{width:74px}body.touch #jar svg{width:74px;height:89px}
 #sSummon{display:none}
 body.pact #skills{grid-template-columns:auto auto auto}
 body.pact #sSummon{display:flex;grid-column:1;grid-row:1/3;width:72px;height:72px;font-size:30px;background:radial-gradient(circle at 50% 35%,#2f7a73,#123a39);border-color:rgba(110,240,225,.6)}
@@ -384,7 +384,7 @@ body:not(.touch).pact #sSummon{width:60px;height:60px;font-size:25px}
 <div id="joy"><div id="joyK"></div></div>
 <div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead"></div><div id="cryptList"></div></div></div>
 <div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="modeRow"><button class="btn md" data-m="pact" data-en="Soul Pact ✦ new">魂契 ✦ 新</button><button class="btn md" data-m="classic" data-en="Crypt">墓穴</button></div><div id="modeDesc"></div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="startTip"></div><div id="help"></div><button class="btn" id="bArena" data-en="⚔ Test Arena">⚔ 试炼场</button><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
-<script src="game.js?v=ab7d42992b"></script>
+<script src="game.js?v=5f6093602f"></script>
 <script>try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}</script>
 </body>
 </html>
