@@ -335,13 +335,16 @@ body.touch:has(#mmap.small) #floorTag{top:calc(max(10px,var(--sat)) + 162px)}bod
 #jar{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:max(4px,env(safe-area-inset-bottom));width:112px;text-align:center;pointer-events:auto;touch-action:none;cursor:pointer;z-index:2}
 body.pact #jar{display:block}
 #jar .orb{position:relative;width:112px;height:116px;margin:0 auto;filter:drop-shadow(0 3px 6px rgba(0,0,0,.7))}
-body.touch #jar{width:96px}body.touch #jar .orb{width:96px;height:100px}body.touch #jar .jN{font-size:12px}body.touch #jar .jH{font-size:9px}
+body.touch #jar{width:82px}body.touch #jar .orb{width:82px;height:85px}body.touch #jar .jN{font-size:12px}body.touch #jar .jH{font-size:9px}
 body.pact #bStairs{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 136px)} /* (the way down: above the orb) */
+/* phones lying down: the number sits on the cradle's foot (no hint line), and the orb goes down into the strip an iPhone keeps for its home bar */
+@media (orientation:landscape){body.touch #jar{bottom:max(2px,calc(env(safe-area-inset-bottom) - 16px))}body.touch #jar .jN{position:absolute;left:0;right:0;bottom:0;margin:0}body.touch #jar .jH{display:none}
+  body.touch.pact #bStairs{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 84px)}}
 @media (orientation:portrait){
-  #jar,body.touch #jar{left:auto;transform:none;right:max(8px,env(safe-area-inset-right));bottom:calc(max(14px,env(safe-area-inset-bottom)) + 138px);width:118px}
-  #jar .orb,body.touch #jar .orb{width:118px;height:123px}
+  #jar,body.touch #jar{left:auto;transform:none;right:max(8px,env(safe-area-inset-right));bottom:calc(max(14px,env(safe-area-inset-bottom)) + 136px);width:100px}
+  #jar .orb,body.touch #jar .orb{width:100px;height:104px}
   body.pact #bStairs{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 10px)}
-  body.touch.pact #bossBar{left:16px;transform:none;width:calc(100vw - 166px)} /* (the orb has the right side) */
+  body.touch.pact #bossBar{left:16px;transform:none;width:calc(100vw - 146px)} /* (the orb has the right side) */
 }
 #jar .sph{position:absolute;overflow:visible}#jar .oArt{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #jar .oL{position:absolute;inset:0;pointer-events:none;filter:drop-shadow(0 0 2px var(--rc)) drop-shadow(0 0 5px var(--rc))}

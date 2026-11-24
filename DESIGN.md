@@ -71,7 +71,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   +4% attack speed, +2% move speed (cap +30%), +2.5% life, +0.4% evasion (cap +12%). Death: all stacks gone, summon again.
 - 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3, boss ×12. The souls fly across the screen
   into the 魂瓶 (soul orb; soulvessel.js — bottom centre and smaller on a wide screen, above the skill buttons on the right on an upright
-  phone, where the boss bar keeps to the left of it; the way-down button moves above it): a glass globe held up by a hooded skeleton in a
+  phone, where the boss bar keeps to the left of it; the way-down button moves above it; a phone lying down puts the number on the
+  cradle's foot and lets the orb sink into the strip an iPhone keeps for its home bar): a glass globe held up by a hooded skeleton in a
   gothic cradle — painted art (made by the owner with an image generator) cut by tools/cut-orb.py into the art with the sphere cut out (the
   figure's head and hands, the claws stay in front), its runes / eyes / gem as a mask, and the liquid's light on the figure as another mask
   that comes up as it fills; the glass and liquid (waves, swirls, bubbles, a ghost skull drifting in the empty part) are drawn under it.
