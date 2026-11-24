@@ -6,7 +6,7 @@ import { tr } from './i18n.js';
 import { SETS, SUMMON, heroBase, heroName, heroUnit, stackNeed, lvlCost, levelUp, summonK, heroEntry } from './pact.js';
 import { PACE, QUAL } from './data.js';
 import { openGear } from './gearui.js';
-import { itemIconURL, heroPreviewURL } from './icons.js';
+import { heroHeadURL } from './icons.js';
 import { plumeTier, PLUME_AT, soulTier } from './assets.js';
 import { SKILLS } from './pactskills.js';
 
@@ -15,16 +15,15 @@ const pct = v => Math.round(v * 100) + '%';
 const per = b => ({ hp: Math.round(b.maxHp), dmg: Math.round(b.dmg), aps: (PACE.act / b.cd).toFixed(2), mv: (b.speed * PACE.move).toFixed(1), eva: pct(b.evade) });
 export const openHeroGear = () => openGear(heroEntry());
 
-// ---------- the skeleton's card: name, level, Fury, life and the kills to the next stack; under it a small paperdoll (its equipment) ----------
+// ---------- the skeleton's card: its head (crest and face; a tap opens its equipment), name, level, Fury, life and kills to the next stack ----------
 let cardSig = '';
 export function pactHUD() {
-  const party = $('#party'), u = heroUnit(), out = !!u, W = SETS[P8.wset], en = heroEntry(), g = P8.gear || {};
-  const fig = heroPreviewURL(en, P8.stacks), slot = (it, k) => `<span class="pds${it ? ' q' + it.q : ''}">${it ? `<img src="${itemIconURL(it)}" draggable="false">` : k === 'a' && g.w && g.w.hero === 'gs' ? '' : '·'}</span>`;
-  const sig = JSON.stringify([out, P8.lvl, P8.stacks, P8.wset, fig.length, g.w && g.w.id, g.a && g.a.id]);
+  const party = $('#party'), u = heroUnit(), out = !!u, W = SETS[P8.wset], fig = heroHeadURL(heroEntry(), P8.stacks);
+  const sig = JSON.stringify([out, P8.lvl, P8.stacks, P8.wset, fig.length]);
   if (sig !== cardSig) { cardSig = sig;
-    party.innerHTML = `<div class="pc pact${out ? '' : ' dead'}" title="${tr('打开魂契', 'Open the Pact')}"><div class="pcT"><span class="ic">${W.icon}</span><div class="pi"><div class="pn"><span class="pnn">${heroName()}</span><small>Lv${P8.lvl}</small>${P8.stacks ? `<span class="spb fury">✦${P8.stacks}</span>` : ''}</div>`
-      + (out ? `<div class="ph"><i></i></div><div class="pk"><i></i></div>` : `<div class="pz">${tr('未召唤 · 按 E', 'not summoned · E')}</div>`) + `</div></div>`
-      + `<div class="pdl" title="${tr('打开装备', 'Open the equipment')}">${slot(g.w, 'w')}<img class="pdf" src="${fig}" draggable="false">${slot(g.a, 'a')}<span class="pdt">${tr('装备 ›', 'Gear ›')}</span></div></div>`; }
+    party.innerHTML = `<div class="pc pact${out ? '' : ' dead'}" title="${tr('打开魂契', 'Open the Pact')}"><span class="ic phd" title="${tr('打开装备', 'Open the equipment')}">${fig ? `<img src="${fig}" draggable="false">` : W.icon}<i>${W.icon}</i></span>`
+      + `<div class="pi"><div class="pn"><span class="pnn">${heroName()}</span><small>Lv${P8.lvl}</small>${P8.stacks ? `<span class="spb fury">✦${P8.stacks}</span>` : ''}</div>`
+      + (out ? `<div class="ph"><i></i></div><div class="pk"><i></i></div>` : `<div class="pz">${tr('未召唤 · 按 E', 'not summoned · E')}</div>`) + `</div></div>`; }
   if (u) { const i = party.querySelector('.ph i'), k = party.querySelector('.pk i'); if (i) i.style.width = (u.hp / u.maxHp * 100) + '%'; if (k) k.style.width = (P8.kills / stackNeed(P8.stacks) * 100) + '%'; }
   $('#soulT').textContent = tr(`魂能 ${G.soul}`, `Soul ${G.soul}`) + (G.soul >= lvlCost(P8.lvl) ? tr(' · 可强化', ' · upgrade ready') : '');
   $('#soulT').classList.toggle('ready', G.soul >= lvlCost(P8.lvl));

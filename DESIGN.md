@@ -115,8 +115,9 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   on the greatsword) or block / evasion / damage / move speed on the shield. Normal monsters drop 9% (red 0.5%), champions always
   (blue or better, red 4%). Rare and up glow in their colour in its hands (an aura, sparks; red smoulders) and on the ground (a beam,
   red's the tallest). A new pact starts with a plain sword and shield; an older save gets plain gear of the style it had.
-  The equipment panel opens from the Pact panel, from the little paperdoll on the Sentinel's HUD card (a snapshot of it in its gear, crest
-  and soul light, with its two items beside it) or from the bag (⚔ 装备卫士 / 🔥 熔炉 switch); crypt-mode items in an old bag can only be
+  The equipment panel opens from the Pact panel, from the portrait on the Sentinel's HUD card (a close-up of its head: the crest in its
+  战魂 colour and the skull face, remade when the crest or soul light changes) or from the bag (⚔ 装备卫士 / 🔥 熔炉 switch); in the bag
+  the greatsword icon shows the broad face of the blade leaning one way, the sword turned and leaning the other way, smaller; crypt-mode items in an old bag can only be
   smelted. The equipment panel also shows its 战魂 in brief (stack, kills to the next, crest, soul light step, the bonus).
   On touch screens a tap highlights an item (it stays put) and a tap on an empty cell, a frame or the forge moves it; the info box has
   the one-tap move (穿上 / 卸下 / 放进熔炉 / 拿回背包) and 取消. The mouse still picks items up and puts them down.
