@@ -80,15 +80,17 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   lands (Kenney samples mixed in assets/sfx, one per swing).
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.
-- Skills, one per crest tier: they wake at 5 / 10 / 15 / 20 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).
+- Skills, one per crest tier and one past it: they wake at 5 / 10 / 15 / 20 / 25 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).
   Charge (3.5–8 m, 8 s): sword & shield drops into its low guard stance and drives straight in behind the shield with a long rush of air,
   barging aside what is in the way, and ends by fanning the shield up overhead (a blend from the guard pose to SNS_Combo's shield-high frame) that knocks the target down and pops it off its feet (the blend eases out: the shield is up in a few frames, held a moment, then a quick return); the greatsword leaps in a
   long arc like the crypt's warriors and splits the ground where it lands.
-  Block / Parry (passive, blows from the front): sword & shield blocks 30% (−80%, missiles stopped whole), the greatsword parries 25%
+  Block / Parry (passive; the shield takes blows from any side, the parry only from the front; +1% per Fury stack past 10, at most +20%):
+  sword & shield blocks 30% (−80%, missiles stopped whole), the greatsword parries 25%
   (−60%); each earns a counter slipped in between its swings — the guard pose for a beat, then sword & shield cuts down and a crescent of
   qi flies ~10 m straight (at the shooter, if it stopped a missile), the greatsword sweeps 180° (GS_Spin) and a half-moon of qi fans out ~4.5 m.
   Whirlwind (3+ within 2.5 m, 10 s): two cuts all around, each flinging eight crescents of qi outward that cut what they meet out to
   ~5.5 m at half damage.
+  Life Steal (passive, 25 Fury): 10% of the damage it deals heals it, shown as one green number every half second.
   Sundering Strike (15 s): sword & shield roars — rings of force race out, a column of light, the nearest are thrown back — then its
   sword catches fire and the burning blow sends a wave of fire with scorched cracks down a 5.5 m cone; the greatsword fills its blade with
   fire from the hilt up and sweeps (GS_Combo), fire rolling out all round in three full rings, each farther than the last (5.5 / 7.6 /

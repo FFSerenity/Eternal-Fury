@@ -72,7 +72,7 @@ function html() {
   <div class="aR">${tog('elite', tr('精英', 'Champion'))}${tog('dummy', tr('木桩', 'Dummy'))}${tog('auto', tr('自动补怪', 'Auto refill'))}${tog('drop', tr('掉落', 'Loot'))}</div>
   <div class="aR"><button class="go" data-act="spawn">${tr('刷怪', 'Spawn')}</button><button data-act="clear">${tr('清场', 'Clear')}</button></div></div>
   <div class="aP" data-p="me">${PACT ? `
-  <div class="aR">${step('fury', tr('战魂', 'Fury'))}${chips('furyQ', [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20]])}</div>
+  <div class="aR">${step('fury', tr('战魂', 'Fury'))}${chips('furyQ', [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20], [25, 25]])}</div>
   <div class="aR">${step('slvl', tr('召唤等级', 'Summon Lv'))}</div>
   <div class="aR"><span class="aL">${tr('流派', 'Style')}</span>${chips('wset', Object.keys(SETS).map(k => [k, SETS[k].name]))}</div>
   <div class="aR">${tog('hInv', tr('卫士不死', 'Unkillable'))}<button data-act="summon">${tr('召唤', 'Summon')}</button><button data-act="heal">${tr('回满', 'Full heal')}</button></div>` : `<div class="aR"><button data-act="heal">${tr('回满', 'Full heal')}</button></div>`}

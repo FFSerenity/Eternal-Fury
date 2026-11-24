@@ -98,7 +98,7 @@ export function damage(src, dst, amt, o = {}) {
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
-  const hp0 = dst.hp; dst.hp -= d; if (dst.immortal && dst.hp < 1) dst.hp = 1; if (PH.dmg) PH.dmg(src, dst, Math.min(d, Math.max(0, hp0)), o); // (the test arena: no-death toggles, its damage meter)
+  const hp0 = dst.hp; dst.hp -= d; if (dst.immortal && dst.hp < 1) dst.hp = 1; const dealt = Math.min(d, Math.max(0, hp0)); if (PH.dmg) PH.dmg(src, dst, dealt, o); if (src && src.pact && PH.leech) PH.leech(src, dealt); // (the test arena: no-death toggles, its damage meter)
   dst.flash = Math.max(dst.flash || 0, o.heavy || o.crit ? 1 : o.sum ? 0.5 : 0.75); dst.barT = 3; dst.lastHit = G.t;
   if (o.knock && !(dst.deployT > 0) && !dst.pact) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
   if (dst.kind !== 'player' && !dst.noStun && !(dst.deployT > 0) && !o.dot && (d >= dst.maxHp * (dst.kind === 'brute' ? 0.25 : 0.12) || o.knock)) { dst.stun = Math.max(dst.stun, 0.3); if (dst.state === 'windup' || dst.state === 'cast') dst.state = 'idle'; }

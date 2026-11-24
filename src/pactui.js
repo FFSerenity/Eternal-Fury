@@ -50,7 +50,7 @@ export function renderPact(force) {
     + `<div class="ds">${tr('生命', 'Life')} ${now.hp} → <b>${nx.hp}</b> · ${tr('伤害', 'Damage')} ${now.dmg} → <b>${nx.dmg}</b></div>`
     + `<button class="btn pup"${G.soul < cost ? ' disabled' : ''} data-act="up">${tr(`强化到 Lv ${L + 1}（${cost} 魂能）`, `Strengthen to Lv ${L + 1} (${cost} soul)`)}</button></div></div>`
     + `<div class="card pcur"><span class="ic">${W.icon}</span><div class="info">${cur}</div></div>`
-    + `<div class="psec">${tr('技能（战魂 5 / 10 / 15 / 20 层觉醒，倒下清零；自动释放）', 'Skills (wake at 5 / 10 / 15 / 20 Fury, lost when it falls; used on its own)')}</div>`
+    + `<div class="psec">${tr(`技能（战魂 ${SKILLS.map(s => s.at).join(' / ')} 层觉醒，倒下清零；自动释放）`, `Skills (wake at ${SKILLS.map(s => s.at).join(' / ')} Fury, lost when it falls; used on its own)`)}</div>`
     + SKILLS.map(s => { const on = u && P8.stacks >= s.at; return `<div class="card pskl${on ? ' on' : ''}"><span class="ic">${s.icon}</span><div class="info">`
       + `<div class="nm">${s.name} <span class="sub">${on ? (s.passive ? tr('被动', 'passive') : tr(`冷却 ${s.cd} 秒`, `${s.cd} s cooldown`)) : tr(`战魂 ${s.at} 层`, `${s.at} Fury`)}</span></div><div class="ds">${s.desc}</div></div></div>`; }).join('')
     + `<div class="psec">${tr('武器流派', 'Weapon style')}</div>` + style('SNS') + style('GS')

@@ -84,6 +84,7 @@ PH.kill = (u, v) => {
   for (let s = P8.stacks - up + 1; s <= P8.stacks; s++) { const k = PLUME_AT.indexOf(s), sk = SKILLS.find(q => q.at === s);
     if (k >= 0) { shock(u.x, u.z, 0xffd27a, 2.8); C.say(tr(['骸骨卫士的鬃毛染上了幽蓝', '骸骨卫士的鬃毛化为鎏金', '骸骨卫士的鬃毛燃起紫焰', '骸骨卫士的鬃毛燃起赤焰'][k],
       ['The Sentinel\'s crest turns azure', 'The Sentinel\'s crest turns to gold', 'The Sentinel\'s crest kindles violet fire', 'The Sentinel\'s crest bursts into crimson fire'][k]) + (sk ? tr(` · 觉醒技能 ${sk.icon} ${sk.name}`, ` · it wakes ${sk.icon} ${sk.name}`) : ''), true); }
+    else if (sk) { shock(u.x, u.z, 0xff5a6a, 2.6); C.say(tr(`骸骨卫士 战魂 ${s} 层 · 觉醒技能 ${sk.icon} ${sk.name}`, `Bone Sentinel at ${s} Fury · it wakes ${sk.icon} ${sk.name}`), true); }
     else if (s % 5 === 0) { shock(u.x, u.z, 0xffd27a, 2.4); C.say(tr(`骸骨卫士 战魂 ${s} 层：伤害 +${s * 6}%，攻速 +${s * 4}%`, `Bone Sentinel at ${s} Fury: +${s * 6}% damage, +${s * 4}% attack speed`)); } }
   save();
 };
