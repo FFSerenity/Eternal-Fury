@@ -77,7 +77,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   the greatsword drags along the floor behind it (sparks), and no blade sinks into the ground. It cannot be shoved or knocked back by anyone.
 - Its swings leave a trail and sound like blades: the air swells while the blade gathers speed and a swish peaks at its fastest moment in
   each clip (artisticdude's CC0 Swishes pack, stretched, pitched down for the greatsword), louder than the cut with a metal ring when a blow
-  lands (Kenney samples mixed in assets/sfx, one per swing).
+  lands (Kenney samples mixed in assets/sfx by tools/mix-blades.py, one per swing: a knife slice and a metal ring only — the wooden
+  "chop" of the first mix is gone).
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier and one past it: they wake at 5 / 10 / 15 / 20 / 25 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).
