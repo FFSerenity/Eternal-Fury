@@ -22,6 +22,10 @@ const fsEl = () => document.fullscreenElement || document.webkitFullscreenElemen
 export const fsOK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 export const isIPhone = /iPhone|iPod/.test(navigator.userAgent);
 export const installed = !!navigator.standalone || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+// Android full screen (from the button, or installed to the home screen): the side panels may go up into the camera strip (index.html --sat)
+const isAndroid = /Android/i.test(navigator.userAgent);
+function fsClass() { document.body.classList.toggle('andfs', isAndroid && (!!fsEl() || matchMedia('(display-mode: fullscreen)').matches)); }
+document.addEventListener('fullscreenchange', fsClass); document.addEventListener('webkitfullscreenchange', fsClass); fsClass();
 export function goFull(on = true) {
   try { if (on && !fsEl()) { const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen; const p = f && f.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); }
     else if (!on && fsEl()) { const f = document.exitFullscreen || document.webkitExitFullscreen; const p = f && f.call(document); if (p && p.catch) p.catch(() => {}); } } catch (e) {}

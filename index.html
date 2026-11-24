@@ -13,21 +13,25 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <style>
+/* the top safe area (--sat): an iPhone's notch or island, and its status bar, which stays in the corners even full screen. An Android
+   phone full screen reports its whole camera strip as unsafe, but the hole is a dot in the middle and the corners are free: there the
+   panels at the sides only keep clear of the rounded corners (body.andfs, ui.js); the boss bar and the floor name in the middle keep the real inset */
+:root{--sat:env(safe-area-inset-top)}body.andfs{--sat:14px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 html,body{margin:0;height:100%;overflow:hidden;position:fixed;inset:0;width:100%;background:#07060a;color:#e8e0f0;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overscroll-behavior:none}
 #c{position:fixed;left:0;top:0;touch-action:none;display:block}
 #ov{position:fixed;left:0;top:0;pointer-events:none}
-#hud{position:fixed;inset:0;pointer-events:none;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+#hud{position:fixed;inset:0;pointer-events:none;padding:max(10px,var(--sat)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
 #hud>*{pointer-events:auto}
 .panel{background:rgba(14,10,20,.72);border:1px solid rgba(190,160,255,.22);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.45)}
-#me{position:absolute;left:max(10px,env(safe-area-inset-left));top:max(10px,env(safe-area-inset-top));width:clamp(170px,24vw,240px);padding:8px 10px;pointer-events:none}
+#me{position:absolute;left:max(10px,env(safe-area-inset-left));top:max(10px,var(--sat));width:clamp(170px,24vw,240px);padding:8px 10px;pointer-events:none}
 #lvl{font-weight:800;font-size:13px;color:#d9c8ff;margin-bottom:5px;letter-spacing:.5px}
 .bar{position:relative;height:13px;border-radius:7px;background:rgba(0,0,0,.55);overflow:hidden;margin-bottom:4px}
 .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;transition:width .12s}
 .bar span{position:absolute;inset:0;font-size:10px;font-weight:700;line-height:13px;text-align:center;color:#fff;text-shadow:0 1px 2px #000}
 #hpB{background:linear-gradient(180deg,#ff6b5b,#b4231c)} #mpB{background:linear-gradient(180deg,#6fa8ff,#2a4fc0)}
 .bar.xp{height:4px;margin:0}#xpB{background:#e6c35a}
-#party{position:absolute;left:max(10px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 84px);display:flex;flex-direction:column;gap:5px}
+#party{position:absolute;left:max(10px,env(safe-area-inset-left));top:calc(max(10px,var(--sat)) + 84px);display:flex;flex-direction:column;gap:5px}
 .pc{cursor:pointer}.pc:hover{border-color:rgba(63,224,208,.7)}
 .pc{display:flex;align-items:center;gap:6px;width:clamp(172px,20vw,210px);padding:4px 8px 4px 4px;border-radius:10px;background:rgba(14,10,20,.66);border:1px solid rgba(63,224,208,.35);position:relative}
 .pc .ic{font-size:20px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(63,224,208,.12)}
@@ -35,7 +39,7 @@ html,body{margin:0;height:100%;overflow:hidden;position:fixed;inset:0;width:100%
 .pc .ph{height:5px;border-radius:3px;background:rgba(0,0,0,.6);margin-top:3px;overflow:hidden}.pc .ph i{display:block;height:100%;background:#3fe0d0}
 .pc.dead{filter:grayscale(.85);opacity:.75}.pc .rv{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:15px;color:#ffd58a;text-shadow:0 1px 3px #000}
 .pc.empty{border-style:dashed;opacity:.5}.pc.empty .ic{background:none;color:#9fe8de}
-#tr{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center}
+#tr{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,var(--sat));display:flex;gap:8px;align-items:center}
 .btn{border:none;font-family:inherit;color:#f2eaff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(180deg,#4a3470,#2a1d42);border:1px solid rgba(200,170,255,.35);border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.4);touch-action:none}
 .btn.down{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
 #bCrypt,#bGear{height:40px;padding:0 12px;font-weight:800;font-size:14px}#bCrypt b{background:#3fe0d0;color:#0b2a28;border-radius:9px;padding:1px 7px;font-size:12px}#bGear b{background:#e6c35a;color:#2a1d05;border-radius:9px;padding:1px 7px;font-size:12px}
@@ -131,8 +135,8 @@ body.touch .sk .k{display:none}
 #modeRow{display:flex;gap:8px}#modeRow .md{height:34px;padding:0 16px;font-size:14px;opacity:.6;background:rgba(40,26,60,.6)}#modeRow .md.cur{opacity:1;border-color:#9fe8de;box-shadow:0 0 14px rgba(110,240,225,.35);color:#dffaf6}
 #modeDesc{font-size:12px;color:#9fd8d0;max-width:520px;line-height:1.6;margin-top:-4px}
 #bNew{height:32px;padding:0 14px;font-size:12px;background:none;border-color:rgba(200,170,255,.25);box-shadow:none;color:#a898c4}
-@media (max-width:560px){#floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 50px);right:10px;left:auto;transform:none;font-size:11px;letter-spacing:1px}}
-@media (max-height:520px){#party{top:calc(max(8px,env(safe-area-inset-top)) + 76px)}.pc{width:172px;padding:2px 6px 2px 3px}.pc .ic{width:24px;height:24px;font-size:17px}#me{padding:6px 8px}}
+@media (max-width:560px){#floorTag{top:calc(max(10px,var(--sat)) + 50px);right:10px;left:auto;transform:none;font-size:11px;letter-spacing:1px}}
+@media (max-height:520px){#party{top:calc(max(8px,var(--sat)) + 76px)}.pc{width:172px;padding:2px 6px 2px 3px}.pc .ic{width:24px;height:24px;font-size:17px}#me{padding:6px 8px}}
 /* ---- 装备 panel: dark iron & bronze, Diablo-like ---- */
 #gearP{position:fixed;inset:0;background:rgba(5,3,9,.66);display:none;align-items:center;justify-content:center;z-index:6}
 #gearP.open{display:flex}
@@ -234,12 +238,12 @@ body.touch .sk .k{display:none}
 #fuseFx.win .fzT{background:linear-gradient(90deg,#ffe9a8,#fff,#9fe8ff,#ffd0f5,#ffe9a8);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:fzShine 2s linear infinite;filter:drop-shadow(0 0 8px rgba(255,220,140,.6))}
 @keyframes fzShine{to{background-position:-200% 0}}
 .fzR{text-align:center;line-height:1.9;font-weight:700;color:#e9dcff;z-index:3}.fzR .big{font-size:17px;color:#ffd36a;text-shadow:0 0 12px rgba(255,200,90,.7)}#fuseFx .ok{height:38px;padding:0 28px;font-weight:900;z-index:3}
-#setMenu{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);display:none;flex-direction:column;gap:6px;padding:10px 12px;z-index:3;min-width:220px}
+#setMenu{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,var(--sat)) + 50px);display:none;flex-direction:column;gap:6px;padding:10px 12px;z-index:3;min-width:220px}
 #setMenu.open{display:flex}#resetMenu{display:flex;flex-direction:column;gap:6px}
 .smT{font-weight:900;font-size:15px;color:#e9dcff}.smL{font-size:11px;font-weight:800;color:#a898c4;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}.smRow{display:flex;gap:6px}.smRow .btn{height:34px;padding:0 14px;font-weight:800;font-size:13px}
 .smRow .lg.cur{background:linear-gradient(180deg,#2f5a58,#1c3433);border-color:rgba(63,224,208,.6)}#resetMenu .btn{height:36px;padding:0 12px;font-size:13px;font-weight:800;justify-content:flex-start}#resetMenu .btn.danger{background:linear-gradient(180deg,#5a2430,#33141c)}
 #resetMenu .btn.arm{background:linear-gradient(180deg,#a33a3a,#6a1d1d);border-color:rgba(255,140,140,.6)}.rmT{font-size:10px;color:#8f82aa;text-align:center}
-@media (max-width:520px){#setMenu{top:calc(max(10px,env(safe-area-inset-top)) + 92px)}}
+@media (max-width:520px){#setMenu{top:calc(max(10px,var(--sat)) + 92px)}}
 .ftabs{display:flex;gap:6px;margin-top:4px}.ftabs .btn{height:34px;padding:0 16px;font-size:14px;font-weight:900;background:rgba(40,28,60,.6);box-shadow:none}.ftabs .btn.cur{background:linear-gradient(180deg,#5a3f86,#35234f);border-color:rgba(220,190,255,.6)}
 .ftabs b{font-size:11px;color:#e6c35a;margin-left:2px}.ftD{font-size:11px;color:#a898c4;margin:-2px 0 2px}
 /* ---- English layout ---- */
@@ -252,16 +256,16 @@ body.en .ftabs .btn{padding:0 12px;font-size:13px}body.en .dHead .nm{font-size:1
 body.en #floorTag{letter-spacing:1px}body.en .gsL{gap:2px 10px}body.en #help{max-width:640px}
 
 /* minimap: small in the corner under the top bar; big = see-through overlay in the middle (clicks pass through) */
-#mmap{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);width:140px;height:140px;border-radius:12px;background:rgba(8,6,14,.55);border:1px solid rgba(200,180,255,.25);box-shadow:0 2px 12px rgba(0,0,0,.5);pointer-events:auto;cursor:zoom-in;touch-action:none}
+#mmap{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,var(--sat)) + 50px);width:140px;height:140px;border-radius:12px;background:rgba(8,6,14,.55);border:1px solid rgba(200,180,255,.25);box-shadow:0 2px 12px rgba(0,0,0,.5);pointer-events:auto;cursor:zoom-in;touch-action:none}
 #mmap.big{left:0;right:0;top:0;bottom:0;width:100%!important;height:100%!important;background:none;border:none;border-radius:0;pointer-events:none;box-shadow:none;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent),linear-gradient(transparent,#000 6%,#000 94%,transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent),linear-gradient(transparent,#000 6%,#000 94%,transparent);mask-composite:intersect}
 #mmap.off{display:none}#bMap:not(.on){opacity:.55}body.touch #bMap{display:none}@media (max-width:520px){#bMap{display:none}}
-#mapChip{display:none;position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);width:40px;height:40px;font-size:18px;pointer-events:auto;align-items:center;justify-content:center;padding:0}#mmap.big + #mapChip{display:flex}@media (max-height:520px){#mapChip{top:calc(max(8px,env(safe-area-inset-top)) + 44px)}}
-body.touch #mmap:not(.big){width:108px;height:108px}@media (max-height:520px){#mmap:not(.big){width:96px;height:96px;top:calc(max(8px,env(safe-area-inset-top)) + 44px)}}
+#mapChip{display:none;position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,var(--sat)) + 50px);width:40px;height:40px;font-size:18px;pointer-events:auto;align-items:center;justify-content:center;padding:0}#mmap.big + #mapChip{display:flex}@media (max-height:520px){#mapChip{top:calc(max(8px,var(--sat)) + 44px)}}
+body.touch #mmap:not(.big){width:108px;height:108px}@media (max-height:520px){#mmap:not(.big){width:96px;height:96px;top:calc(max(8px,var(--sat)) + 44px)}}
 body:has(#start:not(.hide)) #mmap{visibility:hidden}
 /* 试炼场 (test arena) panel: where the minimap sits, which the hall doesn't need */
 #bArena{height:36px;padding:0 18px;font-size:14px;font-weight:800;background:linear-gradient(180deg,#8a5a2a,#4a2c12);border-color:rgba(255,190,120,.45)}
 body.arena #mmap,body.arena #mapChip,body.arena #bMap{display:none!important}
-#arena{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);width:262px;max-height:calc(100% - 240px);overflow:auto;padding:5px 9px 7px;font-size:12px;overscroll-behavior:contain;z-index:3}
+#arena{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,var(--sat)) + 50px);width:262px;max-height:calc(100% - 240px);overflow:auto;padding:5px 9px 7px;font-size:12px;overscroll-behavior:contain;z-index:3}
 body.touch #arena{max-height:calc(100% - 64px)}#arena.min{width:auto}#arena.min .aB{display:none}
 #arena .aH{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;color:#ffd58a;font-size:13px;padding:1px 0 3px}#arena .aH>span{display:flex;align-items:center;gap:8px}#arena .aH i{font-style:normal;color:#9f92bb;font-size:11px}
 #arena .aR{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:4px 0}
@@ -307,22 +311,24 @@ body.touch #arena{max-height:calc(100% - 64px)}#arena.min{width:auto}#arena.min 
 #bossBar .bbT{position:absolute;inset:0;font-size:10.5px;font-weight:800;line-height:16px;color:#fff;text-shadow:0 1px 2px #000}
 #bossBar.rage .bbB{animation:bbRage .7s ease-in-out infinite}@keyframes bbRage{50%{box-shadow:0 0 22px rgba(255,40,10,.85)}}
 body.touch #bossBar{top:calc(max(8px,env(safe-area-inset-top)) + 26px)}
+/* portrait phones: the top is taken by the panels on both sides, so the boss bar sits just above the skill buttons instead */
+@media (orientation:portrait){body.touch #bossBar{top:auto;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 144px);width:min(420px,calc(100vw - 32px))}}
 /* phones: smaller banner messages */
 body.touch #msg .m{font-size:12.5px;padding:4px 10px;border-radius:8px}body.touch #msg .m.big{font-size:15px;letter-spacing:.5px}body.touch #msg{top:18%;gap:4px;width:80vw}
 #fsTip{font-size:11.5px;line-height:1.45;color:#c9b8e8;max-width:230px}#fsTip:empty{display:none}
 #startTip{font-size:12.5px;color:#c9b8e8;text-align:center;max-width:300px;line-height:1.5}#startTip:empty{display:none}
 
 /* phones: the floor name sits under the minimap (or under the map chip / top bar when the map is big / off) */
-body.touch #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 50px);right:max(10px,env(safe-area-inset-right));left:auto;transform:none;font-size:11px;letter-spacing:1px;width:108px;text-align:center;white-space:nowrap}
-body.touch:has(#mmap.small) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 162px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 96px)}
-@media (max-height:520px){body.touch #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 44px);width:96px}body.touch:has(#mmap.small) #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 144px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(8px,env(safe-area-inset-top)) + 90px)}}
-@media (max-width:560px){body:not(.touch):has(#mmap.small) #floorTag{top:calc(max(10px,env(safe-area-inset-top)) + 196px)}}
+body.touch #floorTag{top:calc(max(10px,var(--sat)) + 50px);right:max(10px,env(safe-area-inset-right));left:auto;transform:none;font-size:11px;letter-spacing:1px;width:108px;text-align:center;white-space:nowrap}
+body.touch:has(#mmap.small) #floorTag{top:calc(max(10px,var(--sat)) + 162px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(10px,var(--sat)) + 96px)}
+@media (max-height:520px){body.touch #floorTag{top:calc(max(8px,var(--sat)) + 44px);width:96px}body.touch:has(#mmap.small) #floorTag{top:calc(max(8px,var(--sat)) + 144px)}body.touch:has(#mmap.big) #floorTag{top:calc(max(8px,var(--sat)) + 90px)}}
+@media (max-width:560px){body:not(.touch):has(#mmap.small) #floorTag{top:calc(max(10px,var(--sat)) + 196px)}}
 
 /* portrait phones: the summoner panel and party cards a bit smaller so a full party doesn't cover the screen */
-@media (max-width:520px) and (orientation:portrait){#me,#party{transform:scale(.84);transform-origin:top left}#party{top:calc(max(10px,env(safe-area-inset-top)) + 70px)}}
+@media (max-width:520px) and (orientation:portrait){#me,#party{transform:scale(.84);transform-origin:top left}#party{top:calc(max(10px,var(--sat)) + 70px)}}
 
 /* 魂契 */
-body.pact #party{top:calc(max(10px,env(safe-area-inset-top)) + 100px)}#soulT{display:none;font-size:11px;font-weight:800;color:#8ff7ea;margin-top:3px}#soulT.ready{color:#ffd27a}body.pact #soulT{display:block}
+body.pact #party{top:calc(max(10px,var(--sat)) + 100px)}#soulT{display:none;font-size:11px;font-weight:800;color:#8ff7ea;margin-top:3px}#soulT.ready{color:#ffd27a}body.pact #soulT{display:block}
 #sSummon{display:none}
 body.pact #skills{grid-template-columns:auto auto auto}
 body.pact #sSummon{display:flex;grid-column:1;grid-row:1/3;width:72px;height:72px;font-size:30px;background:radial-gradient(circle at 50% 35%,#2f7a73,#123a39);border-color:rgba(110,240,225,.6)}
@@ -365,7 +371,7 @@ body:not(.touch).pact #sSummon{width:60px;height:60px;font-size:25px}
 <div id="joy"><div id="joyK"></div></div>
 <div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead"></div><div id="cryptList"></div></div></div>
 <div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="modeRow"><button class="btn md" data-m="pact" data-en="Soul Pact ✦ new">魂契 ✦ 新</button><button class="btn md" data-m="classic" data-en="Crypt">墓穴</button></div><div id="modeDesc"></div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="startTip"></div><div id="help"></div><button class="btn" id="bArena" data-en="⚔ Test Arena">⚔ 试炼场</button><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
-<script src="game.js?v=a0c224ab58"></script>
+<script src="game.js?v=e0db964271"></script>
 <script>try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}</script>
 </body>
 </html>

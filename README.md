@@ -11,6 +11,9 @@ Runs in the browser on desktop and phones (GitHub Pages, installable as a home-s
   Tap / click it for a big see-through map (clicks pass through it; the 🗺 chip shrinks it back); **M** cycles small → big → off; ⚙ → Minimap turns it on or off.
 - **Phones:** Android browsers go fullscreen when you enter the crypt (⚙ → Screen toggles it). iPhone Safari can't go fullscreen from a web page:
   Share → "Add to Home Screen" and open the game from that icon to play without browser bars. The game re-fits itself after you rotate the phone.
+  The top of the screen: on an iPhone the panels keep clear of the notch / Dynamic Island and the status bar; on Android full screen
+  the panels at the sides go right up to the top (the camera hole is in the middle — only the boss bar keeps clear of it). Upright,
+  the boss bar sits just above the skill buttons.
 - **Language:** English by default. ⚙ (top right) → Language → 中文 switches to Chinese (and back); the game saves and reloads.
   The same menu holds the sound toggle and the testing resets (dungeon reset / wipe everything).
 
