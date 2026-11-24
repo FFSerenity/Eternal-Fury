@@ -243,6 +243,32 @@ export function glowSprite(col, size, opacity = 1) {
   s.scale.setScalar(size); return s;
 }
 
+// ---------- the light beam over rare loot: a thin column of light standing straight up from the item ----------
+// A ribbon that turns about its own vertical axis to face the camera (so it is always a line rising from the item, never a picture
+// stuck to the screen): a white-hot core a few centimetres wide in a narrow halo of the quality's colour, energy running up it, fading
+// out high above. A soft pool of light on the floor at its foot. One shared clock (beamTime, set by updateLoot).
+export const beamTime = { value: 0 };
+const BEAM_G = new THREE.PlaneGeometry(1, 1, 1, 1).translate(0, 0.5, 0);
+const BEAM_V = `uniform float uW, uH; varying vec2 vUv;
+void main() { vUv = uv; vec3 c = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz; vec3 v = cameraPosition - c; v.y = 0.0; if (dot(v, v) < 1e-6) v = vec3(0.0, 0.0, 1.0);
+  vec3 r = normalize(vec3(v.z, 0.0, -v.x)); gl_Position = projectionMatrix * viewMatrix * vec4(c + r * (uv.x - 0.5) * uW + vec3(0.0, uv.y * uH, 0.0), 1.0); }`;
+const BEAM_F = `uniform vec3 uCol; uniform float uT, uI, uSeed, uCore; varying vec2 vUv;
+void main() { float x = abs(vUv.x - 0.5) * 2.0, y = vUv.y;
+  float core = exp(-x * x * uCore), halo = exp(-x * x * 7.0);
+  float run = pow(0.5 + 0.5 * sin(y * 22.0 - uT * 3.2 + uSeed), 5.0) * 0.55 + pow(0.5 + 0.5 * sin(y * 9.0 - uT * 1.7 + uSeed * 2.3), 3.0) * 0.3; // energy running up
+  float foot = smoothstep(0.0, 0.02, y) + exp(-y * 40.0) * 0.8 * exp(-x * x * 3.0), top = pow(1.0 - y, 1.7) * (0.35 + 0.65 * smoothstep(0.0, 0.12, 1.0 - y) );
+  float a = (halo * (0.42 + run * 0.9) + core * 1.15) * foot * top * uI * (0.92 + 0.08 * sin(uT * 6.0 + uSeed));
+  gl_FragColor = vec4(mix(uCol, vec3(1.0), clamp(core * 0.9, 0.0, 1.0)), a); }`;
+export function lootBeam(col, q) {
+  const k = q >= 4 ? 1 : q === 3 ? 0.8 : 0.62, g = new THREE.Group();
+  const mat = new THREE.ShaderMaterial({ vertexShader: BEAM_V, fragmentShader: BEAM_F, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uCol: { value: new THREE.Color(col) }, uT: beamTime, uI: { value: 0 }, uSeed: { value: Math.random() * 20 }, uW: { value: 0.5 + 0.25 * k }, uH: { value: 4 + 5 * k }, uCore: { value: 160 } } });
+  const beam = new THREE.Mesh(BEAM_G, mat); beam.frustumCulled = false; beam.renderOrder = 4; g.add(beam);
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: TEX.glow, color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  pool.scale.setScalar(1.1 + 0.6 * k); pool.position.y = 0.03; g.add(pool);
+  g.userData = { mat, pool, k, h: mat.uniforms.uH.value }; return g;
+}
+
 // ---------- blob shadows (one instanced draw) ----------
 export class Shadows {
   constructor(scene, cap = 256) {

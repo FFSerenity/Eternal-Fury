@@ -53,7 +53,7 @@ level and weapon style, and a damage meter (DPS, kills, time to kill, damage tak
 ## Equipment
 - Only summons wear gear: a weapon of their own type (Warrior axes, Minion blades, Crossbowman crossbows, Mage staves; three bases each,
   from fast-and-light to slow-and-heavy) and a shield as armour (anyone). Quality: 普通 / 精良 / 稀有 (rare items get an extra line).
-- Monsters sometimes drop gear, champions always do; rare drops shine with a light beam. Walk over loot to pick it up (bag of 40).
+- Monsters sometimes drop gear, champions always do; rare drops send up a thin column of light (rising straight from the item once it lands, brighter and taller for epic and legendary, with a pool of light at its foot). Walk over loot to pick it up (bag of 40).
 - **装备 panel** (tap a summon's card at the top left): paperdoll with its live 3D model, weapon / shield frames and the bag.
 - **背包 panel** (🎒 button or **I**): the 40-cell bag (one item per cell, icons rendered from the 3D models) and the furnace with auto-fill. Click an item to pick it up, click where it should go;
   right-click or double-click = quick equip (or into the furnace). Diablo-style tooltips; items a summon can't use are tinted red.

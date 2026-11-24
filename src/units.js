@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { G, save, bagPut, PACT } from './state.js';
 import { TYPES, FOES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
-import { auraMat, glowSprite, ring, toonMat, part, merge } from './gfx.js';
+import { auraMat, glowSprite, ring, toonMat, part, merge, lootBeam, beamTime } from './gfx.js';
 import { tr } from './i18n.js';
 import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose } from './assets.js';
 import { slash, impact, burst, shake, trail, spinFx, slamMark, debris, shieldDome, domeHit, domeEnd, empWave, warnCircle, warnLine, warnCone } from './fx.js';
@@ -161,9 +161,9 @@ export function dropLoot(it, x, z) {
   if (it.q >= 2) { const pg = propGeo(model), b = pg.box, zl = b.max.z - b.min.z > b.max.y - b.min.y; // rare and up: the same flowing energy as in a hand
     m.add(new THREE.Mesh(pg.geo, auraMat(QUAL[it.q].hex, zl ? b.max.z - b.min.z : b.max.y, null, 0.05, it.q >= 4 ? 2 : it.q === 3 ? 1.7 : 1.45, zl ? new THREE.Vector3(0, 0, 1) : undefined))); }
   const Q = QUAL[it.q], gl = glowSprite(Q.hex, it.q ? 1.4 : 0.9, it.q ? 0.75 : 0.45); gl.position.y = 0.1; root.add(gl);
-  if (it.q >= 2) { const beam = glowSprite(Q.hex, 1, it.q >= 3 ? 0.75 : 0.55); beam.scale.set(it.q >= 4 ? 0.75 : it.q === 3 ? 0.6 : 0.45, it.q >= 4 ? 9 : it.q === 3 ? 7 : 5, 1); beam.position.y = it.q >= 4 ? 4.2 : it.q === 3 ? 3.2 : 2.2; root.add(beam); }
+  let beam = null; if (it.q >= 2) { beam = lootBeam(Q.hex, it.q); root.add(beam); } // rare and up: a column of light straight up from it, once it has landed
   const a = Math.random() * 6.28, r = 0.5 + Math.random() * 0.7; root.position.set(x, 1, z); C.scene.add(root);
-  G.loot.push({ it, root, m, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: 0, ph: Math.random() * 6 });
+  G.loot.push({ it, root, m, beam, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: 0, ph: Math.random() * 6 });
   if (it.q >= 2) S.level(); else if (it.q === 1) S.heal();
 }
 // the camp coffin's secret: opens once per save and spits out the gatling
@@ -176,9 +176,13 @@ export function openCoffin() {
   const gun = makeGun(G.uid++); G.fx.push({ t: 0.45, fn: () => dropLoot(gun, s.x, s.z) }); save();
 }
 export function updateLoot(dt) {
-  const P = G.player; let j = 0;
+  const P = G.player; let j = 0; beamTime.value = G.t;
   for (const L of G.loot) { L.t += dt; const k = Math.min(1, L.t / 0.45), x = L.x0 + (L.x - L.x0) * k, z = L.z0 + (L.z - L.z0) * k, y = k < 1 ? 1 * (1 - k) + Math.sin(Math.PI * k) * 0.8 : 0.12 + Math.sin(G.t * 2.5 + L.ph) * 0.04;
     L.root.position.set(x, y, z); L.m.rotation.z += dt * 0.8;
+    if (L.beam) { const B = L.beam.userData, f = Math.min(1, Math.max(0, (L.t - 0.4) / 0.5)), on = f * f * (3 - 2 * f); // the beam rises out of it once it lands
+      L.beam.position.y = -y; B.mat.uniforms.uI.value = on * (0.75 + 0.25 * B.k); B.mat.uniforms.uH.value = B.h * (0.15 + 0.85 * on);
+      B.pool.material.opacity = on * (0.5 + 0.12 * Math.sin(G.t * 2.2 + L.ph)) * (0.7 + 0.3 * B.k);
+      if (on > 0.5 && L.it.q >= 3 && Math.random() < dt * (L.it.q >= 4 ? 4 : 2.2)) C.parts.emit(x, 0.25, z, 1, { col: QUAL[L.it.q].hex, spd: 0.15, up: 2.2, grav: -0.6, life: 1.3, size: 0.11, spread: 0.08 }); }
     if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 1.5) {
       if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say(tr('背包满了，打开背包（I）把多余的丢进熔炉吧', 'Bag is full — open the bag (I) and feed the spares to the forge')); } }
       else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0);
