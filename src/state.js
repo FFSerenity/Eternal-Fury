@@ -1,9 +1,9 @@
 // Shared game state and the save file
 import { BAG_MAX, partySize } from './data.js';
 // game mode: the original crypt (summons captured with 唤魂) or 魂契 (one summoned skeleton that grows by its own kills).
-// Picked on the start screen and remembered; ?mode=pact / ?mode=classic overrides. Each mode has its own save.
+// Picked on the start screen and remembered (魂契 is the default for a first visit); ?mode=pact / ?mode=classic overrides. Each mode has its own save.
 export const MODE = (() => { try { const q = new URLSearchParams(location.search).get('mode'); if (q) return q === 'pact' ? 'pact' : 'classic';
-  return localStorage.getItem('graveTamerMode') === 'pact' ? 'pact' : 'classic'; } catch (e) { return 'classic'; } })();
+  return localStorage.getItem('graveTamerMode') === 'classic' ? 'classic' : 'pact'; } catch (e) { return 'pact'; } })();
 export const PACT = MODE === 'pact';
 export function setMode(m) { try { localStorage.setItem('graveTamerMode', m); } catch (e) {} }
 export const G = {

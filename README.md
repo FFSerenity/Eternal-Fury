@@ -24,6 +24,10 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - As Fury grows its soul light (cyan, like its eyes) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
 
+**Bosses**: every 5th crypt floor, one of the four tech skeletons guards the way down (bombardier, gunner, mech, engineer — their big
+attacks are marked on the ground first; at half life they enrage). They drop purple/red gear for the Sentinel, or their own epic tech
+weapon in Crypt mode.
+
 **⚔ Test Arena** (start screen, or `?arena`): an empty hall on top of your save, with a panel to spawn monsters (dummies too), set Fury,
 level and weapon style, and a damage meter (DPS, kills, time to kill, damage taken). Nothing there is saved.
 

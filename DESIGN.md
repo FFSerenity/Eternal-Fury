@@ -125,6 +125,22 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   it) with a big ⚔ 装备卫士 button, and the 战魂 skills as a row of badges on a track filled up to its Fury (each in its crest tier's
   colour, locked ones grey); the picked badge is described in one fixed box underneath.
 
+## 首领 / Bosses (both modes, Nov 2026)
+The four 科技流 skeletons are the crypt's bosses: one waits by the way down on every 5th floor (5 炮手 → 10 机枪 → 15 机甲 → 20 机械师,
+then round again two levels higher; level = floor + 2), and the grate glows red and stays shut until it falls. Each fights with the tech
+unit's own kit (units.js bossThink; drones.js) at boss size and strength (boss.js: life ×5.5–16 by kind, damage ×1.15–1.35, armour +10,
+never staggered), and every big blow is marked on the ground first (fx.js warnCircle / warnLine / warnCone):
+- 炮手骷髅: shells and barrages from range, each shell's landing spot marked; backs away from anyone close.
+- 机枪骷髅: sustained fire and grenades (marked); 扫射 — a marked fan, then the fire sweeps across it, each round hitting the first body
+  in its line (walls stop it); digs in when enraged.
+- 机甲骷髅: the drill up close; a marked rocket dash that runs its lane straight (no steering); a shield field to break; a marked EMP.
+- 机械师骷髅: laser drones and a rod beam; an orbital strike that locks on for 0.6 s and lands at 1.5 s; a repair drone that heals it
+  (~1.2%/s) and has a body of its own — the summons go for it first; shot down, a new one launches 12 s later.
+At half life a boss is enraged (faster attacks and moves, skills back sooner, red glow, embers). A boss bar shows at the top while one
+is near. It drops (besides 12× XP): 魂契 — two pieces of the Sentinel's gear (one purple or red 30%, one yellow or purple); the crypt —
+its own epic tech weapon and a rare. In 魂契 it is worth 12 kills of Fury and 12× soul; in the crypt its bones can't be raised.
+The test arena can spawn any of them.
+
 ## 试炼场 / Test Arena (a tool for tuning)
 On the start screen (⚔ 试炼场) or `?arena`: the current save is loaded into one big empty hall, and nothing done there is saved (leaving
 reloads the page). The panel on the right spawns monsters (kind or mixed, count, level, range from the Sentinel, life ×1–50, champions,

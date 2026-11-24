@@ -271,7 +271,7 @@ body.touch #arena{max-height:calc(100% - 64px)}#arena.min{width:auto}#arena.min 
 #arena .aH button{height:21px;font-size:11px}
 #arena .aTabs{display:flex;gap:4px;margin:6px 0 2px;padding-top:6px;border-top:1px solid rgba(190,160,255,.16)}#arena .aTabs [data-act]{margin-left:auto;font-size:10.5px}
 #arena .aTabs [data-tab].on{background:rgba(255,213,138,.2);border-color:#ffd58a;color:#ffe9c0}
-#arena b.v{min-width:22px;text-align:center;color:#fff}#arena .aSm{color:#c9b8e8;font-size:11px;line-height:1.45;margin-top:3px}
+#arena button.boss{background:linear-gradient(180deg,#8a2a1a,#4a1008);border-color:#ff8a5a;color:#ffe0c8;font-weight:800}#arena b.v{min-width:22px;text-align:center;color:#fff}#arena .aSm{color:#c9b8e8;font-size:11px;line-height:1.45;margin-top:3px}
 #arena .aSt{display:grid;grid-template-columns:1fr auto;gap:1px 10px;font-size:11.5px}#arena .aSt span:nth-child(odd){color:#a99cc4}#arena .aSt span:nth-child(even){color:#fff;font-variant-numeric:tabular-nums;text-align:right}
 /* 魂契: the Sentinel's card: its head as the portrait (a tap opens its equipment), the style as a small badge on it */
 .pc .ic.phd{position:relative;width:42px;height:42px;border-radius:9px;cursor:pointer;overflow:visible;background:radial-gradient(circle at 50% 40%,rgba(63,224,208,.22),rgba(0,0,0,.45) 75%);border:1px solid rgba(63,224,208,.35)}
@@ -299,6 +299,14 @@ body.touch #arena{max-height:calc(100% - 64px)}#arena.min{width:auto}#arena.min 
 .gsF .gfr{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.gsF .gfb{height:4px;border-radius:2px;background:rgba(0,0,0,.5);margin:4px 0;overflow:hidden}.gsF .gfb i{display:block;height:100%;background:#ffd27a}.gsF .gfl{color:#c9b8e8;line-height:1.45}
 .cell.sel,.gSlot.sel{outline:2px solid #ffe08a;outline-offset:-2px;box-shadow:0 0 14px rgba(255,224,138,.7),inset 0 0 12px rgba(255,224,138,.35)}
 .giA{display:flex;flex-direction:column;gap:6px;margin-left:auto;flex:none}.giA .btn{height:36px;padding:0 16px;font-weight:800;font-size:14px}.giA .btn.go{background:linear-gradient(180deg,#3fb8a8,#1d6a62);border-color:rgba(140,255,240,.5)}
+/* the boss bar (boss.js) */
+#bossBar{position:absolute;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 30px);transform:translateX(-50%);width:min(520px,62vw);display:none;pointer-events:none;text-align:center}
+#bossBar.on{display:block}#bossBar .bbN{font-weight:900;font-size:14px;color:#ffd0a8;letter-spacing:1px;text-shadow:0 1px 3px #000,0 0 8px rgba(255,90,40,.5);margin-bottom:3px}
+#bossBar .bbB{position:relative;height:16px;border-radius:8px;background:rgba(10,4,6,.8);border:1px solid rgba(255,120,80,.55);overflow:hidden;box-shadow:0 0 12px rgba(255,60,30,.35)}
+#bossBar .bbH{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#ff6a3a,#a81c10);transition:width .15s}#bossBar .bbS{position:absolute;left:0;top:0;height:5px;background:#8fe8ff;box-shadow:0 0 6px #8fe8ff}
+#bossBar .bbT{position:absolute;inset:0;font-size:10.5px;font-weight:800;line-height:16px;color:#fff;text-shadow:0 1px 2px #000}
+#bossBar.rage .bbB{animation:bbRage .7s ease-in-out infinite}@keyframes bbRage{50%{box-shadow:0 0 22px rgba(255,40,10,.85)}}
+body.touch #bossBar{top:calc(max(8px,env(safe-area-inset-top)) + 26px)}
 /* phones: smaller banner messages */
 body.touch #msg .m{font-size:12.5px;padding:4px 10px;border-radius:8px}body.touch #msg .m.big{font-size:15px;letter-spacing:.5px}body.touch #msg{top:18%;gap:4px;width:80vw}
 #fsTip{font-size:11.5px;line-height:1.45;color:#c9b8e8;max-width:230px}#fsTip:empty{display:none}
@@ -356,8 +364,8 @@ body:not(.touch).pact #sSummon{width:60px;height:60px;font-size:25px}
 </div>
 <div id="joy"><div id="joyK"></div></div>
 <div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead"></div><div id="cryptList"></div></div></div>
-<div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="modeRow"><button class="btn md" data-m="classic" data-en="Crypt">墓穴</button><button class="btn md" data-m="pact" data-en="Soul Pact ✦ new">魂契 ✦ 新</button></div><div id="modeDesc"></div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="startTip"></div><div id="help"></div><button class="btn" id="bArena" data-en="⚔ Test Arena">⚔ 试炼场</button><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
-<script src="game.js?v=9973d3b33b"></script>
+<div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="modeRow"><button class="btn md" data-m="pact" data-en="Soul Pact ✦ new">魂契 ✦ 新</button><button class="btn md" data-m="classic" data-en="Crypt">墓穴</button></div><div id="modeDesc"></div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="startTip"></div><div id="help"></div><button class="btn" id="bArena" data-en="⚔ Test Arena">⚔ 试炼场</button><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
+<script src="game.js?v=38fc3094db"></script>
 <script>try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}</script>
 </body>
 </html>

@@ -20,6 +20,7 @@ import { C, Unit, updateUnit, integrate, updateCorpses, updateShots, shoot, fini
 import { IN, initUI, resizeUI, updateHUD, drawOverlay, message, pickCorpse, touchUI, closeCrypt, goFull } from './ui.js';
 import { initMap, updateMap } from './minimap.js';
 import { initArena, arenaTick } from './arena.js';
+import { placeBoss, bossTick, stairsLocked, clearBossBar } from './boss.js';
 import { S, unlock } from './audio.js';
 
 const $ = s => document.querySelector(s), QS = new URLSearchParams(location.search);
@@ -66,7 +67,7 @@ function makeFloor(depth, arena = false) {
   // timed effects still running: take their scene objects away (an effect's fn may also do gameplay — a blast, a drop — so only those
   // marked clean, whose fn just removes things, or with their own end(), are run; the rest are dropped)
   for (const f of G.fx) { if (f.end) f.end(); else if (f.clean && f.fn) f.fn(); }
-  G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null;
+  G.units = G.player ? [G.player] : []; G.corpses = []; G.shots = []; G.fx = []; G.focus = null; G.bossLock = null; clearBossBar();
   if (G.floor) G.floor.dispose(scene); clearFx(); clearTechFx();
   const F = new Floor((Date.now() ^ (depth * 7919)) >>> 0, depth, arena); F.build(scene); C.floor = F; G.floor = F; G.depth = depth; G.arena = arena; if (depth > 0) G.deep = depth;
   SH.uAmb.value.setRGB(...F.amb); SH.uLightR.value = F.lightR; renderer.setClearColor(depth === 0 ? 0x0b0d12 : 0x07060a);
@@ -86,6 +87,8 @@ function makeFloor(depth, arena = false) {
       if (!easy && R() < 0.1 + 0.05 * depth) { const cand = units.filter(u => u.kind !== 'imp'), u0 = cand.length ? cand[Math.floor(R() * cand.length)] : units[0], keys = Object.keys(MODS);
         u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: depth + 1, packId: pid, champ: true, mods: [keys[Math.floor(R() * keys.length)]] }); units[units.indexOf(u0)] = ch; }
       G.units.push(...units); } }
+  // every 5th floor: a boss by the way down, which stays shut until it falls (boss.js)
+  if (!arena && depth > 0 && depth % 5 === 0) placeBoss(F, depth);
   // the wilds around the camp: packs wait at spots all over the map and are only made when the summoner comes within sight range
   G.pend = depth === 0 && F.packSpots ? F.packSpots.slice() : []; G.wild = false;
   placeCamera(true); message(arena ? tr('试炼场', 'Test Arena') : depth === 0 ? tr('墓园营地', 'Graveyard Camp') : tr(`墓穴 · 第 ${depth} 层`, `Crypt · Floor ${depth}`), true);
@@ -185,6 +188,7 @@ function updatePlayer(dt) {
   if (IN.coffin) { const c = F.coffin; if (!c || G.egg) IN.coffin = false; else if (Math.hypot(P.x - c.x, P.z - c.z) < 2) { IN.coffin = false; IN.moveTo = null; openCoffin(); } else if (!IN.moveTo) IN.coffin = false; }
   // going down needs the button (or Enter) — except the camp's portal, which you simply walk into
   const intoPortal = G.depth === 0 && Math.hypot(P.x - F.stairs.x, P.z - F.stairs.z) < 0.3;
+  if (IN.stairs && ns && stairsLocked()) { IN.stairs = false; message(tr('首领守着下楼的路：先击败它', 'A boss guards the way down: defeat it first')); }
   if ((IN.stairs && ns) || intoPortal) { IN.stairs = false; IN.moveTo = null; IN.hold = false; S.stairs(); closeCrypt(); makeFloor(G.depth === 0 ? G.deep : G.depth + 1); } else if (IN.stairs) IN.stairs = false;
 }
 
@@ -231,7 +235,7 @@ function loop(now) {
   if (started) { G.t += dt; setNavTime(G.t);
     const P = G.player;
     G.enemies = []; G.friends = []; for (const u of G.units) { if (u.dead) continue; if (u.side === 'enemy') G.enemies.push(u); else G.friends.push(u); }
-    updatePlayer(dt); updateWilds(P); if (PACT) pactTick(dt); if (G.arena) arenaTick(dt);
+    updatePlayer(dt); updateWilds(P); if (PACT) pactTick(dt); if (G.arena) arenaTick(dt); bossTick(dt);
     const active = [];
     for (const u of G.units) { if (u.dead || u === P) continue; if (u.side === 'enemy' && !u.aggro && Math.hypot(u.x - P.x, u.z - P.z) > 26) { u.mesh.root.visible = false; continue; } u.mesh.root.visible = true; updateUnit(u, dt); active.push(u); }
     if (!P.dead) active.push(P); integrate(active, dt);

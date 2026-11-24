@@ -178,3 +178,29 @@ export function updateFx(dt, units) {
   S.shakeT += dt; S.shakeA *= Math.exp(-dt * 11); if (S.shakeA < 0.002) S.shakeA = 0;
   updateTrails(dt, units); updateMarks(dt); updateDebris(dt); updateDomes(dt);
 }
+
+// ---------- danger markers (a boss winding up): a red area on the ground with a bright edge that fills up until the blow lands ----------
+const WARN = 0xff3a24, warnMat = op => new THREE.MeshBasicMaterial({ color: WARN, transparent: true, opacity: op, depthWrite: false });
+function warn(g, fill, edge, dur, grow) {
+  g.renderOrder = 2; S.scene.add(g); for (const o of g.children) o.renderOrder = 2;
+  G.fx.push({ clean: true, t: dur, tick: k => { grow(Math.max(0.02, k)); fill.material.opacity = 0.22 + 0.2 * k; edge.material.opacity = 0.55 + 0.45 * Math.abs(Math.sin(k * (8 + 14 * k))); },
+    fn: () => { S.scene.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); } });
+}
+// a circle (a shell or grenade on its way, a charge about to go off)
+export function warnCircle(x, z, R, dur) {
+  if (!S.scene) return; const g = new THREE.Group(), base = new THREE.Mesh(new THREE.CircleGeometry(R, 40).rotateX(-Math.PI / 2), warnMat(0.14)), fill = new THREE.Mesh(new THREE.CircleGeometry(R, 40).rotateX(-Math.PI / 2), warnMat(0.22)), edge = ring(R - 0.09, R, 0xff7a5a, 0.8);
+  edge.material.blending = THREE.NormalBlending; g.add(base, fill, edge); g.position.set(x, 0.05, z); fill.position.y = 0.002; edge.position.y = 0.004; warn(g, fill, edge, dur, k => fill.scale.setScalar(k));
+}
+// a lane from (x, z) along ang (a dash about to come)
+export function warnLine(x, z, ang, len, w, dur) {
+  if (!S.scene) return; const g = new THREE.Group(), geo = () => new THREE.PlaneGeometry(w, len).rotateX(-Math.PI / 2).translate(0, 0, len / 2);
+  const base = new THREE.Mesh(geo(), warnMat(0.14)), fill = new THREE.Mesh(geo(), warnMat(0.22)), eg = new THREE.EdgesGeometry(new THREE.PlaneGeometry(w, len).rotateX(-Math.PI / 2).translate(0, 0, len / 2));
+  const edge = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0xff7a5a, transparent: true, opacity: 0.8, depthWrite: false }));
+  g.add(base, fill, edge); g.position.set(x, 0.05, z); g.rotation.y = ang; fill.position.y = 0.002; edge.position.y = 0.004; warn(g, fill, edge, dur, k => fill.scale.set(1, 1, k));
+}
+// a fan in front (a sweep of fire about to come): half-angle half, out to R
+export function warnCone(x, z, ang, half, R, dur) {
+  if (!S.scene) return; const g = new THREE.Group(), th0 = ang - Math.PI / 2 - half, geo = () => new THREE.CircleGeometry(R, 36, th0, half * 2).rotateX(-Math.PI / 2);
+  const base = new THREE.Mesh(geo(), warnMat(0.14)), fill = new THREE.Mesh(geo(), warnMat(0.22)), edge = new THREE.Mesh(new THREE.RingGeometry(R - 0.1, R, 36, 1, th0, half * 2).rotateX(-Math.PI / 2), warnMat(0.8));
+  edge.material.color.setHex(0xff7a5a); g.add(base, fill, edge); g.position.set(x, 0.05, z); fill.position.y = 0.002; edge.position.y = 0.004; warn(g, fill, edge, dur, k => fill.scale.setScalar(k));
+}

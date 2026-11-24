@@ -5,7 +5,7 @@ import { TYPES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM,
 import { auraMat, glowSprite, ring, toonMat, part, merge } from './gfx.js';
 import { tr } from './i18n.js';
 import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose } from './assets.js';
-import { slash, impact, burst, shake, trail, spinFx, slamMark, debris, shieldDome, domeHit, domeEnd, empWave } from './fx.js';
+import { slash, impact, burst, shake, trail, spinFx, slamMark, debris, shieldDome, domeHit, domeEnd, empWave, warnCircle, warnLine, warnCone } from './fx.js';
 import { S } from './audio.js';
 import { runeCircle } from './vfx.js';
 import { engTick, clearDrones, rodBeam, orbitalSkill, updateCall, updateTechFx } from './drones.js';
@@ -26,14 +26,14 @@ export class Unit {
     this.id = nextId++; this.kind = kind; this.side = side; this.x = x; this.z = z; this.vx = this.vz = this.kx = this.kz = 0; this.wantX = this.wantZ = 0;
     this.level = o.level || 1; this.mods = o.mods || []; this.modLv = o.modLv || {}; this.champ = !!o.champ; this.entry = o.entry || null; this.packId = o.packId ?? -1;
     this.T = TYPES[kind] || null; this.state = 'idle'; this.st = 0; this.cdT = rand(0.2, 0.8); this.target = null; this.face = rand(0, TAU);
-    this.home = { x, z }; this.aggro = false; this.scanT = rand(0, 0.35); this.flash = 0; this.stun = 0; this.dead = false; this.barT = 0;
+    this.boss = o.boss || null; this.home = { x, z }; this.aggro = false; this.scanT = rand(0, 0.35); this.flash = 0; this.stun = 0; this.dead = false; this.barT = 0;
     this.flank = Math.random() < 0.5 ? -1 : 1; this.strafeT = 0; this.strafeDir = 0; this.resCD = rand(2, 4); this.healCD = 2; this.walkPh = rand(0, 6); this.lostT = 0;
     this.stats();
     this.hp = this.maxHp * (o.hpFrac ?? 1);
     const ally = side === 'ally', champ = this.champ;
     const mod0 = this.mods[0] && MODS[this.mods[0]];
     this.meshOpts = {
-      scale: champ ? (ally ? 1.1 : 1.25) : 1,
+      scale: o.scale ?? (champ ? (ally ? 1.1 : 1.25) : 1),
       tint: this.mods.includes('stone') ? 0xb8b4ac : this.mods.includes('fire') && champ ? 0xffc8a8 : 0xffffff,
       emis: 0x000000, rim: 0x000000, elems: champ && mod0 ? this.mods.slice() : null, soul: ally,
       outline: 0x120a10, outlineW: champ ? 0.06 : 0.05,
@@ -76,6 +76,7 @@ export class Unit {
     this.mech = mech; if (mech) { this.maxHp *= 1.45; this.armor += 15; this.speed *= 0.95; this.r *= 1.04; this.tauntR = 6; }
     // 机械师骷髅: the drones do most of the work (drones.js); a bit sturdier, a touch more reach
     this.eng = eng; if (eng) { this.maxHp *= 1.25; this.armor += 6; this.range = 7.5; }
+    if (this.boss && PH.bossStats) PH.bossStats(this); // 首领 (boss.js)
   }
   remove() { C.scene.remove(this.mesh.root); if (this.dr) clearDrones(this); }
   // new weapon / shield in hand after an equipment change
@@ -123,11 +124,12 @@ export function alertPack(u, t) {
 }
 function kill(u, src) {
   u.dead = true; u.hp = 0; u.poison = null; u.chillT = 0; u.mesh.u.uStat.value.w = 0;
+  if (u.side === 'enemy' && u.isDrone) { if (PH.droneDown) PH.droneDown(u); u.remove(); return; } // a boss's repair drone: shot down (drones.js / boss.js)
   if (u.side === 'enemy') {
     S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 }); C.parts.emit(u.x, 0.5, u.z, 8, { col: 0xd8ccb8, spd: 2.6, up: 2.4, grav: 8, life: 0.6, size: 0.16 }); if (u.champ) { shake(0.08, u.x, u.z); burst(u.x, 0.8, u.z, 0xffd8a0, 1.6); const P = G.player; if (P && Math.hypot(P.x - u.x, P.z - u.z) < 12 && !(G.slowCD > G.t)) { G.slowT = 0.22; G.slowCD = G.t + 1.5; } }
-    const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(PACT ? xp * 0.6 : xp); if (src && src.pact && PH.kill) PH.kill(src, u);
+    const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.boss ? 12 : u.champ ? 3 : 1); addXP(PACT ? xp * 0.6 : xp); if (src && src.pact && PH.kill) PH.kill(src, u);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
-    deathBlast(u, 0.7); const it = G.noDrop ? null : (PACT ? rollHeroDrop : rollDrop)(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level; the test arena can turn drops off */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
+    deathBlast(u, 0.7); if (u.boss && PH.bossDie) PH.bossDie(u, src); const it = G.noDrop || u.boss ? null : (PACT ? rollHeroDrop : rollDrop)(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level; the test arena can turn drops off */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
     if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
     makeCorpse(u);
   } else if (u.side === 'ally') {
@@ -244,7 +246,8 @@ function makeCorpse(u) {
   const m = u.mesh; m.u.uTint.value.multiplyScalar(0.72); m.u.uFlash.value = 0; if (u.ringMesh) m.root.remove(u.ringMesh); if (u.tele) { C.scene.remove(u.tele); u.tele = null; }
   m.root.scale.set(1, 1, 1); const hard = u.dieHard, name = ANIM[u.kind].die, sp = hard ? 1.55 : 1.2; play(m, name, { once: true, speed: sp, fade: 0.05 });
   const l = Math.hypot(u.dieDx || 0, u.dieDz || 0) || 1, dx = (u.dieDx || Math.sin(u.face + Math.PI)) / l, dz = (u.dieDz || Math.cos(u.face + Math.PI)) / l, v = hard ? 4.6 : 1.8;
-  const c = { kind: u.kind, level: u.level, mods: u.mods.slice(), champ: u.champ, x: u.x, z: u.z, rx: u.x, rz: u.z, t: 30, mesh: m, packId: u.packId, animT: clipLen(name) / sp + 0.1,
+  // (a boss's bones can't be raised; in 魂契 they are a lot of soul)
+  const c = { kind: u.kind, level: u.level, mods: u.mods.slice(), champ: u.champ, boss: u.boss, claim: u.boss && !PACT ? 'boss' : null, x: u.x, z: u.z, rx: u.x, rz: u.z, t: 30, mesh: m, packId: u.packId, animT: clipLen(name) / sp + 0.1,
     vx: dx * v, vz: dz * v, hop: hard ? 0.3 : 0, hopT: 0, flash: 1 };
   G.corpses.push(c);
   if (m.root.visible) { const big = u.kind === 'brute' || u.champ; debris(u.x, 0.7, u.z, dx, dz, (hard ? 5 : 2) + (big ? 2 : 0) + Math.floor(Math.random() * 2), hard ? 4.2 : 2.2); }
@@ -452,12 +455,12 @@ function gunTick(u, dt) {
 // ---------- 机枪骷髅 skills: grenade (+ cluster bomblets), dig in as a turret; AP rounds stack in gunTick ----------
 function gunSkills(u) {
   const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 8 && C.floor.los(u.x, u.z, h.x, h.z));
-  if (rk(u, 'deploy') && u.depCD <= 0 && (near.length >= 3 || near.some(h => h.champ))) { deploy(u); return false; }
+  if (rk(u, 'deploy') && u.depCD <= 0 && (near.length >= 3 || near.some(h => h.champ) || u.enraged)) { deploy(u); return false; }
   if (u.nadeCD <= 0 && near.length) { // the spot that catches the most enemies in the blast; a lone normal enemy isn't worth one
     const R = 1.7 + 0.12 * rk(u, 'nade'); let best = null, bn = 0;
     for (const c of near) { if (dist(c, u) > 7.5 || dist(c, u) < 1.5) continue; let n = 0; for (const h of near) if (Math.hypot(h.x - c.x, h.z - c.z) < R) n += h.champ ? 2 : 1; if (n > bn) { bn = n; best = c; } }
-    if (best && bn >= 2) { u.state = 'throw'; u.st = 0; u.wind = 0.32; u.thrown = false; u.nadeAt = { x: best.x, z: best.z }; faceTo(u, best); u.face = u.faceT; u.wantX = u.wantZ = 0;
-      playUpper(u.mesh, partClip('Throw', 'upper'), { once: true, restart: true, speed: 1.5, fade: 0.08 }); u.nadeCD = 9 - 0.8 * rk(u, 'nade'); return true; }
+    if (best && (bn >= 2 || (u.boss && bn >= 1))) { u.state = 'throw'; u.st = 0; u.wind = 0.32; u.thrown = false; u.nadeAt = { x: best.x, z: best.z }; faceTo(u, best); u.face = u.faceT; u.wantX = u.wantZ = 0;
+      playUpper(u.mesh, partClip('Throw', 'upper'), { once: true, restart: true, speed: 1.5, fade: 0.08 }); u.nadeCD = (9 - 0.8 * rk(u, 'nade')) * (u.enraged ? 0.6 : 1); return true; }
     u.nadeCD = 0.5; }
   return false;
 }
@@ -468,6 +471,7 @@ function launchNade(u, at, o = {}) {
   const m = new THREE.Mesh(nadeGeo, nadeMat); m.scale.setScalar(o.mini ? 0.07 : o.shell ? 0.15 : 0.11); const gl = glowSprite(o.fire ? 0xff8a2a : 0xb46cff, o.mini ? 0.5 : o.shell ? 1.1 : 0.8, 0.9); m.add(gl); gl.scale.multiplyScalar(1 / m.scale.x); C.scene.add(m);
   NADES.push({ m, src: u, x0, z0, y0: o.y ?? 1.0, x1: at.x, z1: at.z, t: 0, dur: o.mini ? 0.35 : o.shell ? 0.62 + d * 0.045 : 0.5 + d * 0.03, h: o.mini ? 0.7 : o.shell ? 1.8 + d * 0.2 : 1.2 + d * 0.12,
     dmg: o.dmg ?? u.dmg * (1.6 + 0.35 * r), R: o.R ?? (o.mini ? 1.1 : 1.7 + 0.12 * r), mini: !!o.mini, shell: !!o.shell, fire: o.fire || 0, cl: o.cl ?? (o.mini ? 0 : rk(u, 'cluster')) });
+  if (u.side === 'enemy' && !o.mini) { const n = NADES[NADES.length - 1]; warnCircle(n.x1, n.z1, n.R, n.dur); } // (a boss's: marked on the ground where it will land)
   if (!o.mini && !o.shell) S.arrow();
 }
 // ---------- 炮手骷髅: the shell lands where it catches the most (preferring its target), never on top of itself ----------
@@ -484,8 +488,8 @@ function fireShell(u, at) {
 // 齐射: several shells in quick succession at the thickest spot
 function barrageSkill(u) {
   const r = rk(u, 'barrage'); if (!r || (u.barCD || 0) > G.t || u.state !== 'idle' || u.stun > 0) return false;
-  const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < u.range && dist(h, u) > 2 && C.floor.los(u.x, u.z, h.x, h.z)); if (near.length < 3 && !near.some(h => h.champ)) return false;
-  const t = near.find(h => h.champ) || near[0], at = shellTarget(u, t); u.state = 'barrage'; u.st = 0; u.shots = r + 2; u.shotT = 0.15; u.barAt = at; u.barCD = G.t + 14 - 1.5 * r;
+  const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < u.range && dist(h, u) > 2 && C.floor.los(u.x, u.z, h.x, h.z)); if (!near.length || (near.length < 3 && !near.some(h => h.champ) && !u.boss)) return false;
+  const t = near.find(h => h.champ) || near[0], at = shellTarget(u, t); u.state = 'barrage'; u.st = 0; u.shots = r + 2 + (u.enraged ? 2 : 0); u.shotT = 0.15; u.barAt = at; u.barCD = G.t + (14 - 1.5 * r) * (u.boss ? (u.enraged ? 0.5 : 0.75) : 1);
   u.faceT = Math.atan2(at.x - u.x, at.z - u.z); u.wantX = u.wantZ = 0; say(u.x, u.z, tr('齐射！', 'Barrage!'), '#ffc070', 14, 1.9); return true;
 }
 function updateBarrage(u, dt) { u.st += dt; u.wantX = u.wantZ = 0; u.shotT -= dt;
@@ -567,6 +571,14 @@ function rangedLogic(u, t, dt, near, far) {
 function nearestHostile(u, maxD, needLos = true) { let b = null, bd = maxD; for (const h of hostilesOf(u)) { if (h.dead) continue; const d = dist(u, h); if (d < bd && (!needLos || C.floor.los(u.x, u.z, h.x, h.z))) { bd = d; b = h; } } return b; }
 
 function enemyThink(u, dt) {
+  enemyScan(u, dt);
+  if (u.state === 'panic') { u.st += dt; flee(u, u.panicX, u.panicZ, u.speed * 1.15); if (u.st > u.panicDur) { u.state = 'idle'; S.rally(); } return; }
+  const t = u.target && !u.target.dead ? u.target : null;
+  if (!t) { goHome(u, dt); return; }
+  enemyAct(u, t, dt);
+}
+// who to go for: the nearest friend in sight (taunts pull, the summoner a little less); lose them after 5 s out of sight
+function enemyScan(u, dt) {
   const F = C.floor;
   u.scanT -= dt;
   if (u.scanT <= 0) { u.scanT = 0.35;
@@ -575,14 +587,14 @@ function enemyThink(u, dt) {
     for (const h of G.friends) { if (h.dead) continue; const d = dist(u, h); if (d > (u.aggro ? 14 : 8.5) || !F.los(u.x, u.z, h.x, h.z)) continue;
       let s = d; if (h.taunt && d < h.tauntR) s -= 3.5 + rk(h, 'taunt') + (h.shieldT > 0 ? 6 : 0); if (h.kind === 'player') s -= 0.6; if (h === u.target) s -= 1.2; if (s < bs) { bs = s; best = h; } }
     if (best) { if (!u.aggro) { u.aggro = true; alertPack(u, best); } u.target = best; u.lostT = 0; }
-    else if (u.aggro) { u.lostT += 0.35; if (u.lostT > 5) { u.aggro = false; u.target = null; } }
+    else if (u.aggro) { u.lostT += 0.35; if (u.lostT > (u.boss ? 9 : 5)) { u.aggro = false; u.target = null; } }
   }
-  if (u.state === 'panic') { u.st += dt; flee(u, u.panicX, u.panicZ, u.speed * 1.15); if (u.st > u.panicDur) { u.state = 'idle'; S.rally(); } return; }
-  const t = u.target && !u.target.dead ? u.target : null;
-  if (!t) { // idle / go home
-    const dh = Math.hypot(u.home.x - u.x, u.home.z - u.z);
-    if (dh > 2.5) seek(u, u.home.x, u.home.z, u.speed * 0.6); else { u.wantX *= 0.9; u.wantZ *= 0.9; if (Math.random() < dt * 0.4) { const a = rand(0, TAU); u.wantX = Math.cos(a) * 0.8; u.wantZ = Math.sin(a) * 0.8; } }
-    return; }
+}
+function goHome(u, dt) {
+  const dh = Math.hypot(u.home.x - u.x, u.home.z - u.z);
+  if (dh > 2.5) seek(u, u.home.x, u.home.z, u.speed * 0.6); else { u.wantX *= 0.9; u.wantZ *= 0.9; if (!u.boss && Math.random() < dt * 0.4) { const a = rand(0, TAU); u.wantX = Math.cos(a) * 0.8; u.wantZ = Math.sin(a) * 0.8; } }
+}
+function enemyAct(u, t, dt) {
   if (u.kind === 'imp' && !u.champ && !u.panicked && u.hp < u.maxHp * 0.3) { u.panicked = true; if (Math.random() < 0.1) { panic(u, t); return; } }
   if (u.kind === 'brute' || u.kind === 'imp') meleeLogic(u, t);
   else if (u.kind === 'archer') rangedLogic(u, t, dt, 4, 7.5);
@@ -596,11 +608,46 @@ function enemyThink(u, dt) {
     rangedLogic(u, t, dt, 4.5, 7.5);
   }
 }
+// ---------- 首领: the tech skeletons' own kits turned on the player (boss.js spawns and tunes them); every big blow is marked first ----------
+function bossThink(u, dt) {
+  enemyScan(u, dt); u.moveCD = (u.moveCD || 0) - dt;
+  const t = u.target && !u.target.dead ? u.target : null; if (!t) { goHome(u, dt); return; }
+  if (u.gun) { if (sweepSkill(u, t) || gunSkills(u)) return; rangedLogic(u, t, dt, 3.5, 7); }
+  else if (u.mortar) mortarLogic(u, t, dt);
+  else if (u.mech) { aegisSkill(u); if (overloadSkill(u) || moveSkill(u, t)) return; meleeLogic(u, t); }
+  else if (u.eng) { if (orbitalSkill(u)) return; rangedLogic(u, t, dt, 4.5, 7.5); }
+  else enemyAct(u, t, dt);
+}
+// 扫射 (the gunner boss): a fan marked on the ground, the barrels spin up, then the fire sweeps across it from one edge to the other —
+// each round hits the first body in its line (walls stop it). Step out of the fan, or take it on a shield
+const SWEEP = { warn: 0.85, fire: 1.4, rof: 0.06, half: 0.55, R: 8.5 };
+function sweepSkill(u, t) {
+  if (!u.boss || (u.swCD || 0) > G.t || u.state !== 'idle' || u.stun > 0 || u.burst > 0) return false;
+  if (dist(u, t) > SWEEP.R - 0.5 || !C.floor.los(u.x, u.z, t.x, t.z)) return false;
+  u.state = 'sweep'; u.st = 0; u.swT = 0; u.swA = Math.atan2(t.x - u.x, t.z - u.z); u.wantX = u.wantZ = 0; u.faceT = u.swA - SWEEP.half;
+  u.swCD = G.t + (u.enraged ? 6 : 8.5); warnCone(u.x, u.z, u.swA, SWEEP.half, SWEEP.R, SWEEP.warn); say(u.x, u.z, tr('扫射！', 'Sweep!'), '#ff9a6a', 15, 2.1); S.lock(); return true;
+}
+function updateSweep(u, dt) {
+  u.st += dt; u.wantX = u.wantZ = 0; const gn = u.mesh.gun; if (gn) gn.spin = u.st < SWEEP.warn ? 6 + 26 * u.st / SWEEP.warn : 32;
+  if (u.st < SWEEP.warn) return;
+  const k = Math.min(1, (u.st - SWEEP.warn) / SWEEP.fire), a = u.swA - SWEEP.half + 2 * SWEEP.half * k; u.faceT = u.face = a; u.lastShot = G.t; u.animLock = Math.max(u.animLock || 0, 0.3);
+  u.swT -= dt; while (u.swT <= 0) { u.swT += SWEEP.rof; sweepRound(u, a + rand(-0.03, 0.03)); }
+  if (k >= 1) { u.state = 'recover'; u.st = 0; u.cdT = Math.max(u.cdT, 0.9); }
+}
+function sweepRound(u, a) {
+  const fx = Math.sin(a), fz = Math.cos(a), F = C.floor; let hd = SWEEP.R, hit = null;
+  for (let s = 0.6; s < SWEEP.R; s += 0.35) if (!F.walk(u.x + fx * s, u.z + fz * s)) { hd = s; break; } // a wall stops it
+  for (const h of hostilesOf(u)) { if (h.dead) continue; const rx = h.x - u.x, rz = h.z - u.z, along = rx * fx + rz * fz; if (along < 0 || along > hd) continue; if (Math.abs(rx * fz - rz * fx) < h.r + 0.3) { hd = along; hit = h; } }
+  const gn = u.mesh.gun; if (gn) gn.muzzle.getWorldPosition(_mz); else _mz.set(u.x + fx * 0.6, 0.8, u.z + fz * 0.6);
+  const ex = u.x + fx * hd, ez = u.z + fz * hd; tracer(_mz.x, _mz.y, _mz.z, ex, hit ? 0.7 : 0.05, ez); S.gun();
+  if (hit) { damage(u, hit, u.dmg * 0.3 * rand(0.85, 1.15), { sum: true, noFx: true }); C.parts.emit(ex, 0.7, ez, 3, { col: 0xffe6a0, spd: 2.2, up: 1, life: 0.2, size: 0.12 }); }
+  else C.parts.emit(ex, 0.08, ez, 2, { col: 0xc8bca8, spd: 1.4, up: 1.2, grav: 6, life: 0.35, size: 0.14 }); // dust kicked up where the rounds hit the floor
+}
 // summons fight up front: they pick fights near the summoner on their own, peel enemies off the summoner,
 // and the melee ones close the gap with a move skill (warrior: leap slam, minion: lunge)
 const MELEE = k => k === 'brute' || k === 'imp';
 const isMelee = u => MELEE(u.kind) && !u.gun;
-function allyScore(u, e, P) { const de = dist(e, P); return dist(e, u) + de * 0.35 - (e.target === P ? 3 : 0) - (e === G.focus ? 2.5 : 0) - (e.champ ? 0.5 : 0); }
+function allyScore(u, e, P) { const de = dist(e, P); return dist(e, u) - (e.prio || 0) + de * 0.35 - (e.target === P ? 3 : 0) - (e === G.focus ? 2.5 : 0) - (e.champ ? 0.5 : 0); }
 function allyThink(u, dt) {
   const P = G.player; if (P.dead) { u.wantX = u.wantZ = 0; return; }
   const dp = dist(u, P);
@@ -675,20 +722,22 @@ function drillTick(u, dt) {
   if (any) { S.drill(); C.parts.emit(_mz.x, _mz.y, _mz.z, last ? 14 : 7, { col: Math.random() < 0.5 ? 0xffd080 : 0xffffff, spd: 4.5, up: 1.5, grav: 9, life: 0.3, size: 0.1 }); impact(_mz.x, _mz.y, _mz.z, 0xffc070, last ? 0.9 : 0.6); }
 }
 // 喷射冲锋: crouch, then the thrusters fire and it rams in a straight line, shoving everything in the way aside
+const RKT = { crouch: 0.18, boss: 0.75, len: 9.5 };
 function startRocket(u, t) { u.state = 'rocket'; u.st = 0; u.tgt = t; u.hitSet = new Set(); faceTo(u, t); u.face = u.faceT; u.wantX = u.wantZ = u.vx = u.vz = u.kx = u.kz = 0;
-  u.moveCD = 7 - 0.7 * rk(u, 'rocket'); play(u.mesh, 'Dodge_Forward', { once: true, restart: true, speed: 0.75, fade: 0.06 }); trail(u, 1.1); say(u.x, u.z, tr('喷射冲锋！', 'Rocket Dash!'), '#9fe8ff', 14, 1.9); S.fire(); }
+  if (u.boss) { u.rkLen = Math.min(RKT.len, dist(u, t) + 2); warnLine(u.x, u.z, u.face, u.rkLen, 1.5, RKT.boss); } // a boss: the lane is marked, and it runs it straight
+  u.moveCD = (7 - 0.7 * rk(u, 'rocket')) * (u.enraged ? 0.7 : 1); play(u.mesh, 'Dodge_Forward', { once: true, restart: true, speed: 0.75, fade: 0.06 }); trail(u, 1.1); say(u.x, u.z, tr('喷射冲锋！', 'Rocket Dash!'), '#9fe8ff', 14, 1.9); S.fire(); }
 function updateRocket(u, dt) {
   u.st += dt; u.wantX = u.wantZ = u.vx = u.vz = u.kx = u.kz = 0; const t = u.tgt, fx = Math.sin(u.face), fz = Math.cos(u.face);
   const jet = (n, sp) => C.parts.emit(u.x - fx * 0.42, 0.72, u.z - fz * 0.42, n, { col: Math.random() < 0.6 ? 0xff9a3a : 0xc77dff, spd: sp, up: 0.2, grav: 0, life: 0.28, size: 0.28, spread: 0.15 });
-  if (u.st < 0.18) { jet(2, 0.6); return; } // thrusters lighting
-  if (t && !t.dead) { faceTo(u, t); u.face = u.faceT; }
+  const cr = u.boss ? RKT.boss : RKT.crouch; if (u.st < cr) { jet(2, 0.6); return; } // thrusters lighting
+  if (t && !t.dead && !u.boss) { faceTo(u, t); u.face = u.faceT; }
   const step = 13 * dt, nx = u.x + fx * step, nz = u.z + fz * step, reach = t && !t.dead ? u.r + t.r + 0.35 : 0, dt2 = t && !t.dead ? dist(u, t) : 0;
   const blocked = !C.floor.walk(nx + fx * u.r, nz + fz * u.r); if (!blocked) { u.x = nx; u.z = nz; }
   jet(3, 2.2); C.parts.emit(u.x, 0.1, u.z, 1, { col: 0xb8a890, spd: 1, up: 0.5, life: 0.4, size: 0.3 });
   for (const h of hostilesOf(u)) { if (h.dead || u.hitSet.has(h) || h === t || dist(u, h) > 0.95 + h.r) continue; u.hitSet.add(h); // shoved aside
     const sx = -fz, sz = fx, side = (h.x - u.x) * sx + (h.z - u.z) * sz >= 0 ? 1 : -1; h.kx += sx * side * 5; h.kz += sz * side * 5;
     damage(u, h, u.dmg * (0.6 + 0.15 * rk(u, 'rocket')) * rand(0.9, 1.1), { melee: true, heavy: true }); }
-  if (blocked || !t || t.dead || dt2 <= reach || u.st > 1.0) { // impact
+  if (blocked || !t || t.dead || dt2 <= reach || u.st > (u.boss ? cr + u.rkLen / 13 : 1.0)) { // impact
     S.smash(); shake(0.1, u.x, u.z); burst(u.x + fx * 0.6, 0.6, u.z + fz * 0.6, 0xffb060, 2); C.parts.emit(u.x, 0.2, u.z, 18, { col: 0xc8bca8, spd: 3.5, up: 1.2, life: 0.5, size: 0.3 });
     for (const h of hostilesOf(u)) if (!h.dead && dist(u, h) < 1.7 + h.r) { damage(u, h, u.dmg * 0.5 * rand(0.9, 1.1), { knock: 2.6, fx: u.x, fz: u.z, heavy: true }); h.stun = Math.max(h.stun, 0.5); if (!h.dead) { h.target = u; h.aggro = true; } }
     u.state = 'recover'; u.st = 0; u.cdT = Math.max(u.cdT, 0.3); }
@@ -702,18 +751,19 @@ function aegisSkill(u) {
 function endShield(u) { u.shieldHP = 0; u.shieldT = 0; if (u.mech) u.tauntR = 6; if (u.dome) { domeEnd(u.dome); u.dome = null; C.parts.emit(u.x, 0.9, u.z, 16, { col: 0x8fe8ff, spd: 2.5, up: 1, grav: 2, life: 0.4, size: 0.18 }); } }
 function shieldTick(u, dt) { u.shieldT -= dt; if (u.shieldT <= 0) { endShield(u); return; } u.tauntT -= dt;
   if (u.tauntT <= 0) { u.tauntT = 1; const R = 6 + rk(u, 'aegis'); for (const e of hostilesOf(u)) if (!e.dead && dist(e, u) < R) { e.target = u; e.aggro = true; } } }
-// 过载: charge up, then an EMP shockwave rolls out from the mech
+// 过载: charge up, then an EMP shockwave rolls out from the mech (a boss charges for longer, its reach marked on the ground)
+const OVL = { boss: 0.95 };
 function overloadSkill(u) {
   const r = rk(u, 'overload'); if (!r || (u.ovCD || 0) > G.t || u.state !== 'idle' || u.stun > 0) return false;
-  const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 3); if (near.length < 3 && !near.some(h => h.champ && dist(h, u) < 2.5)) return false;
-  u.state = 'overload'; u.st = 0; u.ovCD = G.t + 11 - r; u.wantX = u.wantZ = 0; play(u.mesh, 'Spellcast_Raise', { once: true, restart: true, speed: 1.5, fade: 0.06 }); u.animLock = 0.6;
+  const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 3); if (near.length < 3 && !near.some(h => h.champ && dist(h, u) < 2.5) && !(u.boss && near.length)) return false;
+  u.state = 'overload'; u.st = 0; u.ovCD = G.t + (11 - r) * (u.enraged ? 0.65 : 1); if (u.boss) warnCircle(u.x, u.z, 3 + 0.3 * r, OVL.boss); u.wantX = u.wantZ = 0; play(u.mesh, 'Spellcast_Raise', { once: true, restart: true, speed: 1.5, fade: 0.06 }); u.animLock = 0.6;
   say(u.x, u.z, tr('过载！', 'Overload!'), '#d8b0ff', 14, 1.9); S.zap(); return true;
 }
 function updateOverload(u, dt) {
-  u.st += dt; u.wantX = u.wantZ = 0; const k = Math.min(1, u.st / 0.45), E = u.mesh.u.uEmis.value;
+  u.st += dt; u.wantX = u.wantZ = 0; const k = Math.min(1, u.st / (u.boss ? OVL.boss : 0.45)), E = u.mesh.u.uEmis.value;
   if (!u.ovE) u.ovE = E.clone(); E.setRGB(0.25 * k, 0.15 * k, 0.4 * k).add(u.ovE);
   if (Math.random() < 0.8) { const a = Math.random() * TAU; C.parts.emit(u.x + Math.cos(a) * 0.5, 0.4 + Math.random() * 1.0, u.z + Math.sin(a) * 0.5, 1, { col: Math.random() < 0.5 ? 0x9fe8ff : 0xd8b0ff, spd: 1.5, up: 0.5, grav: 0, life: 0.15, size: 0.15 }); }
-  if (u.st < 0.45) return;
+  if (u.st < (u.boss ? OVL.boss : 0.45)) return;
   const r = rk(u, 'overload'), R = 3 + 0.3 * r; E.copy(u.ovE); u.ovE = null; empWave(u.x, u.z, R); S.zap(); S.boom();
   const hit = hostilesOf(u).filter(h => !h.dead && dist(h, u) < R + h.r).sort((a, b) => dist(a, u) - dist(b, u));
   hit.forEach((h, i) => { if (i < 7) bolt(u, h, 0.3); damage(u, h, u.dmg * (1.1 + 0.3 * r) * rand(0.9, 1.1), { knock: 2.6, fx: u.x, fz: u.z, heavy: true, noChain: true }); if (!h.dead) h.stun = Math.max(h.stun, 0.8 + 0.3 * r); });
@@ -778,7 +828,8 @@ export function updateUnit(u, dt) {
         const mr = rk(u, 'mass'); if (mr) for (const o of G.friends) { if (o === f || o.dead || o.hp >= o.maxHp || dist(o, f) > 2.5 + 0.5 * mr) continue; const h2 = h * (0.35 + 0.15 * mr);
           o.hp = Math.min(o.maxHp, o.hp + h2); say(o.x, o.z, '+' + Math.round(h2), '#7dff9a', 13); C.parts.emit(o.x, 0.6, o.z, 8, { col: 0x7dff9a, spd: 0.6, up: 2, life: 0.7, grav: -1 }); } } } }
     else u.state = 'idle'; }
-  else if (u.side === 'enemy') { if (u.dummy) u.wantX = u.wantZ = 0; else enemyThink(u, dt); } // the test arena's training dummies stand still
+  else if (u.state === 'sweep') updateSweep(u, dt);
+  else if (u.side === 'enemy') { if (u.dummy) u.wantX = u.wantZ = 0; else if (u.boss) bossThink(u, dt); else enemyThink(u, dt); } // (the test arena's training dummies stand still)
   else if (u.side === 'ally') allyThink(u, dt);
 }
 function resurrect(by, c) {
@@ -793,7 +844,8 @@ export function integrate(units, dt) {
   const F = C.floor; frame++; if (G.player) { camX = G.player.x; camZ = G.player.z; }
   for (const u of units) { if (u.dead) continue; updateStatus(u, dt); if (u.dead) continue; const a = Math.min(1, dt * 10), sk = slowK(u) * (u.deployT > 0 ? 0.5 : 1); u.vx += (u.wantX * sk - u.vx) * a; u.vz += (u.wantZ * sk - u.vz) * a; }
   for (let i = 0; i < units.length; i++) { const a = units[i]; if (a.dead || a.state === 'leap' || a.state === 'rocket') continue;
-    for (let j = i + 1; j < units.length; j++) { const b = units[j]; if (b.dead || b.state === 'leap' || b.state === 'rocket') continue; const dx = b.x - a.x, dz = b.z - a.z, rr = (a.r + b.r) * (a.side !== 'enemy' && b.side !== 'enemy' ? 0.45 : 1); if (Math.abs(dx) > rr || Math.abs(dz) > rr) continue;
+    if (a.noBody) continue;
+    for (let j = i + 1; j < units.length; j++) { const b = units[j]; if (b.dead || b.state === 'leap' || b.state === 'rocket' || b.noBody) continue; const dx = b.x - a.x, dz = b.z - a.z, rr = (a.r + b.r) * (a.side !== 'enemy' && b.side !== 'enemy' ? 0.45 : 1); if (Math.abs(dx) > rr || Math.abs(dz) > rr) continue;
       const d = Math.hypot(dx, dz); if (d >= rr || d < 1e-5) continue; const push = (rr - d) * 0.5, nx = dx / d, nz = dz / d;
       const pa = a.kind === 'player' && b.side === 'ally', pb = b.kind === 'player' && a.side === 'ally';
       let wa = pa ? 0 : pb ? 1 : a.kind === 'player' ? 0.3 : a.kind === 'brute' ? 0.6 : 1, wb = pb ? 0 : pa ? 1 : b.kind === 'player' ? 0.3 : b.kind === 'brute' ? 0.6 : 1;

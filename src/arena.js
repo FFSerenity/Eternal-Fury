@@ -6,7 +6,9 @@ import { C, PH, Unit, removeCorpse, rise } from './units.js';
 import { MODS } from './data.js';
 import { heroUnit, equipSet, spawnHero, SETS } from './pact.js';
 import { QUAL } from './data.js';
+import { spawnBoss, BOSS_ORDER, bossName } from './boss.js';
 import { S } from './audio.js';
+import { clearDrones } from './drones.js';
 
 const KINDS = ['imp', 'brute', 'archer', 'shaman'];
 const O = { tab: 'mob', drop: false, gq: 0, type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false };
@@ -44,8 +46,15 @@ function spawnPack(n = O.count) {
   }
   S.rally();
 }
+// a boss at the chosen range and level (its life × the chosen multiplier)
+function spawnBossHere(key) {
+  const P = G.player, F = C.floor, h = heroUnit() || P; let x = null, z = null, best = 1e9;
+  for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, tx = h.x + Math.sin(a) * Math.max(4, O.dist), tz = h.z + Math.cos(a) * Math.max(4, O.dist), d = Math.hypot(tx - P.x, tz - P.z); if (d < best && F.fits(tx, tz, 1)) { best = d; x = tx; z = tz; } }
+  if (x == null) return; const u = spawnBoss(key, x, z, O.lvl); u.maxHp *= O.hpMul; u.hp = u.maxHp; u.dummy = O.dummy; u.arena = true; if (!O.dummy) { u.aggro = true; u.target = h; }
+  C.parts.emit(x, 0.4, z, 30, { col: 0xff6a3a, spd: 2.4, up: 2.4, life: 0.8, size: 0.3 }); S.rally();
+}
 function clearField() {
-  for (const u of G.units) if (u.side === 'enemy') { u.dead = true; u.remove(); }
+  for (const u of G.units) if (u.side === 'enemy') { u.dead = true; u.remove(); if (u.dr) clearDrones(u); }
   G.units = G.units.filter(u => u.side !== 'enemy'); for (const c of G.corpses.slice()) removeCorpse(c);
 }
 
@@ -71,7 +80,8 @@ function html() {
   <div class="aR">${step('lvl', tr('等级', 'Level'))}<span class="aL sp">${tr('距离', 'Range')}</span>${chips('dist', [[3, 3], [7, 7], [11, 11]])}</div>
   <div class="aR"><span class="aL">${tr('血量', 'Life')}</span>${chips('hpMul', [[1, '×1'], [3, '×3'], [10, '×10'], [50, '×50']])}</div>
   <div class="aR">${tog('elite', tr('精英', 'Champion'))}${tog('dummy', tr('木桩', 'Dummy'))}${tog('auto', tr('自动补怪', 'Auto refill'))}${tog('drop', tr('掉落', 'Loot'))}</div>
-  <div class="aR"><button class="go" data-act="spawn">${tr('刷怪', 'Spawn')}</button><button data-act="clear">${tr('清场', 'Clear')}</button></div></div>
+  <div class="aR"><button class="go" data-act="spawn">${tr('刷怪', 'Spawn')}</button><button data-act="clear">${tr('清场', 'Clear')}</button></div>
+  <div class="aR"><span class="aL">${tr('首领', 'Boss')}</span>${BOSS_ORDER.map(k => `<button class="boss" data-act="boss:${k}">${bossName(k).replace(/骷髅|Skeleton/, '').trim()}</button>`).join('')}</div></div>
   <div class="aP" data-p="me">${PACT ? `
   <div class="aR">${step('fury', tr('战魂', 'Fury'))}${chips('furyQ', [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20], [25, 25]])}</div>
   <div class="aR">${step('slvl', tr('召唤等级', 'Summon Lv'))}</div>
@@ -98,7 +108,7 @@ function onClick(e) {
     if (k === 'lvl') O.lvl = Math.max(1, Math.min(60, O.lvl + n)); else if (k === 'plvl') setLevel(G.level + n);
     else if (k === 'fury') setFury(G.pact.stacks + n); else if (k === 'slvl') { G.pact.lvl = Math.max(1, Math.min(60, G.pact.lvl + n)); heroRefresh(); } }
   else { const a = b.dataset.act;
-    if (a === 'spawn') spawnPack(); else if (a === 'clear') clearField(); else if (a === 'reset') resetStats(); else if (a === 'summon') summonNow(); else if (a === 'heal') fullHeal();
+    if (a.startsWith('boss:')) spawnBossHere(a.slice(5)); else if (a === 'spawn') spawnPack(); else if (a === 'clear') clearField(); else if (a === 'reset') resetStats(); else if (a === 'summon') summonNow(); else if (a === 'heal') fullHeal();
     else if (a === 'leave') { const q = new URLSearchParams(location.search); q.delete('arena'); location.href = location.pathname + (q.toString() ? '?' + q : ''); } }
   sync(); draw(true);
 }

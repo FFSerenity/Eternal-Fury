@@ -33,9 +33,9 @@ export function heroBase(L, s, set) {
 }
 // kills needed for the next stack (champions count 4, warriors 2)
 export const stackNeed = s => 3 + Math.floor(s * 0.6);
-const killWorth = v => v.champ ? 4 : v.kind === 'brute' ? 2 : 1;
+const killWorth = v => v.boss ? 12 : v.champ ? 4 : v.kind === 'brute' ? 2 : 1; // (a boss: 12)
 // 魂能 from a corpse, and the price of the next summon level
-export const soulOf = c => Math.max(1, Math.round(({ imp: 1, archer: 2, shaman: 2, brute: 3 }[c.kind] || 1) * (1 + 0.25 * (c.level - 1)) * (c.champ ? 3 : 1)));
+export const soulOf = c => Math.max(1, Math.round(({ imp: 1, archer: 2, shaman: 2, brute: 3 }[c.kind] || 1) * (1 + 0.25 * (c.level - 1)) * (c.boss ? 12 : c.champ ? 3 : 1)));
 export const lvlCost = L => Math.round(10 * Math.pow(L, 1.45));
 export const heroName = () => tr('骸骨卫士', 'Bone Sentinel');
 

@@ -285,7 +285,7 @@ export function updateHUD(dt, fps) {
   const near = G.corpses.filter(c => !c.claim && Math.hypot(c.x - P.x, c.z - P.z) < SKILLS.raise.range).length; const rb = $('#sRaise');
   rb.classList.toggle('ready', near > 0); $('#raiseN').textContent = near || ''; $('#raiseN').style.display = near ? 'flex' : 'none';
   const mc = Math.max(0, P.mendCD || 0); $('#sMend').style.setProperty('--cd', (mc / SKILLS.mend.cd * 100) + '%');
-  const ns = G.floor && Math.hypot(P.x - G.floor.stairs.x, P.z - G.floor.stairs.z) < 1.3; $('#bStairs').classList.toggle('show', !!ns); if (ns) $('#bStairs').textContent = G.depth === 0 ? tr(`⬇ 进入墓穴${G.deep > 1 ? ' · 第 ' + G.deep + ' 层' : ''}`, `⬇ Enter the crypt${G.deep > 1 ? ' · floor ' + G.deep : ''}`) : tr('⬇ 下楼', '⬇ Descend');
+  const ns = G.floor && Math.hypot(P.x - G.floor.stairs.x, P.z - G.floor.stairs.z) < 1.3; $('#bStairs').classList.toggle('show', !!ns); if (ns) $('#bStairs').textContent = G.depth > 0 && G.bossLock && !G.bossLock.dead ? tr('🔒 首领守着下楼的路', '🔒 A boss guards the way down') : G.depth === 0 ? tr(`⬇ 进入墓穴${G.deep > 1 ? ' · 第 ' + G.deep + ' 层' : ''}`, `⬇ Enter the crypt${G.deep > 1 ? ' · floor ' + G.deep : ''}`) : tr('⬇ 下楼', '⬇ Descend');
   if (cryptOpen) { if (PACT) renderPact(); else renderCrypt(); }
 }
 export function drawOverlay() {
