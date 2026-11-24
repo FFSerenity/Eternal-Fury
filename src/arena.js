@@ -8,7 +8,7 @@ import { heroUnit, setStyle, spawnHero, SETS } from './pact.js';
 import { S } from './audio.js';
 
 const KINDS = ['imp', 'brute', 'archer', 'shaman'];
-const O = { tab: 'mob', type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false };
+const O = { tab: 'mob', drop: false, type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false };
 const ST = { dmg: 0, dmgP: 0, taken: 0, kills: 0, ttk: 0, fight: 0, lastHit: -9, log: [] };
 let el = null, refillT = 0, uiT = 0, pid = 900000;
 const $ = s => el.querySelector(s);
@@ -69,7 +69,7 @@ function html() {
   <div class="aR"><span class="aL">${tr('数量', 'Count')}</span>${chips('count', [[1, 1], [3, 3], [5, 5], [10, 10], [20, 20]])}</div>
   <div class="aR">${step('lvl', tr('等级', 'Level'))}<span class="aL sp">${tr('距离', 'Range')}</span>${chips('dist', [[3, 3], [7, 7], [11, 11]])}</div>
   <div class="aR"><span class="aL">${tr('血量', 'Life')}</span>${chips('hpMul', [[1, '×1'], [3, '×3'], [10, '×10'], [50, '×50']])}</div>
-  <div class="aR">${tog('elite', tr('精英', 'Champion'))}${tog('dummy', tr('木桩', 'Dummy'))}${tog('auto', tr('自动补怪', 'Auto refill'))}</div>
+  <div class="aR">${tog('elite', tr('精英', 'Champion'))}${tog('dummy', tr('木桩', 'Dummy'))}${tog('auto', tr('自动补怪', 'Auto refill'))}${tog('drop', tr('掉落', 'Loot'))}</div>
   <div class="aR"><button class="go" data-act="spawn">${tr('刷怪', 'Spawn')}</button><button data-act="clear">${tr('清场', 'Clear')}</button></div></div>
   <div class="aP" data-p="me">${PACT ? `
   <div class="aR">${step('fury', tr('战魂', 'Fury'))}${chips('furyQ', [[0, 0], [5, 5], [10, 10], [15, 15], [20, 20]])}</div>
@@ -122,7 +122,7 @@ function draw(now) {
     const f = $('#a_fury'); if (f.textContent !== String(G.pact.stacks)) sync(); }
 }
 export function arenaTick(dt) {
-  if (!el) return; const P = G.player;
+  if (!el) return; const P = G.player; G.noDrop = !O.drop;
   if (O.pInv) { P.immortal = true; P.hp = P.maxHp; P.mp = P.maxMp; } else P.immortal = false;
   for (const u of G.friends) if (u !== P) u.immortal = O.hInv;
   if (G.t - ST.lastHit < 2) ST.fight += dt; while (ST.log.length && ST.log[0][0] < G.t - 5) ST.log.shift();

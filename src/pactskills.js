@@ -19,7 +19,7 @@ export const SKILLS = [
   { id: 'whirl', at: 15, cd: 10, icon: '🌀', name: tr('旋风斩', 'Whirlwind'),
     desc: tr('身边 2.5 米内有 3 个以上敌人时转身横扫，打两段，每段向四周甩出剑气（远处的敌人也会被剑气划伤）', 'With 3+ enemies within 2.5 m, spins and cuts everything around it, twice, flinging sword qi out in every direction (it cuts what it meets further out too)') },
   { id: 'sunder', at: 20, cd: 15, icon: '💥', name: tr('破军一击', 'Sundering Strike'),
-    desc: tr('蓄力后挥出燃火的一击：剑盾怒吼爆气、直劈，火浪沿前方扇形扫出；大剑为剑注火、270° 横扫，火浪向四周扩散；非精英敌人血量低于 25% 直接斩杀', 'Gathers itself, then a burning blow: sword & shield roars and cuts down, sending a wave of fire down a cone; the greatsword fills its blade with fire and sweeps 270°, fire rolling out all round; non-elite enemies left under 25% life are cut down') },
+    desc: tr('蓄力后挥出燃火的一击：剑盾怒吼爆气、直劈，火浪沿前方扇形扫出；大剑为剑注火横扫，三道火浪一圈比一圈远地向四周扩散；非精英敌人血量低于 25% 直接斩杀', 'Gathers itself, then a burning blow: sword & shield roars and cuts down, sending a wave of fire down a cone; the greatsword fills its blade with fire and sweeps, three rings of fire rolling out all round, each farther than the last; non-elite enemies left under 25% life are cut down') },
 ];
 const SK = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 export const skillsAt = L => SKILLS.filter(s => L >= s.at);
@@ -35,7 +35,7 @@ const MOVES = {
   GS: { charge: { clip: 'GS_Leap', sp: 1.1, at: 0.1, up: 0.3, land: 0.53, end: 0.8, mult: 1.5, stun: 0.9, aoe: 2.6 },
     guard: { chance: 0.25, keep: 0.4, word: tr('招架', 'Parry'), pose: 'GS_Block', poseT: 0.2, clip: 'GS_Spin', at: 0.12, hit: 0.3, mult: 1.1, fan: true },
     whirl: { clip: 'GS_Spin', sp: 1.2, hits: [0.35, 0.61], mult: 1.2 },
-    sunder: { pre: 'GS_Power', preSp: 2, preT: 1.1, ignite: 0.1, full: 0.95, clip: 'GS_Combo', at: 0.56, hit: 0.72, mult: 3.5, sweep: 2.36 } }, // fire climbs the blade from the hilt; then the 270° sweep (GS_Combo)
+    sunder: { pre: 'GS_Power', preSp: 2, preT: 1.1, ignite: 0.1, full: 0.95, clip: 'GS_Combo', at: 0.56, hit: 0.72, mult: 3.5, sweep: Math.PI * 2 } }, // fire climbs the blade from the hilt; then the sweep (GS_Combo), its fire spreading out all round (a full circle)
 };
 const WAVES = [{ at: 0.16, R: 7.6, life: 0.6, mult: 0.6 }, { at: 0.32, R: 9.8, life: 0.66, mult: 0.4 }]; // the greatsword's sunder: the 2nd and 3rd waves
 const CONE = { range: 5.5, half: 0.66 }, BOLT = { range: 10, speed: 16 }, FAN = 4.5;
@@ -171,7 +171,7 @@ function sunderHit(u, mv) {
   const hit = h => { damage(u, h, u.dmg * mv.mult * (0.95 + Math.random() * 0.1), { knock: 3.5, fx: x, fz: z, melee: true, heavy: true, crit: true, critX: 1, quiet: true });
     if (!h.dead && !h.champ && h.hp < h.maxHp * 0.25) { say(h.x, h.z, tr('斩杀', 'Cut down'), '#ff6a4a', 17, 2); damage(u, h, h.hp + 1, { quiet: true, noFx: true }); } };
   S.blade(true, true); S.boom(); S.fire();
-  if (mv.sweep) { // the greatsword: 270° round, the fire rolls out from it and catches each one as it gets there
+  if (mv.sweep) { // the greatsword: the fire rolls out all round (sweep = the arc it covers: a full circle) and catches each one as it gets there
     for (const h of hostilesOf(u)) { const d = dist(h, u); if (h.dead || d > CONE.range + h.r || !inArc(u, h, mv.sweep / 2 + 0.1)) continue;
       if (d < u.range + u.r + 1) hit(h); else G.fx.push({ t: Math.max(0.01, (d - 1) / 9), fn: () => { if (!h.dead) hit(h); } }); }
     shake(0.26, x, z); burst(x, 0.8, z, 0xffb050, 2.4); fireArc(x, z, u.face, CONE.range, mv.sweep);

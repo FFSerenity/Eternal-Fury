@@ -91,7 +91,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   ~5.5 m at half damage.
   Sundering Strike (15 s): sword & shield roars — rings of force race out, a column of light, the nearest are thrown back — then its
   sword catches fire and the burning blow sends a wave of fire with scorched cracks down a 5.5 m cone; the greatsword fills its blade with
-  fire from the hilt up and sweeps 270° (GS_Combo), fire rolling out over the arc in three waves, each farther than the last (5.5 / 7.6 /
+  fire from the hilt up and sweeps (GS_Combo), fire rolling out all round in three full rings, each farther than the last (5.5 / 7.6 /
   9.8 m; the 2nd and 3rd hit what stands beyond the one before for 60% / 40%). Non-elites left under 25% are cut down.
 - Its helmet crest shows its 战魂 (Fury from its own kills, lost when it falls): as modelled below 5, then dyed in the gear colours —
   5 blue, 10 gold (glowing, sparks), 15 violet fire, 20 crimson fire (flames running out along the fin, a halo, embers); the swing trail
@@ -103,7 +103,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 ## 试炼场 / Test Arena (a tool for tuning)
 On the start screen (⚔ 试炼场) or `?arena`: the current save is loaded into one big empty hall, and nothing done there is saved (leaving
 reloads the page). The panel on the right spawns monsters (kind or mixed, count, level, range from the Sentinel, life ×1–50, champions,
-training dummies that neither move nor fight, auto refill to keep the count), sets the Sentinel's Fury, summon level and style, the
+training dummies that neither move nor fight, auto refill to keep the count, loot drops on or off — off by default), sets the Sentinel's Fury, summon level and style, the
 summoner's level, and can make the Sentinel unkillable or the summoner invulnerable with endless mana. The meter at the top reads the
 damage the summons do (last 5 s and averaged over fight time, i.e. time with a blow landed in the last 2 s), the summoner's own damage,
 kills with the average time from first hit to death, and damage taken per second.

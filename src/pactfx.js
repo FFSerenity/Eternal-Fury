@@ -96,7 +96,7 @@ export function qiFan(x, z, face, col, R) {
     fn: () => { C.scene.remove(grp); body.material.dispose(); edge.material.dispose(); } });
   qiWaves(x, z, col, 3, face - 0.75, 1.5); // three crescents riding in it
 }
-// the greatsword's Sundering Strike: fire rolling out over a 270° arc around it, scorching the ground as it goes
+// the greatsword's Sundering Strike: fire rolling out over an arc (a full ring) around it, scorching the ground as it goes
 export function fireArc(x, z, face, R, span, life = 0.55, op = 1) { const first = op >= 1;
   const th0 = Math.atan2(-Math.cos(face), Math.sin(face)) - span / 2, geo = new THREE.RingGeometry(0.8, 1, 64, 1, th0, span).rotateX(-Math.PI / 2), band = new THREE.Group();
   const under = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff4a10, transparent: true, opacity: 0.6 * op, depthWrite: false, side: THREE.DoubleSide })); // reads on a light floor

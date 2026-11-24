@@ -127,7 +127,7 @@ function kill(u, src) {
     S.die(); C.parts.emit(u.x, 0.6, u.z, 10, { col: 0xd8d0c0, spd: 2, life: 0.6, size: 0.18 }); C.parts.emit(u.x, 0.5, u.z, 8, { col: 0xd8ccb8, spd: 2.6, up: 2.4, grav: 8, life: 0.6, size: 0.16 }); if (u.champ) { shake(0.08, u.x, u.z); burst(u.x, 0.8, u.z, 0xffd8a0, 1.6); const P = G.player; if (P && Math.hypot(P.x - u.x, P.z - u.z) < 12 && !(G.slowCD > G.t)) { G.slowT = 0.22; G.slowCD = G.t + 1.5; } }
     const xp = u.T.xp * (1 + 0.25 * (u.level - 1)) * (u.champ ? 3 : 1); addXP(PACT ? xp * 0.6 : xp); if (src && src.pact && PH.kill) PH.kill(src, u);
     for (const a of G.friends) if (a.side === 'ally') allyXP(a, xp * 0.7);
-    deathBlast(u, 0.7); const it = rollDrop(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
+    deathBlast(u, 0.7); const it = G.noDrop ? null : rollDrop(G.uid, G.depth || u.level, u.champ); /* the wilds: by the monster's level; the test arena can turn drops off */ if (it) { G.uid++; dropLoot(it, u.x, u.z); }
     if (u.kind === 'imp') for (const e of G.enemies) if (e.kind === 'imp' && !e.dead && !e.champ && e !== u && dist(e, u) < 7.5 && Math.random() < 0.1) panic(e, src || u); /* only the odd one loses its nerve */
     makeCorpse(u);
   } else if (u.side === 'ally') {
