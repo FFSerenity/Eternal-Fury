@@ -33,8 +33,9 @@ export function heroBase(L, s, set) {
   return { maxHp: (230 + 40 * (L - 1)) * W.hp * (1 + 0.025 * s), dmg: (16 + 4.5 * (L - 1)) * W.dmg * (1 + 0.06 * s), armor: 18 + 3 * (L - 1) + W.arm,
     speed: W.mv * Math.min(1.3, 1 + 0.02 * s), cd: W.cd / (1 + 0.04 * s), evade: W.eva + Math.min(0.12, 0.004 * s) }; // speed: a slow, heavy walk (1.55 / 1.75 m/s at first, at most +30%)
 }
-// kills needed for the next stack (champions count 4, warriors 2)
-export const stackNeed = s => 3 + Math.floor(s * 0.6);
+// kills needed for the next stack (champions count 4, warriors 2): quick to 25 (every Fury skill awake: 245 kills in all), then a long
+// climb — 25→50 about 1 000, 50→75 about 3 100, 75→100 about 6 700 (poured 魂能 pays the same price, so it slows down too)
+export const stackNeed = s => s < 25 ? 3 + Math.floor(s * 0.6) : 18 + Math.floor(1.2 * (s - 25) + 0.045 * (s - 25) ** 2);
 const killWorth = v => v.boss ? 12 : v.champ ? 4 : v.kind === 'brute' ? 2 : 1; // (a boss: 12)
 // 魂能 from a corpse; lvlCost: what a summon level used to cost (only to pay old saves back, pactMigrate)
 export const soulOf = c => Math.max(1, Math.round(({ imp: 1, archer: 2, shaman: 2, brute: 3 }[c.kind] || 1) * (1 + 0.25 * (c.level - 1)) * (c.boss ? 12 : c.champ ? 3 : 1)));

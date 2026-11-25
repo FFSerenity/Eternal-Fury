@@ -67,7 +67,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   no run yet) and blinks back beside the summoner at 10 m (15 m while it has a target), half the usual distance.
 - 召唤 (E): no cooldown, 10 mana, 1.5 s cast (rune circle), then the skeleton rises (Mixamo Zombie Stand Up at its own pace, ~3 s). The skill stays at
   level 1 (Nov 2026: no more levels; old saves get the 魂能 they spent back, pactMigrate).
-- 战魂 (Fury): kills by the skeleton's own hand (elite 4, warrior 2, others 1); stack n needs 3 + ⌊0.6n⌋ kills. Per stack: +6% damage,
+- 战魂 (Fury): kills by the skeleton's own hand (elite 4, warrior 2, others 1); stack n needs 3 + ⌊0.6n⌋ kills up to 25 (245 in all: every Fury
+  skill quickly), then 18 + ⌊1.2(n−25) + 0.045(n−25)²⌋ (25→50 ≈ 1 000, 50→75 ≈ 3 100, 75→100 ≈ 6 700; poured 魂能 pays the same, Nov 2026). Per stack: +6% damage,
   +4% attack speed, +2% move speed (cap +30%), +2.5% life, +0.4% evasion (cap +12%). Death: all stacks gone, summon again.
 - 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3, boss ×12. The souls fly across the screen
   into the 魂瓶 (soul orb; soulvessel.js — bottom centre and smaller on a wide screen, above the skill buttons on the right on an upright
