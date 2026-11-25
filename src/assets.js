@@ -106,6 +106,13 @@ CUSTOM_PROPS.arch_gate_open = () => {
     o.geometry.computeBoundingBox(); b.copy(o.geometry.boundingBox).applyMatrix4(M); b.getCenter(c); const hx = c.x < 0 ? b.min.x : b.max.x, a = c.x < 0 ? -1.85 : 1.85;
     M.premultiply(H.makeTranslation(-hx, 0, -c.z)).premultiply(H.makeRotationY(a)).premultiply(H.makeTranslation(hx, 0, c.z)); });
 };
+// a chest in two parts (loot.js opens it): the box, and its lid in a bake of its own with the hinge — the lid's back bottom edge — at the
+// origin, so it can swing open; lid.hinge: where that is in the whole chest
+for (const k of ['chest', 'chest_gold']) {
+  CUSTOM_PROPS[k + '_body'] = () => bakeProp(A.props[k], o => (/_lid/.test(o.name) || /_lid/.test(o.parent && o.parent.name) ? false : undefined));
+  CUSTOM_PROPS[k + '_lid'] = () => { const b = bakeProp(A.props[k], o => (/_lid/.test(o.name) || /_lid/.test(o.parent && o.parent.name) ? undefined : false)), h = new THREE.Vector3(0, b.box.min.y, b.box.min.z);
+    b.geo.translate(0, -h.y, -h.z); b.geo.computeBoundingBox(); b.geo.computeBoundingSphere(); return { ...b, box: b.geo.boundingBox, hinge: h }; };
+}
 const MAT_CACHE = {};
 export function propMat(map, o = {}) { const k = (map ? map.uuid : 'none') + JSON.stringify(o); return MAT_CACHE[k] || (MAT_CACHE[k] = toonMat({ ...o, map, vc: !!o.vc })); }
 // textures made in code, picked by name in a PropBatch option ({ tex: 'forest' })

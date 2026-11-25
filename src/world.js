@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { glowSprite } from './gfx.js';
 import { PropBatch } from './assets.js';
-import { addBox, BOX_KIND } from './loot.js';
+import { addBox, placeChest, BOX_KIND, GOLD_CHEST } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
 
@@ -181,8 +181,10 @@ export class Floor {
         const edge = x === r.x || z === r.y || x === r.x + r.w - 1 || z === r.y + r.h - 1; if (!edge || R() > 0.16) continue;
         if (r === this.start || Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) < 3 || near(x, z)) continue;
         if (!this.block(x, z)) continue; const name = pick(R()), round = name.startsWith('barrel') || name === 'keg', px = x + 0.5 + (R() - 0.5) * 0.1, pz = z + 0.5 + (R() - 0.5) * 0.1;
-        const it = B.add(name, px, 0, pz, round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.3, 0.5); if (BOX_KIND[name]) addBox(this, name, px, pz, it, BOX_KIND[name] === 'smash' ? [x, z] : null); // (loot.js)
-        if (R() < 0.25 && isF(x, z)) {} } }
+        const rot = round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.3;
+        // (loot.js: a chest opens and stays — its lid apart, now and then a gold one; the rest break, freeing their cell)
+        if (name === 'chest') { placeChest(this, B, R() < GOLD_CHEST ? 'chest_gold' : 'chest', px, pz, rot); continue; }
+        const it = B.add(name, px, 0, pz, rot, 0.5); if (BOX_KIND[name]) addBox(this, name, px, pz, it, [x, z]); } }
     // floor tiles
     const FT = ['floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small_broken_A', 'floor_tile_small_broken_B', 'floor_tile_small_weeds_A', 'floor_dirt_small_A'];
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (!isF(x, z) || isStair(x, z)) continue;

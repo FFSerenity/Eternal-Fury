@@ -38,8 +38,9 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - As Fury grows its soul light (cyan, like its eyes; gold for the Paladin) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
   From floor 5 down (and in the wilds' level-5+ zones) monsters, champions and bosses have 2.5× life, +4% more per floor after that.
-- **Barrels, kegs, boxes and crates** break when you click / tap them (sometimes an item, some soul energy); **chests and trunks** open
-  (always an item, often two, better odds, more soul) — unopened chests glint now and then; the chest in a ruin in the wilds too.
+- **Barrels, kegs, boxes, crates and trunks** burst into pieces when you click / tap them (sometimes an item, some soul energy);
+  **chests** swing their lids open (always an item, often two, better odds, more soul) — now and then a **gold chest** full of coins with
+  better loot still; unopened chests glint now and then; the chest in a ruin in the wilds too.
 - Fury's damage and attack speed per stack slow down past 25 (+3% / +1.5% a stack instead of +6% / +4%).
 
 **Bosses**: every 5th crypt floor, one of the four tech skeletons guards the way down (bombardier, gunner, mech, engineer — their big

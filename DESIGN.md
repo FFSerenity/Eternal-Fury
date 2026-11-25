@@ -62,9 +62,12 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
 
 ## 魂契 / Soul Pact mode (first playable, Nov 2026)
 A separate mode with its own save (start screen). The fun to find: one summon you raise by hand and that is the centre of every fight.
-- Barrels / kegs / boxes / crates and chests / trunks (loot.js): click or tap one, the summoner walks to it; a barrel bursts (its instance
-  shrunk away, its cell walkable again): 20% an item (white 55 / blue 32 / yellow 11 / purple 2%), 35% 魂能 1 + 0.4·level; a chest jumps
-  and stays (no more glints): an item always (white 20 / blue 45 / yellow 26 / purple 8 / red 1%), a second 35%, 魂能 4 + level. Item
+- Barrels / kegs / boxes / crates / trunks and chests (loot.js): click or tap one, the summoner walks to it; a barrel bursts — its
+  instance shrunk away, its cell walkable again, the prop cut at load into 12 pieces (six wedges round its middle, upper and lower) that
+  fly out, tumble, bounce and shrink away: 20% an item (white 55 / blue 32 / yellow 11 / purple 2%), 35% 魂能 1 + 0.4·level (a trunk:
+  75% an item, better odds); a chest (the pack's chest has its lid apart: baked as chest_body + chest_lid, the lid's origin on its hinge,
+  each an instance) swings its lid open and stays open: an item always (white 20 / blue 45 / yellow 26 / purple 8 / red 1%), a second 35%,
+  魂能 4 + level; 12% of chests are gold (heaped with coins): blue+ only, a second item 80%, 魂能 10 + 2·level. Item
   level = the floor (the wilds: the deepest floor reached). Bosses (魂契): purple-or-red (red 45%), purple-or-yellow, yellow-to-red, blue-or-
   yellow, +1 (yellow / purple) for each round of the four already done (at most 3), and 40 + 8·(level+1) 魂能 into the vessel.
 - From the 5th floor down monsters take a step up in life (data.js DEEP_HP: ×2.5 at floor 5, +4% of that per floor after; by the floor or

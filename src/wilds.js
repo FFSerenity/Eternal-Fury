@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PropBatch } from './assets.js';
-import { addBox } from './loot.js';
+import { placeChest, GOLD_CHEST } from './loot.js';
 import { toonMat } from './gfx.js';
 import { LEAF, tint } from './forest.js';
 
@@ -228,7 +228,7 @@ export function buildWilds(F, B, grp) {
     if (open && b < 0.3 && R() < 0.008) FB.add(pick(R, ['Bush_1_C', 'Bush_4_B']), cx, 0, cz, R() * 6.28, 0.5 * (0.8 + R() * 0.4), null, null, tint(pick(R, LEAVES[biome(cx, cz)]).map(v => v * 0.78), R));
     if (open && !pathM[i] && R() < 0.01) { const n = pick(R, BITS); B.add(n, x + 0.2 + R() * 0.6, 0.03, z + 0.2 + R() * 0.6, R() * 6.28, n === 'skull' ? 0.35 : 0.5); } }
   // the places
-  for (const p of F.wprops) { const it = B.add(p.n, p.x, p.y, p.z, p.r, p.s, p.ys); if (p.n === 'chest') addBox(F, p.n, p.x, p.z, it, null); } // (a ruin's chest opens: loot.js)
+  for (const p of F.wprops) { if (p.n === 'chest') placeChest(F, B, R() < GOLD_CHEST ? 'chest_gold' : 'chest', p.x, p.z, p.r, p.s); else B.add(p.n, p.x, p.y, p.z, p.r, p.s, p.ys); } // (a ruin's chest opens: loot.js)
   for (const l of F.wlights) { F.glow(l.x, l.y, l.z, l.col, l.size, l.op); if (l.torch) F.torch(l.x, l.y + 0.2, l.z, l.torch); }
   // the gates in the camp fence
   for (const gt of F.gates) B.add('arch_gate_open', gt.rot ? 31.95 : gt.x, 0, gt.rot ? gt.z : 31.95, gt.rot, 0.9);
