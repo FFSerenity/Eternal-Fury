@@ -109,9 +109,14 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   shield of light (u.barrier, spent in damage() after the mech's shield; gold numbers when it soaks) — at most 20% of its own life, filling
   over 4 s once 2.5 s untouched, healing past full poured into it, fading out of the aura; shown as a faint dome (an upright egg on the
   Sentinel) that flares where it is struck. Gear life steal still heals only the Sentinel.
-- Bearing: a dazed stand (Mixamo Idle, elbows eased out and forearms leaning slightly in), a brutal walk with sword & shield, the briefcase walk with the greatsword — no guard stance (that waits
+- Bearing: a dazed stand (Mixamo Idle, elbows eased out and forearms leaning slightly in), a brutal walk with sword & shield, the briefcase walk with the greatsword
+  and with the mace (the Paladin's calm, upright walk; its mace carried head up like a sceptre while it stands or walks) — no guard stance (that waits
   for a defence skill) and no run yet, straight from the walk into its swings;
-  it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the shield hangs point-down along the leg when the arm is lowered;
+  it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the retarget left the Meshy rig with its feet tipped ~21° toe-up
+  and its neck craned forward (the torso leaning back against it), so a fixed per-bone turn is baked into every clip at load (assets.js
+  POSTURE: feet toe-down 21°, Spine +6°, Spine2 −11°, Neck −15°, Head −3°) and the stand is tipped 4° forward about the ankles (LEAN: the
+  hips' turn and place, the feet turned back flat) — upright, hips over the feet, soles flat;
+  the shield hangs point-down along the leg when the arm is lowered;
   the greatsword drags along the floor behind it (sparks), and no blade sinks into the ground. It cannot be shoved or knocked back by anyone.
 - Its swings leave a trail and sound like blades: the air swells while the blade gathers speed and a swish peaks at its fastest moment in
   each clip (artisticdude's CC0 Swishes pack, stretched, pitched down for the greatsword), louder than the cut with a metal ring when a blow

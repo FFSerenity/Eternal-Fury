@@ -986,8 +986,8 @@ function animate(u, dt, sp) {
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
-  if (m.hero) { const ref = m.wset === 'GS' ? 2.02 : 1.56; // walk only (no run yet); strides from the clips' root travel, world m/s
-    if (sp > 0.3) play(m, 'Walk_' + (m.wset || 'SNS'), { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Stand', { fade: 0.3 }); return; } // by name: the styles' own guarded Idle must not win
+  if (m.hero) { const w = m.walk || 'Walk_SNS', ref = w === 'Walk_GS' ? 2.02 : 1.56; // walk only (no run yet); strides from the clips' root travel, world m/s
+    if (sp > 0.3) play(m, w, { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Stand', { fade: 0.3 }); return; } // by name: the styles' own guarded Idle must not win
   if (m.fly != null) { play(m, sp > a.runAt || u.state === 'panic' ? a.run : sp > 0.35 ? a.walk : a.idle, { speed: sp > 0.35 ? 1.25 : 1, fade: 0.2 }); return; } // flyers: no stride to match
   const k = (m.sc || CHARS[u.kind].scale) * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;
   if (sp > 0.35) { const run = sp > a.runAt || u.state === 'panic', name = run ? a.run : a.walk; play(m, name, { speed: Math.max(0.55, Math.min(1.8, sp / (REF[name] * k))), fade: 0.18 }); }

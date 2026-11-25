@@ -14,7 +14,7 @@ const CRIT_FILES = ['fly_bat', 'fly_ghost', 'fly_wraith']; // the wilds' flying 
 export async function loadAll(onProgress = () => {}) {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
   const jobs = [...CHAR_FILES.map(f => ['char', f]), ...CRIT_FILES.map(f => ['crit', f]), ['anims', 'anims'], ...PROP_FILES.map(f => ['props', f]),
-    ...(PACT ? [['hero', 'hero'], ['heropack', 'hero_sns'], ['heropack', 'hero_gs'], ['heroweap', 'hero_weapons']] : [])]; // the realistic skeleton: 魂契 only
+    ...(PACT ? [['hero', 'hero'], ['heropack', 'hero_sns'], ['heropack', 'hero_gs'], ['heroweap', 'hero_weapons'], ...(globalThis.__extraPacks || []).map(n => ['heropack', n])] : [])]; // the realistic skeleton: 魂契 only (tests: more clip packs)
   let done = 0;
   await Promise.all(jobs.map(async ([kind, name]) => {
     const g = await loader.loadAsync(`assets/${name}.glb`);
@@ -32,7 +32,41 @@ export async function loadAll(onProgress = () => {}) {
     else for (const n of g.scene.children) A.props[n.name] = n;
     onProgress(++done / jobs.length);
   }));
+  if (A.hero) bakePosture(A.hero.scene, A.heroClips);
   A.ready = true;
+}
+// ---------- the Sentinel's bearing ----------
+// Retargeted from Y Bot by aiming our bones along its bones, the Meshy rig stood with its feet tipped ~21° toe-up (its foot bones lie
+// differently in the boot than Y Bot's) and its neck craned forward, the torso leaning back against it. A fixed turn per bone, pitched
+// about the body's left-right axis, is baked into every clip at load: a constant turn after the bone's own, so every clip and every blend
+// gets it. Degrees, + forward / toe-down (tests: globalThis.__posture)
+// The stand (Mixamo's dazed Idle) also leans back from the ankles, hips behind the feet: it is tipped forward about the ankles (the hips'
+// turn and place), the feet turned back so they stay flat (LEAN, degrees)
+const POSTURE = { LeftFoot: 21, RightFoot: 21, Spine: 6, Spine2: -11, Neck: -15, Head: -3 }, LEAN = { Stand: 4 };
+const pitchX = deg => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(deg));
+function postMul(clip, D) { const q = new THREE.Quaternion(); // a constant turn after each named bone's own, every key
+  for (const t of clip.tracks) { const [bn, prop] = t.name.split('.'), d = D[bn]; if (!d || prop !== 'quaternion') continue;
+    const v = t.values; for (let i = 0; i < v.length; i += 4) { q.fromArray(v, i).multiply(d); q.toArray(v, i); } } }
+function bakePosture(scene, clips) {
+  const P = { ...POSTURE, ...(globalThis.__posture || {}) }, D = {}; scene.updateMatrixWorld(true);
+  for (const [n, deg] of Object.entries(P)) { const b = deg && findBone(scene, 'mixamorig:' + n); if (!b) continue;
+    const W = b.getWorldQuaternion(new THREE.Quaternion()); D[b.name] = W.clone().invert().multiply(pitchX(deg)).multiply(W); }
+  for (const c of Object.values(clips)) postMul(c, D);
+  for (const [name, deg] of Object.entries({ ...LEAN, ...(globalThis.__lean || {}) })) if (clips[name] && deg) leanClip(scene, clips[name], deg);
+}
+function leanClip(scene, clip, deg) {
+  const hips = findBone(scene, 'mixamorig:Hips'), feet = ['LeftFoot', 'RightFoot'].map(n => findBone(scene, 'mixamorig:' + n)); if (!hips || feet.some(f => !f)) return;
+  const saved = []; scene.traverse(o => { if (o.isBone) saved.push([o, o.position.clone(), o.quaternion.clone()]); });
+  const mixer = new THREE.AnimationMixer(scene), act = mixer.clipAction(clip); act.play(); act.time = 0; mixer.update(0); scene.updateMatrixWorld(true);
+  const V = THREE.Vector3, Q = THREE.Quaternion, R = pitchX(deg), piv = feet.reduce((s, f) => s.add(f.getWorldPosition(new V())), new V()).multiplyScalar(0.5);
+  const PM = hips.parent.matrixWorld.clone(), PMi = PM.clone().invert(), PQ = hips.parent.getWorldQuaternion(new Q()), RL = PQ.clone().invert().multiply(R).multiply(PQ);
+  const DF = {}; for (const f of feet) { const W = f.getWorldQuaternion(new Q()); DF[f.name] = W.clone().invert().multiply(R.clone().invert()).multiply(W); } // (the feet: back to how they stood)
+  act.stop(); mixer.uncacheRoot(scene); for (const [o, p, q] of saved) { o.position.copy(p); o.quaternion.copy(q); } scene.updateMatrixWorld(true);
+  const q = new Q(), p = new V(), pw = new V();
+  for (const t of clip.tracks) { const [bn, prop] = t.name.split('.'); if (bn !== hips.name) continue; const v = t.values;
+    if (prop === 'quaternion') for (let i = 0; i < v.length; i += 4) { q.fromArray(v, i).premultiply(RL); q.toArray(v, i); }
+    if (prop === 'position') for (let i = 0; i < v.length; i += 3) { pw.fromArray(v, i).applyMatrix4(PM).sub(piv).applyQuaternion(R).add(piv).applyMatrix4(PMi); pw.toArray(v, i); } }
+  postMul(clip, DF);
 }
 const findBone = (root, name) => root.getObjectByName(name) || root.getObjectByName(name.replace(/[[\]\.:\/]/g, ''));
 
@@ -223,7 +257,7 @@ export const HERO_SETS = {
   SNS: { r: 'sword', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'] },
   GS: { r: 'greatsword', atk: ['GS_Atk2', 'GS_Atk3', 'GS_Atk4'] },
   // the mace and shield (圣骑士): fights on the sword-and-shield clips (clips: whose clips), but holy — gold armour, the soul light gold
-  PAL: { r: 'mace', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'], clips: 'SNS', holy: true },
+  PAL: { r: 'mace', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'], clips: 'SNS', walk: 'Walk_GS', holy: true }, // (walk: the calm, upright one — the mace hangs at its side)
 };
 // the holy light (圣骑士): its colour, the white-hot of it, and the gold of a swing's trail
 export const HOLY_C = 0xffcf66, HOLY_HOT = 0xfff4d6, HOLY_TRAIL = 0xffe08a, HOLY_AURA_R = 7; // (the reach of its Aura of Light at 25 Fury: holy.js)
@@ -294,7 +328,7 @@ function makeHeroMesh(o) {
   const root = new THREE.Group(); root.add(model);
   const sg = soulGlow(model, root, head, holy ? HOLY_C : SOUL_C), hl = holy ? holyLight(model, root, head) : null;
   return { root, model, pivot: model, mixer: new THREE.AnimationMixer(model), actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u,
-    tips: [], glows, plumeGlow, soul: null, gun: null, muz: null, drill: null, rod: null, blade, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? set.clips || o.wset : null, style: set ? o.wset : null, holy, atk: set ? set.atk : ['Attack'], atkI: 0, weap, plumePts, sg, hl };
+    tips: [], glows, plumeGlow, soul: null, gun: null, muz: null, drill: null, rod: null, blade, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? set.clips || o.wset : null, style: set ? o.wset : null, walk: set ? set.walk || 'Walk_' + (set.clips || o.wset) : 'Walk_SNS', holy, atk: set ? set.atk : ['Attack'], atkI: 0, weap, plumePts, sg, hl };
 }
 // the dazed stand (Mixamo Idle) holds the arms close against the body: a sturdier stance, elbows out and forearms leaning slightly back
 // in (upper arm ~26 deg off vertical, forearm leaning a few degrees out). Turns about the facing axis, in world space so every key gets the same
@@ -372,7 +406,8 @@ function heroGrip(model, side, name, u, outline, it) {
 }
 // after the skeleton is posed each frame: a blade never sinks into the floor, and out of a swing the greatsword is dragged along the
 // ground behind it (tip on the floor, a little to its right; sparks while it walks) instead of hanging straight down through it
-const _V = THREE.Vector3, _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
+const HANG = [0.5, 1, 0.22]; // the carried mace's direction: forward, up, out to its right — head up, like a sceptre (tests: globalThis.__hang)
+const _V = THREE.Vector3, _hg = new _V(), _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
 // ---------- the helmet crest (鬃毛): its colour and fire show the skeleton's level ----------
 // Found once on load: head-weighted vertices near the head's middle plane that stand outside the helmet itself (worked in the head
 // bone's bind frame, axes from the world, sizes relative to the helmet's half width). aPlume = (membership, 0 at the helmet .. 1 at
@@ -537,12 +572,15 @@ export function heroWeaponPose(u, dt, emit) {
   // the greatsword drags only while it stands or walks (any other clip — swings, skills, dodges, death, the rise — carries it)
   const loco = /^(Stand|Walk_|Run_)/.test(m.curName || '') || !(m.cur && m.cur.isRunning()), drag = m.wset === 'GS' && loco && !(u.spawnT > 0) ? 1 : 0;
   m.dragW = (m.dragW ?? drag) + (drag - (m.dragW ?? drag)) * Math.min(1, dt * 8);
+  const hang = m.holy && loco && !(u.spawnT > 0) ? 1 : 0; m.hangW = (m.hangW ?? hang) + (hang - (m.hangW ?? hang)) * Math.min(1, dt * 8); // the mace carried head up (the calm walk would hold it out straight ahead)
   g.quaternion.copy(g.userData.q0); g.updateMatrixWorld(true); g.getWorldPosition(_p); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.userData.q0);
   _ax.copy(_up).applyQuaternion(_qw); _d.copy(_ax);
   const L = g.userData.tip, floor = m.root.position.y + 0.04;
   if (m.dragW > 0.002) { const f = u.face, h = Math.max(0.05, _p.y - floor), hor = Math.sqrt(Math.max(0.0025, L * L - h * h)), bx = -Math.sin(f) * 0.85 - Math.cos(f) * 0.45, bz = -Math.cos(f) * 0.85 + Math.sin(f) * 0.45, bl = Math.hypot(bx, bz);
     const tx = bx / bl * hor, tz = bz / bl * hor, ty = L > h ? -h : -L * 0.97, tl = Math.hypot(tx, ty, tz);
     _d.lerp(new _V(tx / tl, ty / tl, tz / tl), m.dragW).normalize(); }
+  // (the equipment panel's doll has no facing of its own: its root's turn)
+  if (m.hangW > 0.002) { const f = u.face ?? m.root.rotation.y, H = globalThis.__hang || HANG; _d.lerp(_hg.set(Math.sin(f) * H[0] - Math.cos(f) * H[2], H[1], Math.cos(f) * H[0] + Math.sin(f) * H[2]).normalize(), m.hangW).normalize(); }
   const tipY = _p.y + _d.y * L; // the floor stops the blade
   if (tipY < floor) { const y = Math.max(-1, (floor - _p.y) / L), hl = Math.hypot(_d.x, _d.z) || 1, k = Math.sqrt(1 - y * y) / hl; _d.set(_d.x * k, y, _d.z * k); }
   if (_d.distanceToSquared(_ax) > 1e-6) { _qr.setFromUnitVectors(_ax, _d); g.quaternion.copy(_qh.invert().multiply(_qr.multiply(_qw))); }
