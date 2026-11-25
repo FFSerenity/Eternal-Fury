@@ -37,6 +37,7 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - Gear drops for the Sentinel: greatswords (two-handed, no shield), swords, maces and shields, in white / blue / yellow / purple / red; equip from the Pact panel or the bag.
 - As Fury grows its soul light (cyan, like its eyes; gold for the Paladin) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
+  From floor 5 down (and in the wilds' level-5+ zones) monsters, champions and bosses have 2.5× life, +4% more per floor after that.
 
 **Bosses**: every 5th crypt floor, one of the four tech skeletons guards the way down (bombardier, gunner, mech, engineer — their big
 attacks are marked on the ground first; at half life they enrage). They drop purple/red gear for the Sentinel, or their own epic tech

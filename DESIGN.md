@@ -62,6 +62,10 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
 
 ## 魂契 / Soul Pact mode (first playable, Nov 2026)
 A separate mode with its own save (start screen). The fun to find: one summon you raise by hand and that is the centre of every fight.
+- From the 5th floor down monsters take a step up in life (data.js DEEP_HP: ×2.5 at floor 5, +4% of that per floor after; by the floor or
+  wilds zone they were made for, else their level; champions and bosses on top of their own multipliers): by then the Sentinel has 25-30+
+  Fury and real gear, and they died to one blow. At floor 5 with ~30 Fury and blue/yellow gear: a minion 1-2 blows, a warrior 5-10, a
+  champion warrior 15-28 (greatsword and mace fewest, the sword most).
 - Monsters move at 60% speed, and the slow kinds (warrior, archer, mage) are brought up to 90% of a minion (minion ~2.6 m/s, the rest ~2.4);
   the summoner (3.45 m/s) outruns everything; the skeleton walks slow and heavy (sword & shield 1.55 m/s, greatsword 1.75; never hurries,
   no run yet) and blinks back beside the summoner at 10 m (15 m while it has a target), half the usual distance.

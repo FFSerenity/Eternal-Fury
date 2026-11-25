@@ -53,6 +53,9 @@ export const ELEM = {
 };
 // overall pace: everyone moves slower and swings / casts a bit slower than the raw numbers below
 export const PACE = { move: 0.75, act: 0.8 };
+// 魂契: from the 5th floor down (or a wilds zone / arena level of 5+) monsters and champions take a step up in life — by then the
+// Sentinel has 25-30+ Fury and gear, and they died to a single blow; a little more with every floor after that (bosses too, by their level)
+export const DEEP_HP = d => d < 5 ? 1 : 2.5 * (1 + 0.04 * (d - 5));
 export const SKILLS = {
   spear: { name: tr('骨矛', 'Bone Spear'), mana: 2, cd: 0.34 },
   raise: { name: tr('唤魂', 'Raise'), mana: 8, extra: 2, cd: 0.4, range: 6, channel: 0.8 },

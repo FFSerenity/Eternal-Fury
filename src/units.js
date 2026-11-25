@@ -1,7 +1,7 @@
 // Units, combat, monster / minion AI, corpses and capturing
 import * as THREE from 'three';
 import { G, save, bagPut, PACT } from './state.js';
-import { TYPES, FOES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
+import { TYPES, FOES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, DEEP_HP, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
 import { auraMat, glowSprite, ring, toonMat, part, merge, lootBeam, beamTime } from './gfx.js';
 import { tr } from './i18n.js';
 import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose } from './assets.js';
@@ -24,7 +24,7 @@ let nextId = 1;
 export class Unit {
   constructor(kind, side, x, z, o = {}) {
     this.id = nextId++; this.kind = kind; this.side = side; this.x = x; this.z = z; this.vx = this.vz = this.kx = this.kz = 0; this.wantX = this.wantZ = 0;
-    this.level = o.level || 1; this.mods = o.mods || []; this.modLv = o.modLv || {}; this.champ = !!o.champ; this.entry = o.entry || null; this.packId = o.packId ?? -1;
+    this.level = o.level || 1; this.depth = o.depth ?? null; this.mods = o.mods || []; this.modLv = o.modLv || {}; this.champ = !!o.champ; this.entry = o.entry || null; this.packId = o.packId ?? -1;
     // a foe of the wilds fights as its kind (T: the kind's numbers under its own); a ghost drifts through bodies (noBody)
     this.foe = o.foe || null; this.T = this.foe ? { ...TYPES[kind], ...FOES[this.foe] } : TYPES[kind] || null; this.noBody = !!(this.foe && this.T.noCorpse); this.state = 'idle'; this.st = 0; this.cdT = rand(0.2, 0.8); this.target = null; this.face = rand(0, TAU);
     this.boss = o.boss || null; this.home = { x, z }; this.aggro = false; this.scanT = rand(0, 0.35); this.flash = 0; this.stun = 0; this.dead = false; this.barT = 0;
@@ -56,7 +56,7 @@ export class Unit {
     this.armor = T.armor + 2 * (L - 1); this.speed = T.speed * (ally ? 1.08 : 1); this.range = T.range; this.cd = T.cd; this.r = T.r; this.noStun = false;
     if (ally && this.kind === 'brute') this.speed = TYPES.imp.speed * 1.08 * 0.92;
     // 魂契: monsters are slow, fights stand still around the skeleton; the slow kinds (warrior, archer, mage) close up to just under a minion
-    if (PACT && !ally) this.speed = Math.max(this.speed, TYPES.imp.speed * 0.9) * 0.6;
+    if (PACT && !ally) { this.speed = Math.max(this.speed, TYPES.imp.speed * 0.9) * 0.6; this.maxHp *= DEEP_HP(this.depth ?? L); } // (depth: the floor or wilds zone it was made for; else its level)
     if (this.champ) { this.maxHp *= 2.4; this.dmg *= 1.35; this.r *= ally ? 1.08 : 1.2; }
     if (this.mods.includes('fast')) { const l = mlv(this, 'fast'); this.speed *= 1.35 + 0.1 * l; this.cd *= 0.75 - 0.05 * l; }
     if (this.mods.includes('stone')) { const l = mlv(this, 'stone'); this.armor += 35 + 25 * l; this.maxHp *= 1.2 + 0.1 * l; this.speed *= 0.85; this.noStun = true; }

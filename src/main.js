@@ -85,9 +85,9 @@ function makeFloor(depth, arena = false) {
       if (easy && k > 0) break;
       for (const [type, cnt] of tpl) { const extra = type === 'imp' ? Math.floor(depth / 3) : 0; for (let j = 0; j < cnt + extra; j++) {
         let x = c0.x + (R() - 0.5) * 3, z = c0.z + (R() - 0.5) * 3; if (!F.walk(x, z)) { x = c0.x; z = c0.z; }
-        units.push(new Unit(type, 'enemy', x, z, { level: depth + (R() < 0.25 ? 1 : 0), packId: pid })); } }
+        units.push(new Unit(type, 'enemy', x, z, { level: depth + (R() < 0.25 ? 1 : 0), depth, packId: pid })); } }
       if (!easy && R() < 0.1 + 0.05 * depth) { const cand = units.filter(u => u.kind !== 'imp'), u0 = cand.length ? cand[Math.floor(R() * cand.length)] : units[0], keys = Object.keys(MODS);
-        u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: depth + 1, packId: pid, champ: true, mods: [keys[Math.floor(R() * keys.length)]] }); units[units.indexOf(u0)] = ch; }
+        u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: depth + 1, depth, packId: pid, champ: true, mods: [keys[Math.floor(R() * keys.length)]] }); units[units.indexOf(u0)] = ch; }
       G.units.push(...units); } }
   // every 5th floor: a boss by the way down, which stays shut until it falls (boss.js)
   if (!arena && depth > 0 && depth % 5 === 0) placeBoss(F, depth);
@@ -105,10 +105,10 @@ function spawnWildPack(sp) {
   if (zone > 0 && R() < 0.3) tpl.push(['wraith', 1]);
   if (sp.poi) tpl.push(...pick());
   for (const [type, cnt] of tpl) for (let j = 0; j < cnt; j++) { let x = sp.x + (R() - 0.5) * 4, z = sp.z + (R() - 0.5) * 4; if (!G.floor.fits(x, z, 0.3)) { x = sp.x + (R() - 0.5) * 0.6; z = sp.z + (R() - 0.5) * 0.6; }
-    units.push(mkEnemy(type, x, z, { level: base + (R() < 0.25 ? 1 : 0), packId: pid })); }
+    units.push(mkEnemy(type, x, z, { level: base + (R() < 0.25 ? 1 : 0), depth: base, packId: pid })); }
   if (sp.poi || R() < 0.15 + 0.1 * zone) { const cand = units.filter(u => u.kind !== 'imp' || u.foe === 'raider'), u0 = cand.length ? cand[Math.floor(R() * cand.length)] : units[0], keys = Object.keys(MODS), mods = [keys[Math.floor(R() * keys.length)]];
     if (sp.poi && zone > 0) { const m2 = keys[Math.floor(R() * keys.length)]; if (m2 !== mods[0]) mods.push(m2); }
-    u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: base + 1, packId: pid, champ: true, mods, foe: u0.foe }); units[units.indexOf(u0)] = ch; }
+    u0.remove(); const ch = new Unit(u0.kind, 'enemy', u0.x, u0.z, { level: base + 1, depth: base, packId: pid, champ: true, mods, foe: u0.foe }); units[units.indexOf(u0)] = ch; }
   G.units.push(...units);
 }
 function updateWilds(P) {
