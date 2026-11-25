@@ -32,6 +32,10 @@ PH.foeStats = u => { if (u.raged) { u.speed *= 1.3; u.cd *= 0.7; u.windup = u.T.
 PH.foeGuard = (src, dst, o) => {
   if (!src || dst.state === 'windup' || dst.state === 'fskill' || dst.stun > 0) return 1;
   const fx = o.fx ?? src.x, fz = o.fz ?? src.z; if (angDiff(Math.atan2(fx - dst.x, fz - dst.z), dst.face) > 1.15) return 1;
+  if (src.blunt) { // 魂契's mace: the shield takes it, and is beaten aside — the whole blow through, the knight staggered
+    const a = dst.face, x = dst.x + Math.sin(a) * 0.45, z = dst.z + Math.cos(a) * 0.45; impact(x, 0.8, z, 0xffd27a, 0.9); S.clank();
+    C.parts.emit(x, 0.8, z, 9, { col: 0xffe6a0, spd: 3.4, up: 1.6, grav: 8, life: 0.3, size: 0.12 }); dst.stun = Math.max(dst.stun || 0, 0.35);
+    if (G.t - (dst.blockSay || -9) > 3) { dst.blockSay = G.t; say(dst.x, dst.z, tr('破盾', 'Shield broken'), '#ffd27a', 14, 2.0); } return 1; }
   o.knock = 0; const a = dst.face, x = dst.x + Math.sin(a) * 0.45, z = dst.z + Math.cos(a) * 0.45;
   impact(x, 0.8, z, 0xfff0c0, 0.75); C.parts.emit(x, 0.8, z, 7, { col: 0xffe6a0, spd: 3, up: 1.5, grav: 8, life: 0.25, size: 0.1 }); S.clank();
   if (G.t - (dst.blockSay || -9) > 1.4) { dst.blockSay = G.t; say(dst.x, dst.z, tr('格挡', 'Block'), '#d8d0c0', 13, 2.0); }

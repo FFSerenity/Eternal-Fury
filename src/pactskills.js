@@ -4,25 +4,37 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { tr } from './i18n.js';
 import { C, PH, say, damage, hostilesOf } from './units.js';
-import { A, play, heroPart } from './assets.js';
+import { A, play, heroPart, HOLY_C } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { burst, shake, trail, slamMark } from './fx.js';
 import { S } from './audio.js';
-import { bladeFire, roarBurst, qiWaves, QI, fireCone, fireArc, qiBolt, qiFan, swipeUp } from './pactfx.js';
+import { bladeFire, roarBurst, qiWaves, QI, fireCone, fireArc, qiBolt, qiFan, swipeUp, HOLY_FIRE } from './pactfx.js';
+import { blessedHammers, holyBurst, judgement, HAMMERS } from './holy.js';
 
 export const SKILLS = [
   { id: 'charge', at: 5, cd: 8, icon: '⚡', name: tr('冲锋', 'Charge'),
-    desc: tr('目标在 3.5–8 米外时突进：剑盾压低身形举盾冲撞，撞开路上的敌人，冲到面前一记盾击把目标击倒；大剑跃起跳劈，落地裂地范围伤害', 'Closes on a target 3.5–8 m away: sword & shield drives in low behind the shield, barging aside what is in the way, and ends with a shield bash that knocks the target down; the greatsword leaps and splits the ground where it lands') },
+    desc: tr('目标在 3.5–8 米外时突进：剑盾压低身形举盾冲撞，撞开路上的敌人，冲到面前一记盾击把目标击倒；大剑跃起跳劈，落地裂地范围伤害', 'Closes on a target 3.5–8 m away: sword & shield drives in low behind the shield, barging aside what is in the way, and ends with a shield bash that knocks the target down; the greatsword leaps and splits the ground where it lands'),
+    pal: { name: tr('圣盾冲锋', 'Holy Charge'), desc: tr('目标在 3.5–8 米外时举盾冲过去，撞开路上的敌人，冲到面前一记盾击把目标击倒，盾上迸出圣光', 'Closes on a target 3.5–8 m away behind its shield, barging aside what is in the way, and ends with a shield bash that knocks the target down in a flash of light') } },
   { id: 'guard', at: 10, passive: true, icon: '🛡️', name: tr('格挡 / 招架', 'Block / Parry'),
     desc: tr('被动：剑盾（要装着盾牌）挨打时（任何方向）30% 几率格挡（伤害 −80%，箭和火球整个挡下），大剑正面挨打时 25% 几率招架（伤害 −60%）；战魂超过 10 层后每层再 +1% 几率（最多 +20%）。随即在普攻之间插入一次反击——剑盾举盾后直劈，剑气直线飞出约 10 米，挡下的若是飞矢就直取放箭的人；大剑架住后 180° 横扫，剑气扇面扩散约 4.5 米',
-      'Passive: sword & shield (with a shield on its arm) blocks 30% of blows from any side (−80% damage, arrows and fireballs stopped whole), the greatsword parries 25% of blows from the front (−60%); +1% chance per Fury stack past 10 (at most +20%); then it slips a counter in between its swings — sword & shield cuts down from behind the shield and the sword qi flies ~10 m straight (at the shooter, if it stopped a missile); the greatsword sweeps 180° and its qi fans out ~4.5 m') },
+      'Passive: sword & shield (with a shield on its arm) blocks 30% of blows from any side (−80% damage, arrows and fireballs stopped whole), the greatsword parries 25% of blows from the front (−60%); +1% chance per Fury stack past 10 (at most +20%); then it slips a counter in between its swings — sword & shield cuts down from behind the shield and the sword qi flies ~10 m straight (at the shooter, if it stopped a missile); the greatsword sweeps 180° and its qi fans out ~4.5 m'),
+    pal: { name: tr('格挡', 'Block'), desc: tr('被动：装着盾牌时，任何方向挨打 30% 几率格挡（伤害 −80%，箭和火球整个挡下）；战魂超过 10 层后每层再 +1% 几率（最多 +20%）。随即在普攻之间插入一次反击：一锤砸下，一道圣光直线飞出约 10 米（挡下的若是飞矢就直取放箭的人）',
+      'Passive: with a shield on its arm it blocks 30% of blows from any side (−80% damage, arrows and fireballs stopped whole); +1% chance per Fury stack past 10 (at most +20%); then it slips a counter in between its swings — the mace comes down and a bolt of light flies ~10 m straight (at the shooter, if it stopped a missile)') } },
   { id: 'whirl', at: 15, cd: 10, icon: '🌀', name: tr('旋风斩', 'Whirlwind'),
-    desc: tr('身边 2.5 米内有 3 个以上敌人时转身横扫，打两段，每段向四周甩出剑气（远处的敌人也会被剑气划伤）', 'With 3+ enemies within 2.5 m, spins and cuts everything around it, twice, flinging sword qi out in every direction (it cuts what it meets further out too)') },
+    desc: tr('身边 2.5 米内有 3 个以上敌人时转身横扫，打两段，每段向四周甩出剑气（远处的敌人也会被剑气划伤）', 'With 3+ enemies within 2.5 m, spins and cuts everything around it, twice, flinging sword qi out in every direction (it cuts what it meets further out too)'),
+    pal: { name: tr('祝福之锤', 'Blessed Hammers'), icon: '🔨', cd: 11, desc: tr('身边 3 米内有 2 个以上敌人时举锤祈祷，召出 3 把圣光之锤绕着自己飞转 6 秒，忽近忽远地扫过身边一大圈，碰到的敌人都会被砸（每把锤对同一个敌人半秒砸一次）。召出后卫士照常战斗',
+      'With 2+ enemies within 3 m, it raises the mace in prayer and calls 3 hammers of light that wheel round it for 6 s, swinging in close and out wide; each strikes whatever it passes through (once every half second). It fights on while they fly') } },
   { id: 'sunder', at: 20, cd: 15, icon: '💥', name: tr('破军一击', 'Sundering Strike'),
-    desc: tr('蓄力后挥出燃火的一击：剑盾怒吼爆气、直劈，火浪沿前方扇形扫出；大剑为剑注火横扫，三道火浪一圈比一圈远地向四周扩散；非精英敌人血量低于 25% 直接斩杀', 'Gathers itself, then a burning blow: sword & shield roars and cuts down, sending a wave of fire down a cone; the greatsword fills its blade with fire and sweeps, three rings of fire rolling out all round, each farther than the last; non-elite enemies left under 25% life are cut down') },
+    desc: tr('蓄力后挥出燃火的一击：剑盾怒吼爆气、直劈，火浪沿前方扇形扫出；大剑为剑注火横扫，三道火浪一圈比一圈远地向四周扩散；非精英敌人血量低于 25% 直接斩杀', 'Gathers itself, then a burning blow: sword & shield roars and cuts down, sending a wave of fire down a cone; the greatsword fills its blade with fire and sweeps, three rings of fire rolling out all round, each farther than the last; non-elite enemies left under 25% life are cut down'),
+    pal: { name: tr('审判', 'Judgement'), icon: '✨', desc: tr('聚起圣光，锤子注满光芒后砸下：一道光柱从天而降，三圈圣光向外扩散。3.5 米内重击并眩晕 1.2 秒，外两圈（到约 7 米）也会被砸到、短暂眩晕；非精英敌人血量低于 25% 当场处决',
+      'Gathers the light until the mace is full of it, then brings it down: a pillar of light crashes onto the spot and three rings of it race outward. Within 3.5 m a heavy blow and a 1.2 s stun; the outer rings (to ~7 m) strike and stun briefly too; non-elite enemies left under 25% life are put down') } },
   { id: 'leech', at: 25, passive: true, icon: '🩸', name: tr('饮血', 'Life Steal'),
-    desc: tr('被动：卫士造成的伤害有 10% 化为自身生命（普攻和技能都算；装备上的吸血另算，不用等到 25 层）', 'Passive: 10% of the damage the Sentinel deals heals it (swings and skills alike; life steal on gear adds to it, at any Fury)') },
+    desc: tr('被动：卫士造成的伤害有 10% 化为自身生命（普攻和技能都算；装备上的吸血另算，不用等到 25 层）', 'Passive: 10% of the damage the Sentinel deals heals it (swings and skills alike; life steal on gear adds to it, at any Fury)'),
+    pal: { name: tr('圣愈', 'Holy Mending'), icon: '💛', desc: tr('被动：卫士造成的伤害有 10% 化为自身生命，同时把其中三成的圣光分给附近的召唤师（普攻和技能都算；装备上的吸血另算，不用等到 25 层）',
+      'Passive: 10% of the damage the Sentinel deals heals it, and a third of that light goes to the summoner nearby as well (swings and skills alike; life steal on gear adds to it, at any Fury)') } },
 ];
+// a skill as the given style shows it (the paladin names and tells its own)
+export const skillView = (s, st) => (st === 'PAL' && s.pal ? { ...s, ...s.pal } : s);
 const SK = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 const LEECH = 0.1;
 export const skillsAt = L => SKILLS.filter(s => L >= s.at);
@@ -40,13 +52,19 @@ const MOVES = {
     whirl: { clip: 'GS_Spin', sp: 1.2, hits: [0.35, 0.61], mult: 1.2 },
     sunder: { pre: 'GS_Power', preSp: 2, preT: 1.1, ignite: 0.1, full: 0.95, clip: 'GS_Combo', at: 0.56, hit: 0.72, mult: 3.5, sweep: Math.PI * 2 } }, // fire climbs the blade from the hilt; then the sweep (GS_Combo), its fire spreading out all round (a full circle)
 };
+// 圣骑士: the sword-and-shield moves with the mace; its whirlwind calls hammers (a prayer: SNS_Cast), its sunder is Judgement — the
+// light gathered (the roar), the mace filling with it, then the blow (no fire cone: the light comes down in front, judgement in holy.js)
+MOVES.PAL = { holy: true, charge: { ...MOVES.SNS.charge }, guard: { ...MOVES.SNS.guard, holy: true },
+  whirl: { hammers: true, clip: 'SNS_Cast', sp: 1.1, at: 0.45, end: 0.85, cd: 11 },
+  sunder: { ...MOVES.SNS.sunder, holy: true, mult: 3 } };
 const WAVES = [{ at: 0.16, R: 7.6, life: 0.6, mult: 0.6 }, { at: 0.32, R: 9.8, life: 0.66, mult: 0.4 }]; // the greatsword's sunder: the 2nd and 3rd waves
 const CONE = { range: 5.5, half: 0.66 }, BOLT = { range: 10, speed: 16 }, FAN = 4.5;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const faceAt = (u, t, snap) => { if (!t) return; u.faceT = Math.atan2(t.x - u.x, t.z - u.z); if (snap) u.face = u.faceT; };
 const clipDur = n => (A.heroClips[n] ? A.heroClips[n].duration : 1);
-const styleOf = u => (u.entry && u.entry.wset === 'GS' ? 'GS' : 'SNS');
-const colOf = u => (u.mesh.blade ? u.mesh.blade.col : 0xbfe6ff);
+const styleOf = u => { const w = u.entry && u.entry.wset; return w === 'GS' || w === 'PAL' ? w : 'SNS'; };
+const colOf = u => (u.mesh.holy ? HOLY_C : u.mesh.blade ? u.mesh.blade.col : 0xbfe6ff); // (the paladin's skills: always the gold of its light)
+const hitSound = (u, cr) => { const st = styleOf(u); if (st === 'PAL') S.bonk(cr); else S.blade(st === 'GS', cr); };
 const stunHit = (h, t) => { if (h.dead || h.noStun) return; h.stun = Math.max(h.stun || 0, t); if (h.state === 'windup' || h.state === 'cast') h.state = 'idle'; };
 function shock(x, z, col, r, t = 0.5, w = 0.5) { const rg = ring(0.2, w, col, 0.9); rg.position.set(x, 0.05, z); C.scene.add(rg);
   G.fx.push({ clean: true, t, tick: k => { rg.scale.setScalar(1 + k * r * 2); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) }); }
@@ -54,15 +72,17 @@ const inArc = (u, h, half) => { const a = Math.atan2(h.x - u.x, h.z - u.z), da =
 const coneOf = u => hostilesOf(u).filter(h => !h.dead && dist(h, u) < CONE.range + h.r && inArc(u, h, CONE.half));
 
 function start(u, id, t) {
-  const st = styleOf(u), mv = MOVES[st][id]; u.skCD = u.skCD || {}; u.skCD[id] = G.t + SK[id].cd;
+  const st = styleOf(u), mv = MOVES[st][id]; u.skCD = u.skCD || {}; u.skCD[id] = G.t + (mv.cd || SK[id].cd);
   u.state = 'pskill'; u.st = 0; u.wantX = u.wantZ = 0; u.sk = { id, mv, st, t: 0, tgt: t, hits: 0 }; faceAt(u, t, true);
-  say(u.x, u.z, SK[id].name, '#' + colOf(u).toString(16).padStart(6, '0'), 16, 2.2);
+  say(u.x, u.z, skillView(SK[id], st).name, '#' + colOf(u).toString(16).padStart(6, '0'), 16, 2.2);
   if (id === 'charge' && mv.shield) { // dropped low behind the shield (the guard stance) and driven straight in
     play(u.mesh, mv.pose, { restart: true, fade: 0.12 }); u.sk.hit = new Set(); S.clank(); }
   else if (id === 'charge') { // the leap: a long arc over to the target, the ground splits where it lands
     const L = clipDur(mv.clip), k = Math.max(0, dist(u, t) - (u.r + t.r + 0.3)) / (dist(u, t) || 1); play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.06, at: mv.at });
     Object.assign(u.sk, { tUp: (mv.up - mv.at) * L / mv.sp, tLand: (mv.land - mv.at) * L / mv.sp, tEnd: (mv.end - mv.at) * L / mv.sp, x0: u.x, z0: u.z, x1: u.x + (t.x - u.x) * k, z1: u.z + (t.z - u.z) * k, lh: 0.3 + dist(u, t) * 0.08 });
     trail(u, u.sk.tEnd); S.swoosh(true, u.sk.tLand - 0.03, 0.3); }
+  else if (id === 'whirl' && mv.hammers) { play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.1 }); // the prayer: the hammers come at its height
+    C.parts.emit(u.x, 1.4, u.z, 14, { col: HOLY_C, spd: 0.6, up: 1.6, grav: -0.8, life: 0.6, size: 0.2, spread: 0.4 }); }
   else if (id === 'whirl') { play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.08 }); trail(u, clipDur(mv.clip) / mv.sp);
     for (const h of mv.hits) S.swoosh(st === 'GS', h * clipDur(mv.clip) / mv.sp - 0.02); }
   else if (id === 'sunder') { play(u.mesh, mv.pre, { once: true, restart: true, speed: mv.preSp, fade: 0.1 }); u.sk.col0 = u.mesh.blade && u.mesh.blade.col; }
@@ -78,7 +98,8 @@ PH.skillAI = (u, t) => {
   const L = u.fury || 0, cd = u.skCD || {}, has = id => L >= SK[id].at && !(cd[id] > G.t); // unlocked by its 战魂 stacks
   if (u.ctrQ && PH.counterAI(u)) return true; // a block or parry earned a counter: it goes in first
   const near = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 2.6 + h.r);
-  if (near.length >= 3 && has('whirl')) return start(u, 'whirl', t || near[0]);
+  if (styleOf(u) === 'PAL') { if (has('whirl') && !u.hammers) { const n3 = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 3 + h.r); if (n3.length >= 2) return start(u, 'whirl', t || n3[0]); } } // (the hammers: while they fly, not again)
+  else if (near.length >= 3 && has('whirl')) return start(u, 'whirl', t || near[0]);
   if (!t || t.dead) return false;
   const d = dist(u, t);
   if (has('sunder') && d < u.range + u.r + t.r + 1.2) { faceAt(u, t, true); const n = coneOf(u).length; if (n >= 2 || t.champ || t.maxHp > u.dmg * 3) return start(u, 'sunder', t); }
@@ -114,20 +135,24 @@ PH.skillTick = (u, dt) => {
       if (sk.t >= mv.poseT) { sk.swung = true; sk.s0 = sk.t; const L = clipDur(mv.clip), sp = Math.max(0.7, Math.min(2.6, L * (mv.hit - mv.at) / 0.3)); sk.tHit = L * (mv.hit - mv.at) / sp;
         play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06, at: mv.at }); trail(u, sk.tHit + 0.35); S.swoosh(sk.st === 'GS', sk.tHit - 0.02, 0.15); } }
     else { const s = sk.t - sk.s0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; counterHit(u, sk); } if (s >= sk.tHit + 0.32) end(u); }
+  } else if (sk.id === 'whirl' && mv.hammers) {
+    const len = clipDur(mv.clip) / mv.sp;
+    if (!sk.hits && sk.t >= mv.at * len) { sk.hits = 1; blessedHammers(u); burst(u.x, 1.8, u.z, HOLY_C, 1.4); shock(u.x, u.z, HOLY_C, 2.4, 0.4, 0.35); }
+    if (sk.t >= mv.end * len) end(u);
   } else if (sk.id === 'whirl') {
     const L = clipDur(mv.clip), len = L / mv.sp;
     while (sk.hits < mv.hits.length && sk.t >= mv.hits[sk.hits] * L / mv.sp) { whirlHit(u, mv); sk.hits++; }
     if (sk.t >= len * 0.88) end(u);
   } else if (sk.id === 'sunder') {
-    if (mv.roarAt && !sk.roared && sk.t >= mv.roarAt) { sk.roared = true; roarBurst(u); S.roar(); // the burst throws back whatever stands close
+    if (mv.roarAt && !sk.roared && sk.t >= mv.roarAt) { sk.roared = true; if (mv.holy) { holyBurst(u); S.holy(0.8); } else { roarBurst(u); S.roar(); } // the burst throws back whatever stands close
       for (const h of hostilesOf(u)) { const d = dist(h, u); if (h.dead || d > 3.6 + h.r) continue; const l = d || 1; h.kx += (h.x - u.x) / l * 3; h.kz += (h.z - u.z) / l * 3; stunHit(h, 0.45); } }
-    if (!sk.fire && sk.t >= mv.ignite) { sk.fire = bladeFire(u); S.fire(); if (u.mesh.blade) u.mesh.blade.col = 0xff6a1a; }
+    if (!sk.fire && sk.t >= mv.ignite) { sk.fire = bladeFire(u, mv.holy ? HOLY_FIRE : undefined); if (!mv.holy) S.fire(); if (u.mesh.blade) u.mesh.blade.col = mv.holy ? 0xfff0b0 : 0xff6a1a; }
     if (sk.fire && !sk.strike) { const r = Math.min(1, Math.max(0, (sk.t - mv.ignite) / (mv.full - mv.ignite))); sk.fire.reach = 0.08 + 0.92 * r; sk.fire.power = 0.6 + 0.6 * r;
-      if (r >= 1 && !sk.flared) { sk.flared = true; const e = u.mesh.weap.r.userData.edge; if (e) { const P = e[1].getWorldPosition(new THREE.Vector3()); burst(P.x, P.y, P.z, 0xffb050, 1.4); } } }
+      if (r >= 1 && !sk.flared) { sk.flared = true; const e = u.mesh.weap.r.userData.edge; if (e) { const P = e[1].getWorldPosition(new THREE.Vector3()); burst(P.x, P.y, P.z, mv.holy ? 0xfff0b0 : 0xffb050, 1.4); } } }
     if (!sk.strike) { if (t) faceAt(u, t);
       if (sk.t >= mv.preT) { sk.strike = true; sk.st0 = sk.t; const L = clipDur(mv.clip), sp = Math.max(0.6, Math.min(2.5, L * (mv.hit - mv.at) / 0.42)); sk.tHit = L * (mv.hit - mv.at) / sp; sk.len = L * (1 - mv.at) / sp;
         play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06, at: mv.at }); trail(u, sk.len); S.swoosh(sk.st === 'GS', sk.tHit - 0.02); if (sk.fire) { sk.fire.reach = 1; sk.fire.power = 1.4; } } }
-    else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; sunderHit(u, mv); } if (sk.fire && s >= sk.tHit + 0.3) sk.fire.power = Math.max(0, sk.fire.power - dt * 3);
+    else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; if (mv.holy) judgement(u, mv); else sunderHit(u, mv); } if (sk.fire && s >= sk.tHit + 0.3) sk.fire.power = Math.max(0, sk.fire.power - dt * 3);
       if (s >= Math.min(sk.len * 0.8, sk.tHit + 0.6)) end(u); }
   }
 };
@@ -136,7 +161,7 @@ PH.skillTick = (u, dt) => {
 function arcHit(u, reach, half, mult, o = {}) { let n = 0, cr = false;
   for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > reach + h.r || !inArc(u, h, half)) continue; const crit = Math.random() < 0.15; cr = cr || crit;
     damage(u, h, u.dmg * mult * (0.9 + Math.random() * 0.2), { knock: o.knock || 0, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); if (o.stun) stunHit(h, o.stun); n++; }
-  if (n) S.blade(styleOf(u) === 'GS', cr); return n; }
+  if (n) hitSound(u, cr); return n; }
 // the shield fan's blend, set by hand: the guard pose gives way to the shield-high pose on an ease-out curve
 function fanW(sk, k) { if (!sk.upTo) return; k = Math.min(1, Math.max(0, k)); const w = 1 - (1 - k) ** 3;
   sk.upTo.setEffectiveWeight(w); if (sk.upFrom) sk.upFrom.setEffectiveWeight(1 - w); if (k >= 1) { if (sk.upFrom) sk.upFrom.stop(); sk.upTo = sk.upFrom = null; } }
@@ -162,7 +187,7 @@ function leapLand(u, mv) { // the greatsword comes down: the ground splits, ever
 function whirlHit(u, mv) {
   let n = 0, cr = false; for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > 2.7 + h.r) continue; const crit = Math.random() < 0.12; cr = cr || crit;
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 2, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); n++; }
-  if (n) S.blade(styleOf(u) === 'GS', cr); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
+  if (n) hitSound(u, cr); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
   // sword qi flung out all round: it cuts what it meets out to ~5.5 m, as it gets there
   const x = u.x, z = u.z, reach = QI.r0 + QI.speed * QI.life; qiWaves(x, z, colOf(u), 8, (u.sk ? u.sk.hits : 0) * 0.39 + Math.random() * 0.3);
   for (const h of hostilesOf(u)) { const d = Math.hypot(h.x - x, h.z - z); if (h.dead || d <= 2.7 + h.r || d > reach + h.r) continue;
@@ -199,14 +224,14 @@ function counterHit(u, sk) {
     arcHit(u, u.range + u.r + 0.6, 0.6, mv.mult, { knock: 2.2, stun: 0.3 });
     const aim = sk.shot && sk.src && !sk.src.dead && dist(sk.src, u) < BOLT.range + 1 ? sk.src : null, ang = aim ? Math.atan2(aim.x - x, aim.z - z) : u.face, hit = new Set();
     qiBolt(x, z, ang, col, BOLT.range, BOLT.speed, (px, pz) => { for (const h of hostilesOf(u)) { if (h.dead || hit.has(h) || Math.hypot(h.x - px, h.z - pz) > 0.8 + h.r) continue; hit.add(h);
-      damage(u, h, u.dmg * 0.9, { knock: 2, fx: x, fz: z, quiet: true }); C.parts.emit(h.x, 1.0, h.z, 8, { col, spd: 2.4, up: 1, grav: 5, life: 0.3, size: 0.15 }); S.blade(false, false); } });
+      damage(u, h, u.dmg * 0.9, { knock: 2, fx: x, fz: z, quiet: true }); C.parts.emit(h.x, 1.0, h.z, 8, { col, spd: 2.4, up: 1, grav: 5, life: 0.3, size: 0.15 }); if (mv.holy) S.holy(0.4); else S.blade(false, false); } });
   }
 }
 // ---------- Block / Parry (passive, from 10 战魂): how much of a blow gets through, and the counter it earns ----------
 PH.guard = (src, u, o) => {
   if (!((u.fury || 0) >= SK.guard.at) || u.spawnT > 0 || !u.entry) return 1;
   const st = styleOf(u), mv = MOVES[st].guard, sx = o.fx ?? (src ? src.x : u.x), sz = o.fz ?? (src ? src.z : u.z);
-  if (st === 'SNS' && u.shield === false) return 1; // no shield on the arm: nothing to block with
+  if (mv.all && u.shield === false) return 1; // no shield on the arm: nothing to block with
   const ang = Math.atan2(sx - u.x, sz - u.z), chance = mv.chance + Math.min(0.2, 0.01 * Math.max(0, u.fury - SK.guard.at)) + (u.blockB || 0); // each Fury stack past 10: +1%; gear on top
   if ((!mv.all && Math.abs(((ang - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > 1.75) || Math.random() >= chance) return 1; // the shield: from any side; the parry: only from the front
   const e = mv.fan && u.mesh.weap && u.mesh.weap.r && u.mesh.weap.r.userData.edge, P = new THREE.Vector3();
@@ -219,8 +244,10 @@ PH.guard = (src, u, o) => {
 // Life Steal (passive, 25 Fury): a share of every blow it lands comes back as life; the heal shows as one number every half second
 PH.leech = (u, d) => {
   const r = ((u.fury || 0) >= SK.leech.at ? LEECH : 0) + (u.leechB || 0); if (!r || u.dead || !(d > 0)) return; const h = d * r; u.hp = Math.min(u.maxHp, u.hp + h); // (gear with life steal works at any Fury)
+  const P = G.player; if (u.mesh.holy && P && !P.dead && dist(P, u) < 12) { P.hp = Math.min(P.maxHp, P.hp + h * 0.3); // 圣愈: a third of it to the summoner too
+    if (Math.random() < 0.25) C.parts.emit(P.x, 1.0, P.z, 2, { col: HOLY_C, spd: 0.4, up: 1.2, grav: -0.6, life: 0.6, size: 0.16, spread: 0.3 }); }
   if (!u.leechAcc) G.fx.push({ t: 0.45, fn: () => { const v = u.leechAcc; u.leechAcc = 0; if (u.dead || v < 1) return; say(u.x, u.z, '+' + Math.round(v), '#7dff9a', 13, 2.2);
-    C.parts.emit(u.x, 1.0, u.z, 8, { col: 0xff3a4a, spd: 0.7, up: 1.4, grav: -0.6, life: 0.55, size: 0.2, spread: 0.3 }); } });
+    C.parts.emit(u.x, 1.0, u.z, 8, { col: u.mesh.holy ? HOLY_C : 0xff3a4a, spd: 0.7, up: 1.4, grav: -0.6, life: 0.55, size: 0.2, spread: 0.3 }); } });
   u.leechAcc = (u.leechAcc || 0) + h;
 };
 // the counter goes in as soon as it is free (between its own swings): the guard pose, then the blow

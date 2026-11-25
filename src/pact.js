@@ -13,19 +13,25 @@ import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
 import { S, loadSamples } from './audio.js';
-import { SKILLS } from './pactskills.js';
+import { SKILLS, skillView } from './pactskills.js';
 import { rollHeroItem, HERO_GEAR } from './data.js';
 import { soulToJar } from './soulvessel.js';
+import { smite } from './holy.js';
 if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2']);
 
 // ---------- tunables ----------
 export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1 };
-// weapon styles: one class (warrior), two ways to fight
+// weapon styles: one class (warrior), three ways to fight
 export const SETS = {
   SNS: { name: tr('剑盾', 'Sword & Shield'), style: tr('坚守', 'Bulwark'), icon: '🛡️', mv: 2.07, hp: 1.3, dmg: 1, arm: 14, cd: 1.15, wind: 0.42, range: 1.2, eva: 0.32, arc: 0.55, side: 0.6, knock: 1.4,
     desc: tr('生命和护甲高，闪避高，出手快。被一群怪围住也站得住。', 'More life and armour, high evasion, quick strikes. Holds its ground in a crowd.') },
   GS: { name: tr('双手大剑', 'Greatsword'), style: tr('横扫', 'Cleave'), icon: '⚔️', mv: 2.33, hp: 1.0, dmg: 1.5, arm: 4, cd: 1.6, wind: 0.6, range: 1.6, eva: 0.16, arc: 1.25, side: 0.85, knock: 3, heavy: true,
     desc: tr('伤害高，每一刀都扇形横扫面前的敌人并击退，但闪避低、更容易受伤。', 'Heavy hits: every swing cleaves everything in front and knocks it back, but it dodges less and gets hurt more.') },
+  // the mace and shield: slower and sturdier than the sword, and holy (gold light instead of the soul's cyan); blunt: the knights' shields
+  // don't stop it, it ignores half of armour and hits the heavily armoured harder; every third swing calls the light down on the target
+  PAL: { name: tr('锤盾', 'Mace & Shield'), style: tr('圣骑士', 'Paladin'), icon: '🔨', mv: 1.97, hp: 1.4, dmg: 1.05, arm: 18, cd: 1.3, wind: 0.48, range: 1.15, eva: 0.24, arc: 0.55, side: 0.6, knock: 2, blunt: true, holy: true, smite: 3,
+    desc: tr('生命和护甲最高，出手比剑盾慢。钝击：盾牌挡不住锤子，无视目标一半护甲，打重甲（护甲 15 以上）伤害 +25%。每第三下是圣击：圣光砸在目标身上，波及身边的敌人并短暂眩晕。',
+      'The most life and armour, a little slower than the sword. Blunt: shields don\'t stop a mace, it ignores half of armour, +25% against heavy armour (15 or more). Every third blow is a Smite: light crashes down on the target, catching those beside it and stunning them briefly.') },
 };
 // the skeleton at summon level L with s 战魂 stacks (before the global pace: speed ×0.75, attack interval ÷0.8)
 export function heroBase(L, s, set) {
@@ -51,22 +57,22 @@ export function heroEntry() {
   en.level = P8.lvl; en.gear = P8.gear; en.wset = P8.wset = gearStyle(P8.gear); return en;
 }
 function makeEntry() { const en = heroEntry(); en.unit = null; return en; }
-// ---------- its gear: the weapon decides the style (greatsword → 大剑, sword or bare → 剑盾) ----------
+// ---------- its gear: the weapon decides the style (greatsword → 大剑, mace → 圣骑士, sword or bare → 剑盾) ----------
 export const gearStyle = g => (g && g.w && g.w.hero && HERO_GEAR[g.w.hero].style) || 'SNS';
 // a new pact starts with a plain sword and shield; a save from before gear gets plain gear of the style it had
 export function initGear() {
   if (P8.gear) return; const L = 1;
   P8.gear = P8.wset === 'GS' ? { w: rollHeroItem(G.uid++, L, 0, 'gs') } : { w: rollHeroItem(G.uid++, L, 0, 'sword'), a: rollHeroItem(G.uid++, L, 0, 'shield') };
 }
-// a whole set at a quality (the test arena): the style's weapon, and a shield with the sword
-export function equipSet(style, q, il) { P8.gear = style === 'GS' ? { w: rollHeroItem(G.uid++, il, q, 'gs') } : { w: rollHeroItem(G.uid++, il, q, 'sword'), a: rollHeroItem(G.uid++, il, q, 'shield') }; PH.gear(heroEntry()); }
+// a whole set at a quality (the test arena): the style's weapon, and a shield with the sword or the mace
+export function equipSet(style, q, il) { P8.gear = style === 'GS' ? { w: rollHeroItem(G.uid++, il, q, 'gs') } : { w: rollHeroItem(G.uid++, il, q, style === 'PAL' ? 'mace' : 'sword'), a: rollHeroItem(G.uid++, il, q, 'shield') }; PH.gear(heroEntry()); }
 
 // ---------- hooks the unit code calls (see PH in units.js) ----------
 PH.stats = u => {
   const en = u.entry, W = SETS[en.wset] || SETS.SNS, b = heroBase(en.level, P8.stacks, en.wset), g = en.gear || {}, V = k => ((g.w && g.w.v[k]) || 0) + ((g.a && g.a.v[k]) || 0);
   // what its gear gives: % damage / life / attack speed / move speed, flat armour, chances
   b.dmg *= 1 + V('dmg') / 100; b.maxHp *= 1 + V('hp') / 100; b.armor += V('arm'); b.cd /= 1 + V('spd') / 100; b.speed *= 1 + V('move') / 100; b.evade = Math.min(0.6, b.evade + V('eva') / 100);
-  u.crit = 0.1 + V('crit') / 100; u.leechB = V('leech') / 100; u.blockB = V('blk') / 100; u.shield = !!g.a;
+  u.crit = 0.1 + V('crit') / 100; u.leechB = V('leech') / 100; u.blockB = V('blk') / 100; u.shield = !!g.a; u.blunt = !!W.blunt; // (blunt: damage() in units.js, foeGuard in foes.js)
   Object.assign(u, b); u.range = W.range; u.r = 0.42; u.windup = W.wind; u.noStun = true; u.taunt = true; u.tauntR = 6; u.pact = true; u.fury = P8.stacks; // (crest and skills go by it)
 };
 PH.name = () => heroName();
@@ -77,7 +83,8 @@ PH.strike = (u, t) => {
   for (const h of hostilesOf(u)) { if (h.dead) continue; const d = Math.hypot(h.x - u.x, h.z - u.z); if (d > reach + h.r + (h === t ? 0.4 : 0)) continue;
     const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (h !== t && da > W.arc && d > 0.8) continue;
     const crit = Math.random() < (u.crit ?? 0.1); damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; }
-  if (hits) S.blade(!!W.heavy, crits); // one blade sound per swing, however many it cuts
+  if (hits) { if (W.blunt) S.bonk(crits); else S.blade(!!W.heavy, crits); } // one blade sound per swing, however many it cuts
+  if (W.smite && t && (u.smiteN = (u.smiteN || 0) + 1) % W.smite === 0) smite(u, t); // every third blow: the light comes down where it stood
 };
 // evasion: a number-less "dodge" and, when it is free to move, a quick dodge step (the Mixamo dodges, sped up)
 PH.evade = (src, u) => {
@@ -102,7 +109,7 @@ function gainKills(u, n) {
   S.level(); C.parts.emit(u.x, 1.0, u.z, 26, { col: 0xffd27a, spd: 1.8, up: 3, life: 0.9, size: 0.28, grav: -1.2 }); C.parts.emit(u.x, 0.6, u.z, 16, { col: 0x8ff7ea, spd: 1.2, up: 2, life: 0.7, size: 0.24, grav: -1 });
   say(u.x, u.z, tr(`战魂 ${P8.stacks}`, `Fury ${P8.stacks}`), '#ffd27a', 17, 2.3);
   // every 5 stacks up to 20: the crest changes colour and a skill wakes (both gone again when it falls)
-  for (let s = P8.stacks - up + 1; s <= P8.stacks; s++) { const k = PLUME_AT.indexOf(s), sk = SKILLS.find(q => q.at === s);
+  for (let s = P8.stacks - up + 1; s <= P8.stacks; s++) { const k = PLUME_AT.indexOf(s), s0 = SKILLS.find(q => q.at === s), sk = s0 && skillView(s0, P8.wset);
     if (k >= 0) { shock(u.x, u.z, 0xffd27a, 2.8); C.say(tr(['骸骨卫士的鬃毛染上了幽蓝', '骸骨卫士的鬃毛化为鎏金', '骸骨卫士的鬃毛燃起紫焰', '骸骨卫士的鬃毛燃起赤焰'][k],
       ['The Sentinel\'s crest turns azure', 'The Sentinel\'s crest turns to gold', 'The Sentinel\'s crest kindles violet fire', 'The Sentinel\'s crest bursts into crimson fire'][k]) + (sk ? tr(` · 觉醒技能 ${sk.icon} ${sk.name}`, ` · it wakes ${sk.icon} ${sk.name}`) : ''), true); }
     else if (sk) { shock(u.x, u.z, 0xff5a6a, 2.6); C.say(tr(`骸骨卫士 战魂 ${s} 层 · 觉醒技能 ${sk.icon} ${sk.name}`, `Bone Sentinel at ${s} Fury · it wakes ${sk.icon} ${sk.name}`), true); }

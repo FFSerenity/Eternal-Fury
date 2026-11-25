@@ -85,6 +85,23 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   fills in 0.7 s whatever its size. Harvesting every corpse gives about half as many stacks again as the kills themselves.
 - Skeleton at level L: life (230 + 40(L−1)) × style, damage (16 + 4.5(L−1)) × style, armour 18 + 3(L−1) + style; taunts within 6 m; never staggered.
   Sword & Shield: life ×1.3, armour +14, evasion 32%, attack every ~1.4 s, narrow arc. Greatsword: damage ×1.5, evasion 16%, ~2 s, wide arc, knock-back.
+  Mace & Shield (圣骑士 Paladin, SETS.PAL): life ×1.4, armour +18, damage ×1.05, evasion 24%, ~1.6 s, knock-back 2; fights on the sword &
+  shield clips. Blunt (units.js damage, foes.js foeGuard): a knight's shield doesn't stop it (the blow goes through whole and the knight
+  staggers 0.35 s, "破盾"), only half of the target's armour counts, +25% against armour 15+. Smite: every third swing a pillar of light
+  comes down where the target stood — 60% damage to all within 1.7 m and a 0.5 s stun (holy.js).
+  Its look (the reference board "Skeleton Paladin · Holy Radiance"): in the shader (gfx.js uHoly) the black plate turns polished silver — a
+  floor / dark horizon / bright sky mirrored in it — and its raised filigree gold; the cloth (grey and not metal in the metalness map: the
+  hanging front skirt) worn ivory linen with a gold cross drawn in the rest pose's own space (vB), so it moves with the cloth; bone and
+  leather (warm in the texture) stay as they are; the mace and shield silver with gold where they are bright. The crest is white before its
+  first tier, the eyes and soul light gold (uSoulC, softer than the cyan: it would burn the silver out to white), a halo floats level over the
+  crest, a slow rune circle of light lies under its feet, motes drift up off it. Swing trail gold.
+  Skills as the Paladin (skillView: own names and texts): Holy Charge = the shield charge in gold; Block = the shield block, its counter a
+  bolt of light; Blessed Hammers (instead of Whirlwind; 2+ within 3 m, 11 s): a prayer (SNS_Cast), then three spectral maces (the mace model
+  in gold, a glowing shell) wheel round it for 6 s — 3.1 rad/s, each swinging in and out between ~0.9 and 2.8 m, tumbling end over end —
+  each striking what it passes for 50% (once per hammer per enemy every 0.5 s) while it fights on; Judgement (instead of Sundering
+  Strike): the roar becomes a burst of light, the mace fills with holy flame, and the blow brings a pillar of light down 1.3 m in front —
+  ×3 and a 1.2 s stun within 3.5 m, then two more rings (to 5.2 / 6.8 m: 60% / 40%, short stuns), consecrated ground; non-elites under
+  25% are put down; Holy Mending: the life steal, with a third of each heal going to the summoner within 12 m too.
 - Bearing: a dazed stand (Mixamo Idle, elbows eased out and forearms leaning slightly in), a brutal walk with sword & shield, the briefcase walk with the greatsword — no guard stance (that waits
   for a defence skill) and no run yet, straight from the walk into its swings;
   it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the shield hangs point-down along the leg when the arm is lowered;
@@ -114,7 +131,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   5 blue, 10 gold (glowing, sparks), 15 violet fire, 20 crimson fire (flames running out along the fin, a halo, embers); the swing trail
   takes the same colour. The summon skill doesn't level (its strength is 战魂 and gear); 魂能 is poured in as 战魂 instead.
 - The summoner's Bone Spear does half damage here and the summoner levels at 60% speed: support, heal (Mend), harvest.
-- Not yet: the skeleton wearing gear (drops / bag / forge still work), more weapon styles (axe, spear, mace are modelled), skills you choose or aim,
+- Not yet: more weapon styles (axe and spear are modelled; a two-handed mace / axe, dual wield, mixed), skills you choose or aim,
   a second skeleton, using the extracted root motion (lunges / leaps that travel).
 
 - Its soul light (魂光) also shows its 战魂, one step every 10 stacks up to 100: the cyan of its eyes shining out of it from inside.
@@ -124,8 +141,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   it; 100: white-hot at the core, two streams of light spiralling round it, a ring of soul force pulsing out every 2.4 s (assets.js soulTick,
   the shader's uSoul). Note: the stats per stack grow linearly, so far up (100) it hits very hard; a cap may be wanted later.
 - Gear (魂契 only): drops and the forge give the Sentinel's own gear — a greatsword (two hands: the shield slot is locked while it is
-  held; putting one in sends the shield back to the bag), a sword, and a shield; two slots as before. The weapon sets the style
-  (greatsword → 大剑, sword or none → 剑盾); with no shield there is no blocking. Qualities: white, blue (1 extra line), yellow (2),
+  held; putting one in sends the shield back to the bag), a sword, a mace, and a shield; two slots as before. The weapon sets the style
+  (greatsword → 大剑, mace → 圣骑士, sword or none → 剑盾); with no shield there is no blocking. Qualities: white, blue (1 extra line), yellow (2),
   purple (3), red 传说 (4): weapon damage %, shield life % and armour, extra lines from attack speed / crit / life steal / life (+ armour
   on the greatsword) or block / evasion / damage / move speed on the shield. Normal monsters drop 9% (red 0.5%), champions always
   (blue or better, red 4%). Rare and up glow in their colour in its hands (an aura, sparks; red smoulders) and on the ground (a beam,

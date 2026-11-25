@@ -8,7 +8,7 @@ import { PACE, QUAL } from './data.js';
 import { openGear } from './gearui.js';
 import { heroHeadURL } from './icons.js';
 import { plumeTier, PLUME_AT, soulTier } from './assets.js';
-import { SKILLS } from './pactskills.js';
+import { SKILLS as SKILLS0, skillView } from './pactskills.js';
 
 const $ = s => document.querySelector(s), P8 = G.pact;
 const pct = v => Math.round(v * 100) + '%';
@@ -67,6 +67,7 @@ export function renderPact(force) {
   const W = SETS[P8.wset], now = per(heroBase(1, 0, P8.wset)), cost = infuseCost();
   $('#cryptHead').innerHTML = tr(`魂契 <span class="sub">魂能 ${soul}</span>`, `The Pact <span class="sub">Soul energy ${soul}</span>`);
   // the 战魂 skills as a row of badges on one track, filled up to its Fury; the picked one is described in a fixed box below
+  const SKILLS = SKILLS0.map(k => skillView(k, P8.wset)); // (named and told as its style has them)
   if (!selSkill) selSkill = (SKILLS.filter(k => s >= k.at).pop() || SKILLS[0]).id;
   const n = SKILLS.length, xs = SKILLS.map((k, i) => (i + 0.5) / n), at = SKILLS.map(k => k.at);
   let fill = 0; if (s >= at[n - 1]) fill = 1; else { let a0 = 0, x0 = 0; for (let i = 0; i < n; i++) { if (s < at[i]) { fill = x0 + (xs[i] - x0) * (s - a0) / (at[i] - a0); break; } a0 = at[i]; x0 = xs[i]; } }
@@ -80,7 +81,7 @@ export function renderPact(force) {
     + `<div class="ds">${tr('生命', 'Life')} ${now.hp} · ${tr('伤害', 'Damage')} ${now.dmg} · ${tr('它的强大来自战魂和装备', 'its strength comes from Fury and gear')}</div>`
     + `<div class="ds pjar">${tr(`<b>魂瓶</b>（左下角）现有 <b>${soul}</b> 魂能。按住魂瓶（或按住 E）把魂能灌注给场上的卫士，直接加战魂${u ? `：下一层需 <b>${cost}</b>` : '（先召唤）'}。`, `<b>Soul vessel</b> (bottom left): <b>${soul}</b> soul. Hold it (or hold E) to pour soul into the Sentinel on the field — straight into Fury${u ? `: <b>${cost}</b> to the next stack` : ' (summon it first)'}.`)}</div></div></div>`
     + `<div class="card pstyle"><span class="ic">${W.icon}</span><div class="info"><div class="nm">${tr('流派', 'Style')} · ${W.name} <span class="sub">${W.style}</span></div><div class="ds">${W.desc}</div>`
-    + `<div class="ds dim">${tr('流派由武器决定：双手大剑 → 大剑流派；单手剑 → 剑盾流派（要格挡就得装盾）', 'The weapon decides: a greatsword fights Greatsword, a sword Sword & Shield (blocking needs a shield)')}</div></div>`
+    + `<div class="ds dim">${tr('流派由武器决定：双手大剑 → 大剑流派；单手剑 → 剑盾流派；单手锤 → 锤盾圣骑士（剑盾和锤盾要格挡就得装盾）', 'The weapon decides: a greatsword fights Greatsword, a sword Sword & Shield, a mace Paladin (blocking needs a shield)')}</div></div>`
     + `<button class="btn pgearBig" data-act="gear">⚔ ${tr('装备卫士', 'Equip')}</button></div>`
     + `<div class="psec">${tr(`战魂技能 <span class="sub">卫士亲手击杀积攒战魂，到层数觉醒，倒下清零；自动释放</span>`, `Fury skills <span class="sub">kills by its own hand build Fury; each wakes at its stack, all lost when it falls; used on its own</span>`)}</div>`
     + `<div class="ptreeW">${tree}</div>`

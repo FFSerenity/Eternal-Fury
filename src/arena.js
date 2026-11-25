@@ -88,7 +88,7 @@ function html() {
   <div class="aR"><span class="aL">${tr('魂能', 'Soul')}</span><button data-act="soul:50">+50</button><button data-act="soul:500">+500</button><button data-act="soul:0">${tr('清空', 'Empty')}</button></div>
   <div class="aR"><span class="aL">${tr('装备', 'Gear')}</span>${chips('wset', Object.keys(SETS).map(k => [k, SETS[k].name]))}</div>
   <div class="aR"><span class="aL">${tr('品质', 'Quality')}</span>${chips('gq', QUAL.map((q, i) => [i, `<i style="color:${q.col};font-style:normal">●</i>${q.name}`]))}</div>
-  <div class="aSm">${tr('点流派或品质：按当前怪物等级换上一整套新装备（大剑一把，或剑 + 盾）', 'Tap a style or quality: equips a fresh set at the monster level (a greatsword, or a sword and shield)')}</div>
+  <div class="aSm">${tr('点流派或品质：按当前怪物等级换上一整套新装备（大剑一把，剑 + 盾，或锤 + 盾）', 'Tap a style or quality: equips a fresh set at the monster level (a greatsword, a sword and shield, or a mace and shield)')}</div>
   <div class="aR">${tog('hInv', tr('卫士不死', 'Unkillable'))}<button data-act="summon">${tr('召唤', 'Summon')}</button><button data-act="heal">${tr('回满', 'Full heal')}</button></div>` : `<div class="aR"><button data-act="heal">${tr('回满', 'Full heal')}</button></div>`}
   <div class="aR">${step('plvl', tr('召唤师等级', 'Summoner Lv'))}</div><div class="aR">${tog('pInv', tr('召唤师无敌 · 法力无限', 'Summoner invulnerable · endless mana'))}</div></div></div>`;
 }

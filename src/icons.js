@@ -24,13 +24,13 @@ export function lit(fn) {
 function shot(obj, size) { initR(); R.setPixelRatio(1); R.setSize(size, size, false); iconScene.clear(); iconScene.add(obj); lit(() => R.render(iconScene, iconCam)); const url = R.domElement.toDataURL(); iconScene.clear(); return url; }
 // the Sentinel's two blades would read alike: the greatsword shown flat (its broad face to the camera) leaning one way, the sword turned
 // and leaning the other way, a little smaller. [rot x, y, z, frame size ÷ length]
-const ICON_ROT = { hw_greatsword: [0.15, 0, -0.78, 0.92], hw_sword: [0.15, 0.9, 0.78, 1.18] };
+const ICON_ROT = { hw_greatsword: [0.15, 0, -0.78, 0.92], hw_sword: [0.15, 0.9, 0.78, 1.18], hw_mace: [0.2, 0.6, -0.6, 1.05] };
 // all icons are made once, right after the models are loaded
 export function makeIcons() {
   initR(); const models = new Set();
   for (const t in WEAPONS) for (const b of WEAPONS[t].bases) models.add(b.model);
   for (const m of ['sk_shield_large', 'shield_round', 'shield_square']) models.add(m);
-  if (A.heroWeap.sword) for (const m of ['hw_greatsword', 'hw_sword', 'hw_shield']) models.add(m); // 魂契: the Sentinel's gear
+  if (A.heroWeap.sword) for (const m of ['hw_greatsword', 'hw_sword', 'hw_mace', 'hw_shield']) models.add(m); // 魂契: the Sentinel's gear
   for (const m of models) { const pg = propGeo(m); if (!pg) continue;
     const g = new THREE.Group(), mesh = new THREE.Mesh(pg.geo, propMat(pg.map)), c = pg.box.getCenter(new THREE.Vector3()), sz = pg.box.getSize(new THREE.Vector3());
     mesh.position.copy(c).negate(); g.add(mesh); const shield = sz.y < sz.x * 1.4 && sz.z < sz.x, R = (globalThis.__iconRot || {})[m] || ICON_ROT[m];

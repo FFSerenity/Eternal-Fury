@@ -40,6 +40,10 @@ export const S = {
   roar() { if (!ok()) return; tone('sawtooth', 120, 62, 0.75, 0.16); tone('sawtooth', 181, 90, 0.7, 0.07, 0.02); hiss(380, 0.7, 0.7, 0.3, 0, 'lowpass'); hiss(1400, 0.8, 0.45, 0.12, 0.05); },
   blade(heavy, crit) { if (!ok() || !gate('bl', 50)) return; const n = (heavy ? 'blade_h' : 'blade_l') + Math.floor(Math.random() * 3);
     if (!sample(n, crit ? 0.75 : 0.6, (heavy ? 0.96 : 0.97) + Math.random() * 0.08)) { hiss(heavy ? 900 : 1600, 0.9, 0.12, 0.25); tone('triangle', heavy ? 700 : 1100, 300, 0.12, 0.06); } },
+  // the mace: a blunt crunch with a ring of metal in it (crit: a brighter ring); the holy light: a bright swell of a chord
+  bonk(crit, v = 1) { if (!ok() || !gate('bk', 60)) return; tone('sine', 150, 55, 0.2, 0.32 * v); hiss(650, 0.8, 0.13, 0.32 * v, 0, 'lowpass'); tone('triangle', 560, 520, 0.28, 0.05 * v, 0.01);
+    if (crit) tone('triangle', 1120, 1080, 0.3, 0.04, 0.02); sample('blade_h' + Math.floor(Math.random() * 3), 0.28 * v, 0.62); },
+  holy(v = 1) { if (!ok() || !gate('ho', 120)) return; [523, 784, 1046, 1568].forEach((f, i) => tone('sine', f, f * 1.005, 0.7 + 0.2 * v, 0.05 * v, i * 0.03)); hiss(6000, 1.2, 0.5, 0.06 * v); },
   spear() { if (!ok() || !gate('sp', 60)) return; hiss(2400, 1.2, 0.12, 0.18); tone('triangle', 900, 300, 0.12, 0.08); },
   hit(v = 1) { if (!ok() || !gate('hit', 40)) return; hiss(600, 0.8, 0.09, 0.25 * v); tone('sine', 160, 70, 0.1, 0.18 * v); },
   smash() { if (!ok()) return; tone('sine', 110, 40, 0.3, 0.4); hiss(300, 0.7, 0.25, 0.35); },

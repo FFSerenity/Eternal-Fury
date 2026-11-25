@@ -27,9 +27,13 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
   **Hold the vessel** (or hold **E** / the summon button — it reads "Pour" — while the Sentinel is out) to pour it into the Sentinel:
   souls stream from the flask into its chest, it glows brighter the longer it drinks, and it gains Fury (one kill's worth = 2.5 soul).
   After a fall, what you saved charges it back up. (Old saves get back all the soul they spent on summon levels.)
-- Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes) or **Greatsword** (heavy cleaves that knock back, less evasion) — set by the weapon it holds.
-- Gear drops for the Sentinel: greatswords (two-handed, no shield), swords and shields, in white / blue / yellow / purple / red; equip from the Pact panel or the bag.
-- As Fury grows its soul light (cyan, like its eyes) shines out of it from inside, a step every 10 stacks up to 100.
+- Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes), **Greatsword** (heavy cleaves that knock back, less evasion) or
+  **Mace & Shield — Paladin** — set by the weapon it holds. The Paladin turns holy: polished silver plate with gold trim, an ivory tabard
+  with a gold cross, a white crest, a halo, gold light instead of cyan. Its mace is blunt (shields don't stop it, it ignores half of armour,
+  +25% against heavy armour), every third blow is a Smite, and its skills become Holy Charge, Blessed Hammers (three hammers of light
+  wheeling round it for 6 s), Judgement (a pillar of light and three rings of it) and Holy Mending (part of the healing goes to you).
+- Gear drops for the Sentinel: greatswords (two-handed, no shield), swords, maces and shields, in white / blue / yellow / purple / red; equip from the Pact panel or the bag.
+- As Fury grows its soul light (cyan, like its eyes; gold for the Paladin) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
 
 **Bosses**: every 5th crypt floor, one of the four tech skeletons guards the way down (bombardier, gunner, mech, engineer — their big

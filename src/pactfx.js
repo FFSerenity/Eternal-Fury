@@ -6,6 +6,7 @@ import { glowSprite, ring } from './gfx.js';
 import { burst, shake, slamMark } from './fx.js';
 
 const TAU = Math.PI * 2, FIRE = [0xffe08a, 0xffa040, 0xff6a1a, 0xff3a14];
+export const HOLY_FIRE = [0xfff6d8, 0xffe08a, 0xffcf66, 0xffffff]; // (the paladin's mace filling with light: same flames, holy colours)
 const fire = () => FIRE[Math.floor(Math.random() * FIRE.length)];
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _p = new THREE.Vector3();
 // a ring racing out to radius r, w thick when it gets there (it stays a band, not a disc)
@@ -13,10 +14,10 @@ function wave(x, z, col, r, t, w = 0.3, op = 0.85, y = 0.06) { const rg = ring(M
   G.fx.push({ clean: true, t, tick: k => { const e = 1 - (1 - k) * (1 - k); rg.scale.setScalar(0.15 + e * (r - 0.15)); rg.material.opacity = op * (1 - k); }, fn: () => C.scene.remove(rg) }); }
 
 // flames along the sword or greatsword, from the hilt up to `reach` (0..1) of the blade; `power` scales them. h.stop() lets them die down
-export function bladeFire(u) {
+export function bladeFire(u, pal = FIRE) {
   const g = u.mesh.weap && u.mesh.weap.r, e = g && g.userData.edge; if (!e) return null;
   const tip = e[1].position, ws = g.getWorldScale(_p).x || 1, h = { reach: 0, power: 1, on: true, stop() { this.on = false; } }, sprites = [];
-  for (let i = 0; i < 9; i++) { const s = glowSprite(i % 2 ? 0xff6a1a : 0xffa040, 0.6 / ws, 0); s.position.set(tip.x, tip.y * (0.06 + i / 8 * 0.94), tip.z); g.add(s); sprites.push(s); }
+  for (let i = 0; i < 9; i++) { const s = glowSprite(pal === FIRE ? (i % 2 ? 0xff6a1a : 0xffa040) : (i % 2 ? pal[2] : pal[1]), 0.6 / ws, 0); s.position.set(tip.x, tip.y * (0.06 + i / 8 * 0.94), tip.z); g.add(s); sprites.push(s); }
   let last = G.t, fade = 1, acc = 0; const fx = { clean: true, t: 20, fn: () => sprites.forEach(s => g.remove(s)) };
   fx.tick = () => { const dt = Math.min(0.1, Math.max(0, G.t - last)); last = G.t; if (!h.on || u.dead) fade -= dt * 3; if (fade <= 0) { fx.t = 0; return; }
     const p = h.power * fade;
@@ -24,7 +25,7 @@ export function bladeFire(u) {
       s.scale.setScalar((0.55 + 0.25 * Math.sin(G.t * 19 + i * 2.3)) * (0.75 + 0.55 * p) / ws); });
     if (h.reach <= 0.01 || !g.parent) return; g.updateMatrixWorld(true); _a.set(tip.x, tip.y * 0.06, tip.z); g.localToWorld(_a); e[1].getWorldPosition(_b);
     acc += dt * 180 * h.reach * p; while (acc >= 1) { acc -= 1; _p.copy(_a).lerp(_b, Math.random() * h.reach / 1); // licks of flame rising off the blade
-      C.parts.emit(_p.x, _p.y, _p.z, 1, { col: fire(), spd: 0.4, up: 1.5, grav: -2.8, life: 0.22 + Math.random() * 0.25, size: 0.2 + 0.12 * Math.min(1.3, p), spread: 0.1 }); } };
+      C.parts.emit(_p.x, _p.y, _p.z, 1, { col: pal[Math.floor(Math.random() * pal.length)], spd: 0.4, up: 1.5, grav: -2.8, life: 0.22 + Math.random() * 0.25, size: 0.2 + 0.12 * Math.min(1.3, p), spread: 0.1 }); } };
   G.fx.push(fx); return h;
 }
 

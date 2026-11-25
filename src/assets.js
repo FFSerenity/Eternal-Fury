@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { toonMat, outlineMat, charUniforms, glowSprite, auraMat, realMat, ring, TEX as GTEX } from './gfx.js';
+import { runeCircle } from './vfx.js';
 import { ELEM, WEAPONS, ARMORS, QUAL } from './data.js';
 import { PACT } from './state.js';
 
@@ -60,7 +61,7 @@ export function bakeProp(root, hook) {
 }
 // the 魂契 skeleton's weapons as props (loot on the ground, bag icons): baked from the hero weapon pack, sized so that at the props' usual
 // 0.5 scale they lie at their real length; HW_GEO keeps the unscaled bake for the quality aura in its hand
-const HW_GEO = {}, HW_LEN = { greatsword: 3.4, sword: 2.2, shield: 1.7 };
+const HW_GEO = {}, HW_LEN = { greatsword: 3.4, sword: 2.2, mace: 2.0, shield: 1.7 };
 export const hwGeo = name => HW_GEO[name] || (A.heroWeap[name] ? (HW_GEO[name] = bakeProp(A.heroWeap[name])) : null);
 for (const n of Object.keys(HW_LEN)) CUSTOM_PROPS['hw_' + n] = () => { const b = hwGeo(n); if (!b) return null; const h = b.box.max.y - b.box.min.y, geo = b.geo.clone().scale(HW_LEN[n] / h, HW_LEN[n] / h, HW_LEN[n] / h);
   geo.computeBoundingBox(); geo.computeBoundingSphere(); return { geo, map: b.map, box: geo.boundingBox }; };
@@ -221,7 +222,11 @@ export const HERO_SETS = {
   // (not SNS_Atk1, a pommel strike, nor GS_Atk1, which swings high over the heads of anything its size)
   SNS: { r: 'sword', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'] },
   GS: { r: 'greatsword', atk: ['GS_Atk2', 'GS_Atk3', 'GS_Atk4'] },
+  // the mace and shield (圣骑士): fights on the sword-and-shield clips (clips: whose clips), but holy — gold armour, the soul light gold
+  PAL: { r: 'mace', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'], clips: 'SNS', holy: true },
 };
+// the holy light (圣骑士): its colour, the white-hot of it, and the gold of a swing's trail
+export const HOLY_C = 0xffcf66, HOLY_HOT = 0xfff4d6, HOLY_TRAIL = 0xffe08a;
 export function heroClip(n, set) {
   const C = A.heroClips, p = set ? set + '_' : '#', pick = (...ks) => ks.find(k => C[k]) || null;
   if (C[p + n]) return p + n; if (C[n]) return n;
@@ -264,7 +269,8 @@ function heroFists(scene) {
 function makeHeroMesh(o) {
   const model = skClone(A.hero.scene), u = charUniforms(o), adds = []; let mat = null;
   u.uPl = { value: new THREE.Vector4(0, 0, 0, 0) }; u.uPlFx = { value: new THREE.Vector4(0, 0, 0, globalThis.__plumeDbg ? 1 : 0) };
-  u.uSoul = { value: new THREE.Vector4(0, 0, 0, 0) }; u.uSoulC = { value: new THREE.Color(SOUL_C) };
+  const set = HERO_SETS[o.wset], holy = !!(set && set.holy);
+  u.uSoul = { value: new THREE.Vector4(0, 0, 0, 0) }; u.uSoulC = { value: new THREE.Color(holy ? HOLY_C : SOUL_C) }; u.uHoly = { value: holy ? 1 : 0 };
   model.traverse(obj => { if (!obj.isMesh) return; const sm = obj.material;
     mat = mat || realMat({ u, map: sm.map, nmap: sm.normalMap, mr: sm.roughnessMap || sm.metalnessMap, plume: !!A.heroPlume });
     obj.material = mat; obj.frustumCulled = false;
@@ -275,8 +281,8 @@ function makeHeroMesh(o) {
   // the soul fire in its eye sockets, as a glow that carries across the room (hung on the head bone so it follows the animation)
   const glows = [], head = findBone(model, 'mixamorig:Head');
   if (head) { model.updateMatrixWorld(true); const hp = head.getWorldPosition(new THREE.Vector3()), ws = head.getWorldScale(new THREE.Vector3()).x || 1;
-    const g = glowSprite(0x5ff2ff, 0.42 / ws, 0.75); g.position.copy(head.worldToLocal(hp.add(new THREE.Vector3(0, 0.09 * HERO_H / 1.85, 0.1 * HERO_H / 1.85)))); head.add(g); glows.push(g); }
-  const set = HERO_SETS[o.wset], weap = {};
+    const g = glowSprite(holy ? HOLY_C : SOUL_C, 0.42 / ws, 0.75); g.position.copy(head.worldToLocal(hp.add(new THREE.Vector3(0, 0.09 * HERO_H / 1.85, 0.1 * HERO_H / 1.85)))); head.add(g); glows.push(g); }
+  const weap = {};
   const gear = o.gear; // (its own gear: no shield in the slot, none on the arm; the weapon glows in its quality colour)
   if (set) for (const side of ['r', 'l']) if (set[side] && !(side === 'l' && gear && !gear.a)) weap[side] = heroGrip(model, side, set[side], u, o.outline, gear && gear[side === 'r' ? 'w' : 'a']);
   // sparks rise from points along the crest's rim (hung on the head bone)
@@ -284,11 +290,11 @@ function makeHeroMesh(o) {
   if (head && A.heroPlume) { for (const p of A.heroPlume.pts) { const d = new THREE.Object3D(); d.position.copy(p); head.add(d); plumePts.push(d); }
     // a halo over the crest for the fiery tiers (reads from the game camera, where the crest itself is small)
     const ws = head.getWorldScale(new THREE.Vector3()).x || 1; plumeGlow = glowSprite(0xffffff, 0.9 / ws, 0); plumeGlow.position.copy(A.heroPlume.c); plumeGlow.visible = false; head.add(plumeGlow); }
-  const blade = weap.r && weap.r.userData.edge ? { a: weap.r.userData.edge[0], b: weap.r.userData.edge[1], col: PLUME_TIERS[0].trail } : null;
+  const blade = weap.r && weap.r.userData.edge ? { a: weap.r.userData.edge[0], b: weap.r.userData.edge[1], col: holy ? HOLY_TRAIL : PLUME_TIERS[0].trail } : null;
   const root = new THREE.Group(); root.add(model);
-  const sg = soulGlow(model, root, head);
+  const sg = soulGlow(model, root, head, holy ? HOLY_C : SOUL_C), hl = holy ? holyLight(model, root, head) : null;
   return { root, model, pivot: model, mixer: new THREE.AnimationMixer(model), actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u,
-    tips: [], glows, plumeGlow, soul: null, gun: null, muz: null, drill: null, rod: null, blade, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? o.wset : null, atk: set ? set.atk : ['Attack'], atkI: 0, weap, plumePts, sg };
+    tips: [], glows, plumeGlow, soul: null, gun: null, muz: null, drill: null, rod: null, blade, aura: null, elem: null, elems: [], hero: true, clips: A.heroClips, wset: set ? set.clips || o.wset : null, style: set ? o.wset : null, holy, atk: set ? set.atk : ['Attack'], atkI: 0, weap, plumePts, sg, hl };
 }
 // the dazed stand (Mixamo Idle) holds the arms close against the body: a sturdier stance, elbows out and forearms leaning slightly back
 // in (upper arm ~26 deg off vertical, forearm leaning a few degrees out). Turns about the facing axis, in world space so every key gets the same
@@ -414,38 +420,63 @@ function plumeMask(scene) {
 const SOUL_C = 0x5ff2ff;
 export const soulTier = L => Math.min(10, Math.max(0, Math.floor(L / 10)));
 const SOUL_BONES = ['Spine2', 'Spine1', 'Neck', 'Head', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm', 'Hips', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg'];
-function soulGlow(model, root, head) {
+function soulGlow(model, root, head, col = SOUL_C) {
   const B = n => findBone(model, 'mixamorig:' + n), sp = B('Spine2'), hips = B('Hips'); if (!sp || !head) return null;
   model.updateMatrixWorld(true); const ws = o => o.getWorldScale(new THREE.Vector3()).x || 1, add = (bone, size, depth, dy = 0) => {
-    const g = glowSprite(SOUL_C, size / ws(bone), 0); g.material.depthTest = depth; g.position.y = dy / ws(bone); g.visible = false; bone.add(g); g.userData.s0 = g.scale.x; return g; };
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: GTEX.glow, color: SOUL_C, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const g = glowSprite(col, size / ws(bone), 0); g.material.depthTest = depth; g.position.y = dy / ws(bone); g.visible = false; bone.add(g); g.userData.s0 = g.scale.x; return g; };
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: GTEX.glow, color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   ground.position.y = 0.04; ground.renderOrder = 1; ground.visible = false; root.add(ground);
   return { t: 0, core: add(sp, 0.9, true), skull: add(head, 0.55, true, 0.1), hips: hips ? add(hips, 0.6, true) : null, aura: add(B('Spine1') || sp, 2.6, false),
-    ground, bones: SOUL_BONES.map(B).filter(Boolean), sh: [B('LeftShoulder') || B('LeftArm'), B('RightShoulder') || B('RightArm'), head].filter(Boolean), pulses: [], pulseT: 1, acc: [0, 0, 0, 0] };
+    ground, bones: SOUL_BONES.map(B).filter(Boolean), sh: [B('LeftShoulder') || B('LeftArm'), B('RightShoulder') || B('RightArm'), head].filter(Boolean), pulses: [], pulseT: 1, acc: [0, 0, 0, 0],
+    col, hot: col === SOUL_C ? 0xc8ffff : HOLY_HOT, hot2: col === SOUL_C ? 0xd8ffff : HOLY_HOT, holy: col !== SOUL_C };
+}
+// the paladin's own light (圣骑士, always on): a halo floating over the helmet's crest, hung on the head bone and kept level as the head
+// moves; a slow rune circle of consecrated ground under its feet; motes of light drifting up off it
+function holyLight(model, root, head) {
+  if (!head) return null; model.updateMatrixWorld(true); let body = null; model.traverse(o => { if (o.isSkinnedMesh && !body) body = o; }); // (the body alone: the weapons stand higher in the rest pose)
+  const box = new THREE.Box3().setFromObject(body || model), hp = head.getWorldPosition(new THREE.Vector3()), ws = head.getWorldScale(new THREE.Vector3()).x || 1;
+  const halo = new THREE.Group(), band = ring(0.15, 0.19, HOLY_C, 0.9), soft = ring(0.11, 0.26, HOLY_C, 0.25), glow = glowSprite(HOLY_C, 0.55, 0.35);
+  halo.add(soft, band, glow); halo.scale.setScalar(1 / ws); halo.position.copy(head.worldToLocal(new THREE.Vector3(hp.x, box.max.y + 0.08, hp.z - 0.04)));
+  halo.userData.q0 = head.getWorldQuaternion(new THREE.Quaternion()).invert(); halo.quaternion.copy(halo.userData.q0); head.add(halo);
+  const ground = runeCircle(1.15, HOLY_C, 0); ground.position.y = 0.05; root.add(ground);
+  return { halo, band, soft, glow, ground, acc: 0, t: Math.random() * 9 };
+}
+const _hq = new THREE.Quaternion(), _hq2 = new THREE.Quaternion(), _hq3 = new THREE.Quaternion(), _hx = new THREE.Vector3(1, 0, 0);
+function holyTick(u, dt, emit) {
+  const m = u.mesh, H = m.hl; if (!H) return; const t = (H.t += dt), fade = m.u.uFade.value, on = m.root.visible && !u.dead, f = 0.85 + 0.15 * Math.sin(t * 2.1);
+  // the halo stays level whatever the head does (undo the head's world turn, keep the body's facing), tipped back a little
+  H.halo.parent.getWorldQuaternion(_hq).invert(); m.root.getWorldQuaternion(_hq3); H.halo.quaternion.copy(_hq).multiply(_hq3).multiply(_hq2.setFromAxisAngle(_hx, -0.18));
+  H.halo.visible = on; H.band.material.opacity = 0.85 * f * fade; H.soft.material.opacity = 0.22 * f * fade; H.glow.material.opacity = 0.3 * f * fade;
+  H.ground.visible = on; H.ground.position.y = 0.05 - m.root.position.y; H.ground.rotation.y = t * 0.25; H.ground.material.opacity = (0.16 + 0.05 * Math.sin(t * 1.6)) * fade;
+  if (!on || !emit) return; H.acc += dt * 7;
+  while (H.acc >= 1) { H.acc--; const a = Math.random() * Math.PI * 2, r = 0.25 + Math.random() * 0.6;
+    emit(u.x + Math.sin(a) * r, m.root.position.y + 0.1 + Math.random() * 1.4, u.z + Math.cos(a) * r, { col: Math.random() < 0.35 ? HOLY_HOT : HOLY_C, spd: 0.05, up: 0.6, grav: -0.4, life: 0.9, size: 0.09, spread: 0.02 }); }
 }
 const _sp = new THREE.Vector3(), SOUL_FX = { col: SOUL_C, spd: 0.25, up: 0.9, grav: -0.9, life: 0.8, size: 0.2, spread: 0.12 };
 function soulTick(u, dt, emit) {
-  const m = u.mesh, S = m.sg; if (!S) return; const k = soulTier(globalThis.__soulL ?? u.fury ?? 0), b = u.soulBoost || 0, s = Math.min(1, k / 10 + 0.45 * b), t = (S.t += dt); // b: 魂能 being poured in (soulvessel.js)
-  m.u.uSoul.value.set(s, t, m.root.position.y, globalThis.__soulDbg ? 1 : 0);
-  const on = (k > 0 || b > 0.02) && m.root.visible && !u.dead, fade = m.u.uFade.value, pulse = 0.86 + 0.14 * Math.sin(t * 2.6), flick = 0.92 + 0.08 * Math.sin(t * 13.7) * Math.sin(t * 5.3);
+  const m = u.mesh, S = m.sg; if (!S) return; const k = soulTier(globalThis.__soulL ?? u.fury ?? 0), b = u.soulBoost || 0, t = (S.t += dt); // b: 魂能 being poured in (soulvessel.js)
+  const s = Math.min(1, Math.max(S.holy ? 0.16 : 0, k / 10 + 0.45 * b)); // the paladin is never without a little of its light
+  m.u.uSoul.value.set(s, t, m.root.position.y, +(globalThis.__soulDbg || 0));
+  const on = (k > 0 || b > 0.02 || S.holy) && m.root.visible && !u.dead, fade = m.u.uFade.value, pulse = 0.86 + 0.14 * Math.sin(t * 2.6), flick = 0.92 + 0.08 * Math.sin(t * 13.7) * Math.sin(t * 5.3);
   const lamp = (g, op, sc) => { if (!g) return; g.visible = on && op > 0; if (!g.visible) return; g.material.opacity = op * fade * pulse * flick; g.scale.setScalar(g.userData.s0 * sc * (0.94 + 0.06 * pulse)); };
-  lamp(S.core, 0.25 + 0.6 * s, 0.6 + 0.9 * s); lamp(S.skull, 0.2 + 0.55 * s, 0.6 + 0.7 * s); lamp(S.hips, k >= 2 ? 0.15 + 0.4 * s : 0, 0.6 + 0.6 * s);
-  lamp(S.aura, Math.max(k >= 9 ? (k === 10 ? 0.32 : 0.18) : 0, 0.3 * b), k === 10 ? 1.15 : 0.95);
-  if (S.core.visible && k === 10) S.core.material.color.setHex(0xc8ffff); else S.core.material.color.setHex(SOUL_C); // white-hot at the very top
+  const hl = S.holy ? 0.55 : 1; // (softer on the paladin's bright silver)
+  lamp(S.core, (0.25 + 0.6 * s) * hl, 0.6 + 0.9 * s); lamp(S.skull, (0.2 + 0.55 * s) * hl, 0.6 + 0.7 * s); lamp(S.hips, k >= 2 ? (0.15 + 0.4 * s) * hl : 0, 0.6 + 0.6 * s);
+  lamp(S.aura, Math.max(k >= 9 ? (k === 10 ? 0.32 : 0.18) : 0, 0.3 * b) * hl, k === 10 ? 1.15 : 0.95);
+  S.core.material.color.setHex(S.core.visible && k === 10 ? S.hot : S.col); // white-hot at the very top
   const eye = m.glows[0]; if (eye) { eye.userData.s0 ??= eye.scale.x; eye.scale.setScalar(eye.userData.s0 * (1 + 0.7 * s)); eye.material.opacity = Math.min(1, 0.75 + 0.25 * s) * fade; }
   const gd = S.ground; gd.visible = on && k >= 6; if (gd.visible) { gd.position.y = 0.04 - m.root.position.y; gd.scale.setScalar(1.6 + 0.25 * (k - 6) + 0.12 * pulse); gd.material.opacity = (0.16 + 0.07 * (k - 6)) * pulse * fade; }
   // the pulse of soul force at the top tier
-  if (on && k === 10 && (S.pulseT -= dt) <= 0) { S.pulseT = 2.4; const r = ring(0.86, 1, SOUL_C, 0.8); r.position.y = 0.06 - m.root.position.y; m.root.add(r); S.pulses.push({ r, a: 0 }); }
+  if (on && k === 10 && (S.pulseT -= dt) <= 0) { S.pulseT = 2.4; const r = ring(0.86, 1, S.col, 0.8); r.position.y = 0.06 - m.root.position.y; m.root.add(r); S.pulses.push({ r, a: 0 }); }
   for (let i = S.pulses.length - 1; i >= 0; i--) { const p = S.pulses[i]; p.a += dt / 0.9; const e = 1 - (1 - p.a) * (1 - p.a); p.r.scale.setScalar(0.5 + 3 * e); p.r.material.opacity = 0.8 * (1 - p.a);
     if (p.a >= 1) { m.root.remove(p.r); p.r.geometry.dispose(); p.r.material.dispose(); S.pulses.splice(i, 1); } }
   if (!on || !emit) return;
-  const A = S.acc, at = (b, o) => { b.getWorldPosition(_sp); emit(_sp.x + (Math.random() - 0.5) * 0.2, _sp.y + (Math.random() - 0.5) * 0.2, _sp.z + (Math.random() - 0.5) * 0.2, o); };
-  if (b > 0.05) { S.bAcc = (S.bAcc || 0) + dt * b * 26; while (S.bAcc >= 1) { S.bAcc--; at(S.bones[Math.floor(Math.random() * S.bones.length)], { ...SOUL_FX, size: 0.16, life: 0.55, up: 1.4 }); } } // soul seeping out while it drinks
-  if (k >= 4) { A[0] += dt * (k - 3) * 5; while (A[0] >= 1) { A[0]--; at(S.bones[Math.floor(Math.random() * S.bones.length)], { ...SOUL_FX, size: 0.14 + 0.02 * k, life: 0.6 + 0.04 * k }); } } // wisps
-  if (k >= 8) { A[1] += dt * (k - 7) * 9; while (A[1] >= 1) { A[1]--; at(S.sh[Math.floor(Math.random() * S.sh.length)], { col: Math.random() < 0.3 ? 0xd8ffff : SOUL_C, spd: 0.2, up: 2.2, grav: -1.6, life: 0.42, size: 0.34, spread: 0.08 }); } } // soul fire
-  if (k >= 6 && eye) { A[2] += dt * (k - 5) * 6; while (A[2] >= 1) { A[2]--; eye.getWorldPosition(_sp); emit(_sp.x, _sp.y, _sp.z, { col: SOUL_C, spd: 0.15, up: 0.5, grav: -0.6, life: 0.35, size: 0.1, spread: 0.04 }); } } // eye trails
+  const A = S.acc, FX = S.holy ? { ...SOUL_FX, col: S.col } : SOUL_FX, at = (b, o) => { b.getWorldPosition(_sp); emit(_sp.x + (Math.random() - 0.5) * 0.2, _sp.y + (Math.random() - 0.5) * 0.2, _sp.z + (Math.random() - 0.5) * 0.2, o); };
+  if (b > 0.05) { S.bAcc = (S.bAcc || 0) + dt * b * 26; while (S.bAcc >= 1) { S.bAcc--; at(S.bones[Math.floor(Math.random() * S.bones.length)], { ...FX, size: 0.16, life: 0.55, up: 1.4 }); } } // soul seeping out while it drinks
+  if (k >= 4) { A[0] += dt * (k - 3) * 5; while (A[0] >= 1) { A[0]--; at(S.bones[Math.floor(Math.random() * S.bones.length)], { ...FX, size: 0.14 + 0.02 * k, life: 0.6 + 0.04 * k }); } } // wisps
+  if (k >= 8) { A[1] += dt * (k - 7) * 9; while (A[1] >= 1) { A[1]--; at(S.sh[Math.floor(Math.random() * S.sh.length)], { col: Math.random() < 0.3 ? S.hot2 : S.col, spd: 0.2, up: 2.2, grav: -1.6, life: 0.42, size: 0.34, spread: 0.08 }); } } // soul fire
+  if (k >= 6 && eye) { A[2] += dt * (k - 5) * 6; while (A[2] >= 1) { A[2]--; eye.getWorldPosition(_sp); emit(_sp.x, _sp.y, _sp.z, { col: S.col, spd: 0.15, up: 0.5, grav: -0.6, life: 0.35, size: 0.1, spread: 0.04 }); } } // eye trails
   if (k === 10) { A[3] += dt * 70; const y0 = m.root.position.y; while (A[3] >= 1) { A[3]--; const q = Math.random(), j = Math.random() < 0.5 ? 0 : Math.PI, a = t * 3.2 + j + q * 2.5, h = (t * 0.9 + q) % 1;
-    emit(u.x + Math.sin(a) * 0.62, y0 + 0.1 + h * 2.2, u.z + Math.cos(a) * 0.62, { col: h > 0.6 ? 0xd8ffff : SOUL_C, spd: 0.02, up: 0.1, grav: 0, life: 0.5, size: 0.12, spread: 0.01 }); } } // the spiral streams
+    emit(u.x + Math.sin(a) * 0.62, y0 + 0.1 + h * 2.2, u.z + Math.cos(a) * 0.62, { col: h > 0.6 ? S.hot2 : S.col, spd: 0.02, up: 0.1, grav: 0, life: 0.5, size: 0.12, spread: 0.01 }); } } // the spiral streams
 }
 // tiers by 战魂 (the stacks the skeleton earns with its own kills, all lost when it falls): the crest as it is, then the gear colours
 // blue, gold, purple and red, each brighter, the later ones on fire
@@ -456,14 +487,15 @@ const PLUME_TIERS = [ // dye colour, dye amount, glow, flame, sparks a second, s
   { c: 0x8a3cff, a: 1, glow: 0.5, flame: 0.5, sp: 10, trail: 0xb46cff, halo: 0.55 },
   { c: 0xff3418, a: 1, glow: 1.1, flame: 1, sp: 24, trail: 0xff5030, halo: 0.8 },
 ];
+const HOLY_PLUME = { c: 0xfff6e6, a: 0.92, glow: 0.18, flame: 0, sp: 0, trail: HOLY_TRAIL, halo: 0 }; // the paladin's crest before its first tier: white
 export const PLUME_AT = [5, 10, 15, 20];
 export const plumeTier = L => PLUME_AT.filter(l => L >= l).length;
 const _pc = new THREE.Color();
 function plumeTick(u, dt, emit) {
   const m = u.mesh, uf = m.u && m.u.uPlFx; if (!uf) return; uf.value.x += dt;
-  const tier = Math.min(PLUME_TIERS.length - 1, plumeTier(globalThis.__plumeL ?? u.fury ?? 0)), T = PLUME_TIERS[tier]; // u.fury: its 战魂 stacks (pact.js)
+  const tier = Math.min(PLUME_TIERS.length - 1, plumeTier(globalThis.__plumeL ?? u.fury ?? 0)), T = m.holy && !tier ? HOLY_PLUME : PLUME_TIERS[tier]; // u.fury: its 战魂 stacks (pact.js)
   if (m.plumeT !== tier) { const up = m.plumeT != null && tier > m.plumeT; m.plumeT = tier; _pc.setHex(T.c); m.u.uPl.value.set(_pc.r, _pc.g, _pc.b, T.a); uf.value.y = T.glow; uf.value.z = T.flame;
-    if (m.blade) m.blade.col = T.trail; if (m.plumeGlow) { m.plumeGlow.visible = T.halo > 0; m.plumeGlow.material.color.setHex(T.c); }
+    if (m.blade) m.blade.col = m.holy && !tier ? HOLY_TRAIL : T.trail; if (m.plumeGlow) { m.plumeGlow.visible = T.halo > 0; m.plumeGlow.material.color.setHex(T.c); }
     if (up && emit) for (const d of m.plumePts) { d.getWorldPosition(_p); for (let k = 0; k < 4; k++) emit(_p.x, _p.y, _p.z, { col: T.c, spd: 1.2, up: 1.6, grav: -0.5, life: 0.9, size: 0.2, spread: 0.1 }); } }
   if (m.plumeGlow && T.halo) { const t = uf.value.x, f = 0.82 + 0.1 * Math.sin(t * 3.1) + (tier >= 4 ? 0.08 * Math.sin(t * 17.3) * Math.sin(t * 7.7) : 0); // breathing, the fire flickers
     m.plumeGlow.material.opacity = T.halo * f * m.u.uFade.value; m.plumeGlow.scale.setScalar(m.plumeGlow.userData.s0 ??= m.plumeGlow.scale.x); m.plumeGlow.scale.multiplyScalar((0.7 + 0.5 * T.halo) * f); }
@@ -496,7 +528,7 @@ function gearTick(u, dt, emit) {
       emit(_ga.x, _ga.y, _ga.z, q >= 4 && Math.random() < 0.5 ? { col: 0xff3010, spd: 0.2, up: 1.1, grav: -1.2, life: 0.45, size: 0.22, spread: 0.04 } : { col, spd: 0.25, up: 0.6, grav: -0.5, life: 0.6, size: 0.1 + 0.02 * q, spread: 0.04 }); } }
 }
 export function heroWeaponPose(u, dt, emit) {
-  plumeTick(u, dt, emit); soulTick(u, dt, emit); gearTick(u, dt, emit);
+  plumeTick(u, dt, emit); soulTick(u, dt, emit); holyTick(u, dt, emit); gearTick(u, dt, emit);
   const m = u.mesh, sh = m.weap && m.weap.l; if (sh && sh.userData.q0) shieldHang(sh, dt);
   const g = m.weap && m.weap.r; if (!g || !g.userData.q0) return;
   // the greatsword drags only while it stands or walks (any other clip — swings, skills, dodges, death, the rise — carries it)

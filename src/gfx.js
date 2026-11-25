@@ -22,12 +22,12 @@ const TOON_V = `
 #include <skinning_pars_vertex>
 varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
 #ifdef PLUME
-attribute vec3 aPlume; varying vec3 vPl;
+attribute vec3 aPlume; varying vec3 vPl; varying vec3 vB;
 #endif
 void main(){
   vec3 objectNormal = vec3(normal); vec3 transformed = vec3(position);
   #ifdef PLUME
-  vPl = aPlume;
+  vPl = aPlume; vB = position; // (vB: where it is in the rest pose — the paladin's tabard cross is drawn there, so it moves with the cloth)
   #endif
   #include <skinbase_vertex>
   #include <skinnormal_vertex>
@@ -111,12 +111,15 @@ uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLig
 uniform vec4 uTL[TN]; uniform vec3 uTC;
 uniform float uCut; uniform vec2 uCutC; uniform float uCutR; uniform float uCutZ;
 uniform sampler2D uMap; uniform sampler2D uNMap; uniform sampler2D uMR;
+uniform float uHoly; // 圣骑士 (the mace and shield): its black armour and its weapons turned to gold
 varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
 float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 #ifdef PLUME
 // the 魂契 skeleton's helmet crest: vPl = (membership, 0 base .. 1 outer rim, 0 front .. 1 back along the arc)
 varying vec3 vPl; uniform vec4 uPl; uniform vec4 uPlFx; // uPl: dye colour, dye amount; uPlFx: time, glow, flame, (debug)
 uniform vec4 uSoul; uniform vec3 uSoulC; // the soul light inside it (by 战魂): strength 0..1, time, the ground under it, (debug); its colour
+varying vec3 vB; // the rest pose, in the model's own (quantized) space: feet at y −1, the top at 1, +z forward
+float sdBox(vec2 p, vec2 b) { vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
 float vn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }
 #endif
@@ -144,10 +147,42 @@ void main(){
   dif = min(dif, vec3(1.15));
   vec3 F0 = mix(vec3(0.05), base, metal);
   vec3 col = base * (1.0 - metal * 0.55) * dif + spe * F0 * 3.0 + uEmis;
-  float eye = smoothstep(0.18, 0.4, min(base.g, base.b) - base.r) * smoothstep(0.45, 0.7, base.b); col += base * eye * 1.8;
+  float eye = smoothstep(0.18, 0.4, min(base.g, base.b) - base.r) * smoothstep(0.45, 0.7, base.b); vec3 eyeC = base;
   #ifdef PLUME
-  col += base * eye * 3.0 * uSoul.x; // the eyes burn brighter with it
+  eyeC = mix(base, uSoulC * 0.85, uHoly); // (the paladin's eyes burn gold)
   #endif
+  col += eyeC * eye * 1.8;
+  #ifdef PLUME
+  col += eyeC * eye * 3.0 * uSoul.x; // the eyes burn brighter with it
+  #endif
+  // 圣骑士 (after the reference board's "Holy Radiance"): the black plate turned polished silver and its raised filigree gold — the bone
+  // stays bone (pale and warm), nor the crest, nor the eyes. Metal: a sky mirrored from above, the lights caught sharp, a warm edge.
+  // Its weapons the same way: their dark steel silver, their bright parts gold
+  float hCloth = 0.0, hPlate = 0.0; // (debug)
+  if (uHoly > 0.001) { vec3 a0 = texture2D(uMap, vUv).rgb; float l0 = dot(a0, vec3(0.3, 0.59, 0.11));
+    #ifdef PLUME
+    float plate = (1.0 - smoothstep(0.02, 0.05, a0.r - a0.b)) * (1.0 - clamp(vPl.x, 0.0, 1.0)) * (1.0 - eye), t0 = 0.15, t1 = 0.24; // (the plate is the grey of the texture: bone and leather are warm)
+    #else
+    float plate = 1.0, t0 = 0.4, t1 = 0.6;
+    #endif
+    float trim = smoothstep(t0, t1, l0);
+    vec3 silver = mix(vec3(0.22, 0.23, 0.26), vec3(0.74, 0.76, 0.81), smoothstep(0.02, 0.14, l0));
+    vec3 gold = mix(vec3(0.9, 0.56, 0.14), vec3(1.0, 0.85, 0.45), smoothstep(t1, t1 + 0.25, l0)), g = mix(silver, gold, trim);
+    // polished: the floor below, a dark horizon band, a bright sky above (the contrast is what reads as chrome)
+    vec3 Rf = reflect(-V, N); float env = mix(mix(0.42, 0.12, smoothstep(-0.6, 0.05, Rf.y)), 1.25, smoothstep(0.12, 0.85, Rf.y)), fr3 = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    vec3 mtl = g * (0.3 + 0.5 * dif) * (0.35 + env) + spe * mix(vec3(0.9), g, trim) * 2.8 + vec3(1.0, 0.85, 0.55) * fr3 * 0.25;
+    #ifdef PLUME
+    // the cloth (grey, not metal: the hanging skirt and the wraps) turned to worn ivory linen, gold where its threads catch the light
+    float cloth = plate * (1.0 - smoothstep(0.12, 0.26, metal));
+    vec3 lin = mix(vec3(0.66, 0.62, 0.55), vec3(1.0, 0.97, 0.9), smoothstep(0.03, 0.18, l0)) * (0.58 + 0.62 * dif);
+    mtl = mix(mtl, mix(lin, gold * (0.5 + 0.6 * dif), trim * 0.7), cloth);
+    // a gold cross down the front of the tabard, with a thin dark edge (the reference board's 神圣光辉)
+    vec2 q = vec2(vB.x, vB.y + 0.22); float d = min(sdBox(q, vec2(0.022, 0.165)), sdBox(q - vec2(0.0, 0.07), vec2(0.088, 0.021))), aa = fwidth(d) + 1e-4;
+    float xin = 1.0 - smoothstep(-aa, aa, d), xed = 1.0 - smoothstep(-aa, aa, d - 0.01), front = smoothstep(-0.01, 0.03, vB.z) * cloth;
+    mtl = mix(mtl, vec3(0.22, 0.13, 0.05) * (0.5 + 0.5 * dif), xed * front); mtl = mix(mtl, vec3(1.0, 0.8, 0.38) * (0.5 + 0.75 * dif) + spe * 0.8, xin * front);
+    hCloth = cloth; hPlate = plate;
+    #endif
+    col = mix(col, mtl, plate * uHoly); }
   #ifdef PLUME
   if (vPl.x > 0.002) { float m = clamp(vPl.x, 0.0, 1.0), rim = vPl.y, t = uPlFx.x;
     // dyed: the texture's light and shade in the tier colour
@@ -174,10 +209,12 @@ void main(){
     float a = bone * clamp(s * 1.45, 0.0, 1.0) * (0.45 + 0.55 * body);
     col = mix(col, hot * (0.45 + 1.15 * s) * (0.5 + 0.9 * lum0) * (0.55 + 0.6 * body * flow) * pulse, a);
     float seam = smoothstep(0.09, 0.17, lum0) * (1.0 - smoothstep(0.19, 0.3, lum0)) * (1.0 - crest);
-    col += uSoulC * seam * smoothstep(0.6, 1.0, s) * flow * body * 0.9;
+    float hk = 1.0 - 0.55 * uHoly; // (the paladin is bright already: its light added more softly, or it burns out to white)
+    col += uSoulC * seam * smoothstep(0.6, 1.0, s) * flow * body * 0.9 * hk;
     float fr2 = 1.0 - max(dot(N, V), 0.0);
-    col += uSoulC * pow(fr2, 2.2) * smoothstep(0.2, 0.6, s) * (0.4 + 0.8 * s) * pulse * (1.0 - crest * 0.7);
-    if (uSoul.w > 0.5) col = vec3(bone, seam, body); }
+    col += uSoulC * pow(fr2, 2.2) * smoothstep(0.2, 0.6, s) * (0.4 + 0.8 * s) * pulse * (1.0 - crest * 0.7) * hk;
+    if (uSoul.w > 0.5 && uSoul.w < 1.5) col = vec3(bone, seam, body); }
+  if (uSoul.w > 1.5) col = vec3(hCloth, hPlate * (1.0 - hCloth), 0.0); // (debug: the paladin's cloth red, its plate green)
   #endif
   float fr = 1.0 - max(dot(N, V), 0.0);
   col += vec3(0.5, 0.62, 0.85) * pow(fr, 2.5) * 0.34;               // a cool edge so the silhouette reads on dark floors

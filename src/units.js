@@ -99,7 +99,8 @@ export function damage(src, dst, amt, o = {}) {
   if (dst.evade && !o.dot && Math.random() < dst.evade && PH.evade) { PH.evade(src, dst); return 0; } // 魂契 skeleton: evasion
   if (dst.pact && PH.guard && !o.dot) { const k = PH.guard(src, dst, o); if (k <= 0) return 0; amt *= k; } // 魂契 skeleton: Block / Parry (passive)
   if (dst.T && dst.T.guard && PH.foeGuard && !o.dot) amt *= PH.foeGuard(src, dst, o); // a knight's shield takes blows from the front (foes.js)
-  const sh = dst.shred || 0, arm = Math.max(0, dst.armor - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
+  const blunt = !!(src && src.blunt && !o.dot); if (blunt && dst.armor >= 15) amt *= 1.25; // 魂契's mace: +25% on heavy armour, and only half of the armour counts
+  const sh = dst.shred || 0, arm = Math.max(0, dst.armor * (blunt ? 0.5 : 1) - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
   const hp0 = dst.hp; dst.hp -= d; if (dst.immortal && dst.hp < 1) dst.hp = 1; const dealt = Math.min(d, Math.max(0, hp0)); if (PH.dmg) PH.dmg(src, dst, dealt, o); if (src && src.pact && PH.leech) PH.leech(src, dealt); // (the test arena: no-death toggles, its damage meter)
@@ -947,7 +948,7 @@ const SWING_LEAD = { SNS_Atk2: 0.2, SNS_Atk3: 0.2, GS_Atk2: 0.25, GS_Atk3: 0.22,
 const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running_B: 3.4, Walking_Backwards: 1.2, Running_Strafe_Left: 2.6, Running_Strafe_Right: 2.6 };
 export function attackAnim(u, wind) {
   if (u.mesh.hero) { const m = u.mesh, name = m.atk[m.atkI++ % m.atk.length], len = m.clips[name].duration, sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.42) / Math.max(0.05, wind))); play(m, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
-    S.swoosh(m.wset === 'GS', (SWING_AT[name] ?? HIT_AT[name] ?? 0.42) * len / sp, (SWING_LEAD[name] ?? 0.2) * len / sp); return; }
+    S.swoosh(m.wset === 'GS' || !!m.holy, (SWING_AT[name] ?? HIT_AT[name] ?? 0.42) * len / sp, (SWING_LEAD[name] ?? 0.2) * len / sp); return; }
   const list = u.mech ? ['1H_Melee_Attack_Stab'] : AN(u).atk, name = list[Math.floor(Math.random() * list.length)], len = clipLen(name, u.mesh), sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.4) / Math.max(0.05, wind)));
   play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
 }
