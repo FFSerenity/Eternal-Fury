@@ -35,6 +35,8 @@ export async function loadAll(onProgress = () => {}) {
   if (A.hero) bakePosture(A.hero.scene, A.heroClips);
   A.ready = true;
 }
+// (tests: a model from anywhere, e.g. a newly generated weapon to try in the Sentinel's hand)
+export const loadGLB = url => { const l = new GLTFLoader(); l.setMeshoptDecoder(MeshoptDecoder); return l.loadAsync(url); };
 // ---------- the Sentinel's bearing ----------
 // Retargeted from Y Bot by aiming our bones along its bones, the Meshy rig stood with its feet tipped ~21° toe-up (its foot bones lie
 // differently in the boot than Y Bot's) and its neck craned forward, the torso leaning back against it. A fixed turn per bone, pitched
