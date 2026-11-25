@@ -110,7 +110,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   over 4 s once 2.5 s untouched, healing past full poured into it, fading out of the aura; shown as a faint dome (an upright egg on the
   Sentinel) that flares where it is struck. Gear life steal still heals only the Sentinel.
 - Bearing: a dazed stand (Mixamo Idle, elbows eased out and forearms leaning slightly in), a brutal walk with sword & shield, the briefcase walk with the greatsword
-  and with the mace (the Paladin's calm, upright walk; its mace carried head up like a sceptre while it stands or walks) — no guard stance (that waits
+  and with the mace (the Paladin's calm, upright walk; its mace held out nearly level, the head a little up, while it stands or walks) — no guard stance (that waits
   for a defence skill) and no run yet, straight from the walk into its swings;
   it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the retarget left the Meshy rig with its feet tipped ~21° toe-up
   and its neck craned forward (the torso leaning back against it), so a fixed per-bone turn is baked into every clip at load (assets.js

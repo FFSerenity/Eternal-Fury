@@ -406,7 +406,7 @@ function heroGrip(model, side, name, u, outline, it) {
 }
 // after the skeleton is posed each frame: a blade never sinks into the floor, and out of a swing the greatsword is dragged along the
 // ground behind it (tip on the floor, a little to its right; sparks while it walks) instead of hanging straight down through it
-const HANG = [0.5, 1, 0.22]; // the carried mace's direction: forward, up, out to its right — head up, like a sceptre (tests: globalThis.__hang)
+const HANG = [1, 0.2, 0.18]; // the carried mace's direction: forward, up, out to its right — held out nearly level, head a little up (tests: globalThis.__hang)
 const _V = THREE.Vector3, _hg = new _V(), _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
 // ---------- the helmet crest (鬃毛): its colour and fire show the skeleton's level ----------
 // Found once on load: head-weighted vertices near the head's middle plane that stand outside the helmet itself (worked in the head
