@@ -5,7 +5,7 @@
 //  机枪骷髅  sustained fire, grenades, a marked sweeping fan; digs in when enraged — step out, or take it on a shield
 //  机甲骷髅  the drill up close, a marked rocket dash, a shield field to break, a marked EMP — burst it down (Greatsword)
 //  机械师骷髅 laser drones, an orbital strike, and a repair drone that heals it — shoot the drone down first (Whirlwind)
-// At half life it is enraged (faster, its skills come round sooner). It drops: 魂契 — gear, purple or red; the crypt — its own epic tech
+// At half life it is enraged (faster, its skills come round sooner). It drops: 魂契 — 4+ pieces of gear (purple / red at the top) and a burst of 魂能; the crypt — its own epic tech
 // weapon. A boss bar shows at the top while one is near.
 import { G, PACT } from './state.js';
 import { tr } from './i18n.js';
@@ -14,6 +14,7 @@ import { makeTech, TECH, rollHeroItem, rollItem } from './data.js';
 import { repairDown, clearDrones } from './drones.js';
 import { S } from './audio.js';
 import { burst, shake } from './fx.js';
+import { soulToJar } from './soulvessel.js';
 
 export const BOSSES = {
   bomber: { uniq: 'mortar', kind: 'archer', hp: 14, dmg: 1.25, scale: 1.55, skills: { shell: 4, mcluster: 2, incend: 2, barrage: 3 } },
@@ -53,9 +54,13 @@ PH.bossDie = (u, src) => {
   if (u.dr) clearDrones(u, true); G.slowT = Math.max(G.slowT || 0, 0.9); shake(0.3, u.x, u.z); burst(u.x, 1.2, u.z, 0xffd8a0, 3.2); S.level();
   C.say(tr(`击败首领：${u.name}！`, `Boss defeated: ${u.name}!`), true, 4000);
   if (G.bossLock === u) { G.bossLock = null; const F = C.floor; if (F && F.stairsGlow) F.stairsGlow.material.color.setHex(0x6fb6ff); if (G.depth > 0) C.say(tr('下楼的路打开了', 'The way down is open')); }
-  if (G.noDrop) return; const il = u.level + 1, B = BOSSES[u.boss];
-  const items = PACT ? [rollHeroItem(0, il, Math.random() < 0.3 ? 4 : 3), rollHeroItem(0, il, Math.random() < 0.5 ? 3 : 2)] : [makeTech(B.uniq, 0, il), rollItem(0, il, 2)];
-  items.forEach((it, i) => { it.id = G.uid++; G.fx.push({ t: 0.35 + i * 0.3, fn: () => dropLoot(it, u.x + (i ? 0.8 : -0.6), u.z + (i ? -0.5 : 0.6)) }); });
+  if (G.noDrop) return; const il = u.level + 1, B = BOSSES[u.boss], R = Math.random, cyc = Math.floor(Math.max(0, G.depth / 5 - 1) / BOSS_ORDER.length); // (cyc: how many times round the four)
+  // 魂契: a purple or red (red 45%), a purple (or yellow), one more yellow to red, a blue or yellow — and one more for every round of the
+  // four bosses already behind (up to three), and a burst of 魂能 into the vessel; the crypt: its tech weapon and two or three rares
+  const items = PACT ? [R() < 0.45 ? 4 : 3, R() < 0.75 ? 3 : 2, R() < 0.12 ? 4 : R() < 0.45 ? 3 : 2, R() < 0.5 ? 2 : 1, ...Array.from({ length: Math.min(3, cyc) }, () => R() < 0.3 ? 3 : 2)].map(q => rollHeroItem(0, il, q))
+    : [makeTech(B.uniq, 0, il), rollItem(0, il, 2), rollItem(0, il, R() < 0.25 ? 3 : 2), ...(R() < 0.5 ? [rollItem(0, il, 2)] : [])];
+  items.forEach((it, i) => { it.id = G.uid++; const a = i / items.length * 6.28 + R() * 0.4, d = 0.9 + 0.35 * (i % 2); G.fx.push({ t: 0.35 + i * 0.22, fn: () => dropLoot(it, u.x + Math.cos(a) * d, u.z + Math.sin(a) * d) }); });
+  if (PACT) { const v = 40 + 8 * il; G.fx.push({ t: 0.5, fn: () => { say(u.x, u.z, tr(`+${v} 魂能`, `+${v} soul`), '#8ff7ea', 18, 2.6); soulToJar(u.x, 1.2, u.z, v); } }); }
 };
 
 // ---------- per frame: who is near, the enrage at half life, the bar at the top ----------

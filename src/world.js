@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { glowSprite } from './gfx.js';
 import { PropBatch } from './assets.js';
+import { addBox, BOX_KIND } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
 
@@ -65,6 +66,7 @@ export class Floor {
   lift(x, z) { const c = this.crypt; if (!c || Math.abs(x - c.x) > 0.7 || z < c.z) return 0; return 0.26 * Math.min(1, Math.max(0, (15.08 - z) / 0.3)); }
   walk(x, z) { const X = Math.floor(x), Z = Math.floor(z); return X >= 0 && Z >= 0 && X < this.W && Z < this.H && this.g[Z * this.W + X] === 1; }
   block(x, z) { const i = z * this.W + x; if (this.g[i] === 1) { this.g[i] = 3; this.fields.clear(); this.nw = null; this.lab = null; return true; } return false; }
+  unblock(x, z) { const i = z * this.W + x; if (this.g[i] === 3) { this.g[i] = 1; this.fields.clear(); this.nw = null; this.lab = null; } } // (a broken barrel's cell)
   // connected walkable areas (8-way, same corner rule as the flow fields): a point in another area can never be walked to
   region(x, z) { if (!this.lab) this.labelRegions(); const X = Math.floor(x), Z = Math.floor(z); return X < 0 || Z < 0 || X >= this.W || Z >= this.H ? -1 : this.lab[Z * this.W + X]; }
   labelRegions() {
@@ -171,15 +173,15 @@ export class Floor {
     const st = this.stairs, isStair = (x, z) => (x === st.x || x === st.x - 1) && (z === st.z || z === st.z - 1);
     const hsh = (x, z, k = 0) => { let h = (x * 374761393 + z * 668265263 + k * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
     // props along room borders (they block movement) — never near doorways or the start / stairs
-    const PROPS = [['barrel_small', 3], ['barrel_large', 2], ['box_small', 2], ['box_large', 2], ['crates_stacked', 1], ['chest', 0.6], ['keg', 1], ['trunk_large_A', 1], ['table_medium_broken', 0.7]];
+    const PROPS = [['barrel_small', 3], ['barrel_large', 2], ['box_small', 2], ['box_large', 2], ['crates_stacked', 1], ['chest', 0.6], ['keg', 1], ['trunk_large_A', 0.6], ['table_medium_broken', 0.7]];
     const pw = PROPS.reduce((a, p) => a + p[1], 0), pick = r => { let t = r * pw; for (const p of PROPS) { t -= p[1]; if (t <= 0) return p[0]; } return PROPS[0][0]; };
     for (const r of this.rooms) {
       const near = (x, z) => { for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) { const X = x + dx, Z = z + dz; if (isF(X, Z) && (X < r.x || X >= r.x + r.w || Z < r.y || Z >= r.y + r.h)) return true; } return false; };
       for (let z = r.y; z < r.y + r.h; z++) for (let x = r.x; x < r.x + r.w; x++) {
         const edge = x === r.x || z === r.y || x === r.x + r.w - 1 || z === r.y + r.h - 1; if (!edge || R() > 0.16) continue;
         if (r === this.start || Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) < 3 || near(x, z)) continue;
-        if (!this.block(x, z)) continue; const name = pick(R()), round = name.startsWith('barrel') || name === 'keg';
-        B.add(name, x + 0.5 + (R() - 0.5) * 0.1, 0, z + 0.5 + (R() - 0.5) * 0.1, round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.3, 0.5);
+        if (!this.block(x, z)) continue; const name = pick(R()), round = name.startsWith('barrel') || name === 'keg', px = x + 0.5 + (R() - 0.5) * 0.1, pz = z + 0.5 + (R() - 0.5) * 0.1;
+        const it = B.add(name, px, 0, pz, round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.3, 0.5); if (BOX_KIND[name]) addBox(this, name, px, pz, it, BOX_KIND[name] === 'smash' ? [x, z] : null); // (loot.js)
         if (R() < 0.25 && isF(x, z)) {} } }
     // floor tiles
     const FT = ['floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small_broken_A', 'floor_tile_small_broken_B', 'floor_tile_small_weeds_A', 'floor_dirt_small_A'];

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { G, save, load, wipe, bagPut, PACT, MODE, setMode } from './state.js';
 import { pactPlayer, pactFloor, pactTick, harvest, heroEntry, pactMigrate } from './pact.js';
 import { initJar, jarTick, jarDraw, jarReset } from './soulvessel.js';
+import { openBox, boxTick } from './loot.js';
 import { PACKS, WILD_PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, rollHeroItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, propGeo, PropBatch, heroWeaponPose, heroPart } from './assets.js';
@@ -190,6 +191,7 @@ function updatePlayer(dt) {
   // stairs
   const ns = Math.hypot(P.x - F.stairs.x, P.z - F.stairs.z) < 1.3;
   if (IN.coffin) { const c = F.coffin; if (!c || G.egg) IN.coffin = false; else if (Math.hypot(P.x - c.x, P.z - c.z) < 2) { IN.coffin = false; IN.moveTo = null; openCoffin(); } else if (!IN.moveTo) IN.coffin = false; }
+  if (IN.box) { const b = IN.box; if (b.open || !F.boxes || !F.boxes.includes(b)) IN.box = null; else if (Math.hypot(P.x - b.x, P.z - b.z) < 1.5) { IN.box = null; IN.moveTo = null; openBox(b); } else if (!IN.moveTo) IN.box = null; } // a barrel / chest clicked (loot.js)
   // going down needs the button (or Enter) — except the camp's portal, which you simply walk into
   const intoPortal = G.depth === 0 && Math.hypot(P.x - F.stairs.x, P.z - F.stairs.z) < 0.3;
   if (IN.stairs && ns && stairsLocked()) { IN.stairs = false; message(tr('首领守着下楼的路：先击败它', 'A boss guards the way down: defeat it first')); }
@@ -250,7 +252,7 @@ function loop(now) {
     let rvs = 1; for (const f of G.friends) if (f.side === 'ally' && f.kind === 'shaman') rvs = Math.max(rvs, 1.4 * (1 + 0.2 * rk(f, 'soul')));
     for (const en of G.crypt) if (en.active && en.reviveT > 0) { en.reviveT -= dt * rvs; if (en.reviveT <= 0) { en.reviveT = 0; if (!P.dead) { spawnAlly(en); S.revive(); message(tr(`${affixName(en.mods, en.champ)}${TYPES[en.type].name} 复原了`, `${affixName(en.mods, en.champ)}${TYPES[en.type].name} is back`)); } } }
     G.floor.stairsGlow.material.opacity = 0.55 + 0.25 * Math.sin(G.t * 2.5);
-    const cf = G.floor.coffin; if (cf && !G.egg && Math.random() < dt * 1.3) parts.emit(cf.x + (Math.random() - 0.5) * 0.8, 0.3, cf.z + (Math.random() - 0.5) * 0.8, 1, { col: 0xb46cff, spd: 0.08, up: 0.55, grav: -0.25, life: 1.7, size: 0.15 }); // a faint hint
+    boxTick(dt); const cf = G.floor.coffin; if (cf && !G.egg && Math.random() < dt * 1.3) parts.emit(cf.x + (Math.random() - 0.5) * 0.8, 0.3, cf.z + (Math.random() - 0.5) * 0.8, 1, { col: 0xb46cff, spd: 0.08, up: 0.55, grav: -0.25, life: 1.7, size: 0.15 }); // a faint hint
     const pt = G.floor.portal; if (pt) { pt.material.uniforms.uT.value = G.t;   // motes drifting up the portal and out over the plinth
       if (Math.random() < dt * 16) parts.emit(pt.position.x + (Math.random() - 0.5) * 0.9, 0.35 + Math.random() * 1.4, pt.position.z + 0.08, 1, { col: Math.random() < 0.5 ? 0x8fe8ff : 0x5fa8ff, spd: 0.12, up: 0.5, grav: -0.35, life: 1.3, size: 0.13, spread: 0.05 }); }
   }
@@ -265,4 +267,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); if (PACT) jarDraw(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, openBox, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

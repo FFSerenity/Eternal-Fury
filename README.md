@@ -38,9 +38,12 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - As Fury grows its soul light (cyan, like its eyes; gold for the Paladin) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
   From floor 5 down (and in the wilds' level-5+ zones) monsters, champions and bosses have 2.5× life, +4% more per floor after that.
+- **Barrels, kegs, boxes and crates** break when you click / tap them (sometimes an item, some soul energy); **chests and trunks** open
+  (always an item, often two, better odds, more soul) — unopened chests glint now and then; the chest in a ruin in the wilds too.
+- Fury's damage and attack speed per stack slow down past 25 (+3% / +1.5% a stack instead of +6% / +4%).
 
 **Bosses**: every 5th crypt floor, one of the four tech skeletons guards the way down (bombardier, gunner, mech, engineer — their big
-attacks are marked on the ground first; at half life they enrage). They drop purple/red gear for the Sentinel, or their own epic tech
+attacks are marked on the ground first; at half life they enrage). They drop four or more pieces of gear for the Sentinel (purple / red at the top, more for each round of the four already behind) and a burst of soul energy, or their own epic tech
 weapon in Crypt mode.
 
 **⚔ Test Arena** (start screen, or `?arena`): an empty hall on top of your save, with a panel to spawn monsters (dummies too), set Fury,

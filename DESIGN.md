@@ -62,6 +62,11 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
 
 ## 魂契 / Soul Pact mode (first playable, Nov 2026)
 A separate mode with its own save (start screen). The fun to find: one summon you raise by hand and that is the centre of every fight.
+- Barrels / kegs / boxes / crates and chests / trunks (loot.js): click or tap one, the summoner walks to it; a barrel bursts (its instance
+  shrunk away, its cell walkable again): 20% an item (white 55 / blue 32 / yellow 11 / purple 2%), 35% 魂能 1 + 0.4·level; a chest jumps
+  and stays (no more glints): an item always (white 20 / blue 45 / yellow 26 / purple 8 / red 1%), a second 35%, 魂能 4 + level. Item
+  level = the floor (the wilds: the deepest floor reached). Bosses (魂契): purple-or-red (red 45%), purple-or-yellow, yellow-to-red, blue-or-
+  yellow, +1 (yellow / purple) for each round of the four already done (at most 3), and 40 + 8·(level+1) 魂能 into the vessel.
 - From the 5th floor down monsters take a step up in life (data.js DEEP_HP: ×2.5 at floor 5, +4% of that per floor after; by the floor or
   wilds zone they were made for, else their level; champions and bosses on top of their own multipliers): by then the Sentinel has 25-30+
   Fury and real gear, and they died to one blow. At floor 5 with ~30 Fury and blue/yellow gear: a minion 1-2 blows, a warrior 5-10, a
@@ -72,8 +77,10 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - 召唤 (E): no cooldown, 10 mana, 1.5 s cast (rune circle), then the skeleton rises (Mixamo Zombie Stand Up at its own pace, ~3 s). The skill stays at
   level 1 (Nov 2026: no more levels; old saves get the 魂能 they spent back, pactMigrate).
 - 战魂 (Fury): kills by the skeleton's own hand (elite 4, warrior 2, others 1); stack n needs 3 + ⌊0.6n⌋ kills up to 25 (245 in all: every Fury
-  skill quickly), then 18 + ⌊1.2(n−25) + 0.045(n−25)²⌋ (25→50 ≈ 1 000, 50→75 ≈ 3 100, 75→100 ≈ 6 700; poured 魂能 pays the same, Nov 2026). Per stack: +6% damage,
-  +4% attack speed, +2% move speed (cap +30%), +2.5% life, +0.4% evasion (cap +12%). Death: all stacks gone, summon again.
+  skill quickly), then 18 + ⌊1.2(n−25) + 0.045(n−25)²⌋ (25→50 ≈ 1 000, 50→75 ≈ 3 100, 75→100 ≈ 6 700; poured 魂能 pays the same, Nov 2026). Per stack: +6% damage
+  and +4% attack speed up to 25, then +3% and +1.5% (pact.js furyBonus: at 40 Fury about a quarter less damage per second than the old
+  straight line, at 50 over a third less — gear multiplies it again), +2% move speed (cap +30%), +2.5% life, +0.4% evasion (cap +12%).
+  Death: all stacks gone, summon again.
 - 唤魂 → 魂能: minion 1, archer / mage 2, warrior 3, ×(1 + 0.25 per level above 1), elite ×3, boss ×12. The souls fly across the screen
   into the 魂瓶 (soul orb; soulvessel.js — bottom centre and smaller on a wide screen, above the skill buttons on the right on an upright
   phone, where the boss bar keeps to the left of it; the way-down button moves above it; a phone lying down puts the number on the
@@ -155,7 +162,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   the eyes burn brighter; 30+ a cyan edge; 40+ wisps rise off it; 50+ the light moves up through it in bands; 60+ a glow on the ground and
   trails from the eyes; 70+ the seams of the black armour light up; 80+ soul fire licks off the shoulders and skull; 90+ an aura around
   it; 100: white-hot at the core, two streams of light spiralling round it, a ring of soul force pulsing out every 2.4 s (assets.js soulTick,
-  the shader's uSoul). Note: the stats per stack grow linearly, so far up (100) it hits very hard; a cap may be wanted later.
+  the shader's uSoul). (Damage and attack speed per stack slow down past 25: see furyBonus.)
 - Gear (魂契 only): drops and the forge give the Sentinel's own gear — a greatsword (two hands: the shield slot is locked while it is
   held; putting one in sends the shield back to the bag), a sword, a mace, and a shield; two slots as before. The weapon sets the style
   (greatsword → 大剑, mace → 圣骑士, sword or none → 剑盾); with no shield there is no blocking. Qualities: white, blue (1 extra line), yellow (2),

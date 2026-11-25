@@ -3,7 +3,7 @@
 // Uses the crypt overlay's frame.
 import { G } from './state.js';
 import { tr } from './i18n.js';
-import { SETS, SUMMON, heroBase, heroName, heroUnit, stackNeed, summonK, heroEntry, infuseCost, INFUSE } from './pact.js';
+import { SETS, SUMMON, heroBase, furyBonus, heroName, heroUnit, stackNeed, summonK, heroEntry, infuseCost, INFUSE } from './pact.js';
 import { PACE, QUAL } from './data.js';
 import { openGear } from './gearui.js';
 import { heroHeadURL } from './icons.js';
@@ -38,7 +38,7 @@ export function furyBrief() {
   if (!u) return `<div class="gsF"><b class="fury">✦ ${tr('战魂', 'Fury')} 0</b> <span class="dim">${tr('· 未召唤（战魂随卫士倒下清零）', '· not summoned (Fury is lost when it falls)')}</span></div>`;
   return `<div class="gsF"><div class="gfr"><b class="fury">✦ ${tr('战魂', 'Fury')} ${s}</b><span class="dim">${tr(`下一层还差 ${Math.ceil(need - P8.kills - 1e-6)} 次击杀`, `${Math.ceil(need - P8.kills - 1e-6)} kills to the next`)}</span></div>`
     + `<div class="gfb"><i style="width:${P8.kills / need * 100}%"></i></div>`
-    + `<div class="gfl">${tr('鬃毛', 'Crest')} <b style="color:${c[1]}">●</b> ${c[0]} · ${tr('魂光', 'Soul light')} ${sl ? tr(`${sl} 档`, `step ${sl}`) : tr('未亮', 'dark')} · ${tr(`伤害 +${s * 6}% 攻速 +${s * 4}% 移速 +${Math.round(Math.min(0.3, 0.02 * s) * 100)}% 生命 +${(s * 2.5).toFixed(0)}%`, `+${s * 6}% dmg, +${s * 4}% speed, +${Math.round(Math.min(0.3, 0.02 * s) * 100)}% move, +${(s * 2.5).toFixed(0)}% life`)}</div></div>`;
+    + `<div class="gfl">${tr('鬃毛', 'Crest')} <b style="color:${c[1]}">●</b> ${c[0]} · ${tr('魂光', 'Soul light')} ${sl ? tr(`${sl} 档`, `step ${sl}`) : tr('未亮', 'dark')} · ${(f => tr(`伤害 +${f.dmg}% 攻速 +${f.spd}% 移速 +${f.move}% 生命 +${f.hp.toFixed(0)}%`, `+${f.dmg}% dmg, +${f.spd}% speed, +${f.move}% move, +${f.hp.toFixed(0)}% life`))(furyBonus(s))}</div></div>`;
 }
 
 // ---------- the Pact panel ----------

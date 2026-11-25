@@ -33,11 +33,16 @@ export const SETS = {
     desc: tr('生命和护甲最高，出手比剑盾慢。钝击：盾牌挡不住锤子，无视目标一半护甲，打重甲（护甲 15 以上）伤害 +25%。每第三下是圣击：圣光砸在目标身上，波及身边的敌人并短暂眩晕。',
       'The most life and armour, a little slower than the sword. Blunt: shields don\'t stop a mace, it ignores half of armour, +25% against heavy armour (15 or more). Every third blow is a Smite: light crashes down on the target, catching those beside it and stunning them briefly.') },
 };
+// what s 战魂 stacks give, in %: +6% damage and +4% attack speed a stack up to 25 (every skill awake), then +3% and +1.5% (it grew too
+// strong late on, gear multiplying it again); +2.5% life a stack all the way; move speed +2% a stack, at most +30%
+export const FURY_AT = 25;
+export const furyBonus = s => { const a = Math.min(s, FURY_AT), b = Math.max(0, s - FURY_AT);
+  return { dmg: 6 * a + 3 * b, spd: 4 * a + 1.5 * b, hp: 2.5 * s, move: Math.round(Math.min(0.3, 0.02 * s) * 100) }; };
 // the skeleton at summon level L with s 战魂 stacks (before the global pace: speed ×0.75, attack interval ÷0.8)
 export function heroBase(L, s, set) {
-  const W = SETS[set] || SETS.SNS;
-  return { maxHp: (230 + 40 * (L - 1)) * W.hp * (1 + 0.025 * s), dmg: (16 + 4.5 * (L - 1)) * W.dmg * (1 + 0.06 * s), armor: 18 + 3 * (L - 1) + W.arm,
-    speed: W.mv * Math.min(1.3, 1 + 0.02 * s), cd: W.cd / (1 + 0.04 * s), evade: W.eva + Math.min(0.12, 0.004 * s) }; // speed: a slow, heavy walk (1.55 / 1.75 m/s at first, at most +30%)
+  const W = SETS[set] || SETS.SNS, f = furyBonus(s);
+  return { maxHp: (230 + 40 * (L - 1)) * W.hp * (1 + f.hp / 100), dmg: (16 + 4.5 * (L - 1)) * W.dmg * (1 + f.dmg / 100), armor: 18 + 3 * (L - 1) + W.arm,
+    speed: W.mv * (1 + f.move / 100), cd: W.cd / (1 + f.spd / 100), evade: W.eva + Math.min(0.12, 0.004 * s) }; // speed: a slow, heavy walk (1.55 / 1.75 m/s at first, at most +30%)
 }
 // kills needed for the next stack (champions count 4, warriors 2): quick to 25 (every Fury skill awake: 245 kills in all), then a long
 // climb — 25→50 about 1 000, 50→75 about 3 100, 75→100 about 6 700 (poured 魂能 pays the same price, so it slows down too)
@@ -113,7 +118,7 @@ function gainKills(u, n) {
     if (k >= 0) { shock(u.x, u.z, 0xffd27a, 2.8); C.say(tr(['骸骨卫士的鬃毛染上了幽蓝', '骸骨卫士的鬃毛化为鎏金', '骸骨卫士的鬃毛燃起紫焰', '骸骨卫士的鬃毛燃起赤焰'][k],
       ['The Sentinel\'s crest turns azure', 'The Sentinel\'s crest turns to gold', 'The Sentinel\'s crest kindles violet fire', 'The Sentinel\'s crest bursts into crimson fire'][k]) + (sk ? tr(` · 觉醒技能 ${sk.icon} ${sk.name}`, ` · it wakes ${sk.icon} ${sk.name}`) : ''), true); }
     else if (sk) { shock(u.x, u.z, 0xff5a6a, 2.6); C.say(tr(`骸骨卫士 战魂 ${s} 层 · 觉醒技能 ${sk.icon} ${sk.name}`, `Bone Sentinel at ${s} Fury · it wakes ${sk.icon} ${sk.name}`), true); }
-    else if (s % 5 === 0) { shock(u.x, u.z, 0xffd27a, 2.4); C.say(tr(`骸骨卫士 战魂 ${s} 层：伤害 +${s * 6}%，攻速 +${s * 4}%`, `Bone Sentinel at ${s} Fury: +${s * 6}% damage, +${s * 4}% attack speed`)); } }
+    else if (s % 5 === 0) { const f = furyBonus(s); shock(u.x, u.z, 0xffd27a, 2.4); C.say(tr(`骸骨卫士 战魂 ${s} 层：伤害 +${f.dmg}%，攻速 +${f.spd}%`, `Bone Sentinel at ${s} Fury: +${f.dmg}% damage, +${f.spd}% attack speed`)); } }
   save();
 }
 // ---------- pouring 魂能 into the skeleton (from the soul vessel) ----------

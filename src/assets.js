@@ -113,14 +113,14 @@ export const TEX = {};
 // collects placements and builds one InstancedMesh per prop type
 export class PropBatch {
   constructor(o = {}) { this.items = {}; this.o = o; }
-  add(name, x, y, z, rotY = 0, s = 0.5, sy = null, sx = null, col = null) { (this.items[name] = this.items[name] || []).push([x, y, z, rotY, sx ?? s, sy ?? s, s, col]); }
+  add(name, x, y, z, rotY = 0, s = 0.5, sy = null, sx = null, col = null) { const it = [x, y, z, rotY, sx ?? s, sy ?? s, s, col]; (this.items[name] = this.items[name] || []).push(it); return it; } // (after build: it.im, it.ix — its instance)
   // instances are split into square chunks so that off-screen parts of the map are frustum-culled
   build(group, chunk = 8) {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(), c = new THREE.Color(), out = [];
     for (const name in this.items) { const pg = propGeo(name); if (!pg) continue; const mo = this.o[name] || this.o.all || {}, mat = propMat(mo.tex ? TEX[mo.tex] : pg.map, mo), parts = new Map();
       for (const it of this.items[name]) { const k = Math.floor(it[0] / chunk) * 1000 + Math.floor(it[2] / chunk); let a = parts.get(k); if (!a) parts.set(k, a = []); a.push(it); }
       for (const list of parts.values()) { const im = new THREE.InstancedMesh(pg.geo, mat, list.length), tint = list.some(it => it[7]);
-        list.forEach(([x, y, z, r, sx, sy, sz, col], i) => { e.set(0, r, 0); q.setFromEuler(e); m.compose(p.set(x, y, z), q, sc.set(sx, sy, sz)); im.setMatrixAt(i, m);
+        list.forEach((it, i) => { const [x, y, z, r, sx, sy, sz, col] = it; it.im = im; it.ix = i; e.set(0, r, 0); q.setFromEuler(e); m.compose(p.set(x, y, z), q, sc.set(sx, sy, sz)); im.setMatrixAt(i, m);
           if (tint) im.setColorAt(i, col ? c.setRGB(col[0], col[1], col[2]) : c.setRGB(1, 1, 1)); });
         im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); group.add(im); out.push(im); } }
     return out;

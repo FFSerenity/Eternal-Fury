@@ -11,6 +11,7 @@ import { portrait } from './icons.js';
 import { shakeEnabled, setShake } from './fx.js';
 import { tr, ZH, LANG, setLang, SP } from './i18n.js';
 import { cycleMap } from './minimap.js';
+import { pickBox } from './loot.js';
 import { S } from './audio.js';
 import { unlock, setSfx, sfxOn } from './audio.js';
 
@@ -69,17 +70,19 @@ function bindInput(cv) {
   let joyId = null, joyO = null, clickAt = null;
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => {
-    unlock(); e.preventDefault(); const p = groundAt(e.clientX, e.clientY); IN.cursor = p; IN.coffin = false;
+    unlock(); e.preventDefault(); const p = groundAt(e.clientX, e.clientY); IN.cursor = p; IN.coffin = false; IN.box = null;
+    const goBox = b => { const P = G.player; IN.box = b; IN.attack = null; IN.hold = false; IN.moveTo = G.floor.snapToward(b.x, b.z, P.x, P.z); }; // a barrel or a chest: walk to it, then it breaks / opens (loot.js)
     if (p && pickCoffin(p) && !(e.pointerType === 'touch' && e.clientX < W * 0.5)) { const c = G.floor.coffin, P = G.player; IN.coffin = true; IN.attack = null; IN.hold = false; IN.moveTo = G.floor.snapToward(c.x, c.z, P.x, P.z); return; }
     if (e.pointerType === 'touch') {
       if (e.clientX < W * 0.5 && joyId === null) { joyId = e.pointerId; joyO = { x: e.clientX, y: e.clientY }; showJoy(joyO, joyO); cv.setPointerCapture(e.pointerId); return; }
-      if (!p) return; const en = pickEnemy(p, 1.2); if (en) { IN.attack = en; G.focus = en; return; } const c = pickCorpse(p, 1.4); if (c) { IN.raise = c; return; } return;
+      if (!p) return; const en = pickEnemy(p, 1.2); if (en) { IN.attack = en; G.focus = en; return; } const bx = pickBox(p, 0.9); if (bx) { goBox(bx); return; } const c = pickCorpse(p, 1.4); if (c) { IN.raise = c; return; } return;
     }
     cv.setPointerCapture(e.pointerId); if (!p) return;
     if (e.button === 2) { IN.castAt = p; IN.castHold = true; return; }
     if (e.button !== 0) return;
     if (IN.shift) { IN.castAt = p; IN.castHold = true; return; }
     const en = pickEnemy(p); if (en) { IN.attack = en; G.focus = en; IN.hold = false; return; }
+    const bx = pickBox(p); if (bx) { goBox(bx); return; }
     const c = pickCorpse(p, 0.9); if (c) { IN.raise = c; return; }
     IN.attack = null; IN.hold = true; IN.moveTo = snapMove(p); clickAt = { t: performance.now(), p }; // a quick click (see up) may walk the long way round
   });
