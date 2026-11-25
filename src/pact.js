@@ -16,7 +16,7 @@ import { S, loadSamples } from './audio.js';
 import { SKILLS, skillView } from './pactskills.js';
 import { rollHeroItem, HERO_GEAR } from './data.js';
 import { soulToJar } from './soulvessel.js';
-import { smite } from './holy.js';
+import { smite, auraTick } from './holy.js';
 if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2']);
 
 // ---------- tunables ----------
@@ -199,7 +199,7 @@ export function harvest(c) {
 export function pactTick(dt) {
   if (G.soulRefund) { C.say(tr(`召唤技能不再升级：之前花在上面的 ${G.soulRefund} 魂能已退回魂瓶（左下角），按住魂瓶可以灌注给卫士`, `The summon skill no longer levels: the ${G.soulRefund} soul spent on it is back in the soul vessel (bottom left) — hold it to pour into the Sentinel`), true, 7000); G.soulRefund = 0; save(); }
   if (fx && G.player && G.player.state !== 'summon') { fx.cancel(); fx = null; } // the summoner died mid-cast
-  const u = heroUnit(); if (!u || u.spawnT > 0) return;
+  const u = heroUnit(); auraTick(u, dt); if (!u || u.spawnT > 0) return; // (the paladin's Aura of Light: its shields fade with no Sentinel too)
   const busy = G.enemies.some(e => e.aggro && Math.hypot(e.x - u.x, e.z - u.z) < 10);
   u.hp = Math.min(u.maxHp, u.hp + u.maxHp * (busy ? 0.004 : 0.05) * dt);
 }

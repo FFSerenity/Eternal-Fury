@@ -95,13 +95,20 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   leather (warm in the texture) stay as they are; the mace and shield silver with gold where they are bright. The crest is white before its
   first tier, the eyes and soul light gold (uSoulC, softer than the cyan: it would burn the silver out to white), a halo floats level over the
   crest, a slow rune circle of light lies under its feet, motes drift up off it. Swing trail gold.
-  Skills as the Paladin (skillView: own names and texts): Holy Charge = the shield charge in gold; Block = the shield block, its counter a
-  bolt of light; Blessed Hammers (instead of Whirlwind; 2+ within 3 m, 11 s): a prayer (SNS_Cast), then three spectral maces (the mace model
+  Skills as the Paladin (skillView: own names and texts): Hammer Leap (instead of Charge; 3.5–9 m, 8 s): the overhead swing (SNS_Atk2) lets
+  the mace go at its forward point — it flies end over end at 22 m/s (the hand empty), strikes ×1.2 and stuns 1.6 s, bounces up to hang
+  over the target turning; then SNS_Leap (a jump in place, the weapon overhead at the top, a crouching smash on landing; the travel is
+  moved by hand, the landing spot following the target until take-off): at the top the mace flies back into the raised hand, and where it
+  lands a burst of light — ×1.5, thrown back, 0.8 s stun within 2.6 m. Block = the shield block, its counter a bolt of light; Blessed Hammers (instead of Whirlwind; 2+ within 3 m, 11 s): a prayer (SNS_Cast), then three spectral maces (the mace model
   in gold, a glowing shell) wheel round it for 6 s — 3.1 rad/s, each swinging in and out between ~0.9 and 2.8 m, tumbling end over end —
   each striking what it passes for 50% (once per hammer per enemy every 0.5 s) while it fights on; Judgement (instead of Sundering
   Strike): the roar becomes a burst of light, the mace fills with holy flame, and the blow brings a pillar of light down 1.3 m in front —
   ×3 and a 1.2 s stun within 3.5 m, then two more rings (to 5.2 / 6.8 m: 60% / 40%, short stuns), consecrated ground; non-elites under
-  25% are put down; Holy Mending: the life steal, with a third of each heal going to the summoner within 12 m too.
+  25% are put down; Aura of Light (instead of Life Steal, passive, 25 Fury; holy.js auraTick / auraHeal): a ring of gold 7 m round it on the
+  ground; 10% of the damage it deals heals every one of its side inside (the summoner and itself, each the full amount), and each wears a
+  shield of light (u.barrier, spent in damage() after the mech's shield; gold numbers when it soaks) — at most 20% of its own life, filling
+  over 4 s once 2.5 s untouched, healing past full poured into it, fading out of the aura; shown as a faint dome (an upright egg on the
+  Sentinel) that flares where it is struck. Gear life steal still heals only the Sentinel.
 - Bearing: a dazed stand (Mixamo Idle, elbows eased out and forearms leaning slightly in), a brutal walk with sword & shield, the briefcase walk with the greatsword — no guard stance (that waits
   for a defence skill) and no run yet, straight from the walk into its swings;
   it stands upright like Mixamo's own mannequin (clips retargeted from Y Bot); the shield hangs point-down along the leg when the arm is lowered;

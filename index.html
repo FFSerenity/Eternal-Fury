@@ -152,6 +152,8 @@ body.touch .sk .k{display:none}
 .gMain{display:grid;gap:16px;align-items:start}.mDoll .gMain{grid-template-columns:300px 1fr}.mBag .gMain{grid-template-columns:1fr 250px}.mDoll .gSide,.mBag .gLeft{display:none}
 .por{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}.por.sm{display:inline-block;width:30px;height:30px;vertical-align:middle;margin-right:6px;border-radius:6px;background:rgba(0,0,0,.35)}
 .pc .ic,.card .ic,.dHead .ic,.fr .ic{overflow:hidden;padding:0}.fr .ic{height:28px;border-radius:6px}
+.gfQ{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:-2px 0 8px;font-size:11px;color:#d8a88a;font-weight:700}.gfQb{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:11px;border:1px solid #4a3020;background:#1a0f08;color:#9a8270;font:inherit;font-size:11px;cursor:pointer}
+.gfQb i{width:9px;height:9px;border-radius:2px;border:1.5px solid var(--qc);box-sizing:border-box}.gfQb.on{color:var(--qc);border-color:var(--qc);background:#26160c}.gfQb.on i{background:var(--qc)}
 .gfD{font-size:11px;color:#d8a88a;margin:3px 0 8px;line-height:1.4}.gF{width:100%}.gfB{display:flex;gap:6px;margin:8px 0}.gfB .btn{height:30px;padding:0 10px;font-size:12px;font-weight:800}.gAuto{background:linear-gradient(180deg,#6a4a1e,#3e2a10)}
 .gfOdds{flex-direction:row!important;gap:10px!important;min-height:20px;margin-top:6px}.gGo{width:100%}
 .gfOdds{flex-wrap:wrap}.gfPity{flex-basis:100%;position:relative;height:15px;border-radius:8px;background:rgba(0,0,0,.45);overflow:hidden;font-size:10.5px;font-weight:800;color:#efe4ff;margin-top:2px}.gfPity i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#5a2f96,#c77dff);box-shadow:0 0 8px #b46cff}.gfPity span{position:relative;padding-left:7px;line-height:15px;text-shadow:0 1px 2px #000}
@@ -404,7 +406,7 @@ body:not(.touch).pact #sSummon{width:60px;height:60px;font-size:25px}
 <div id="joy"><div id="joyK"></div></div>
 <div id="crypt"><div id="cryptBox" class="panel"><button class="btn" id="cryptX">✖</button><div id="cryptHead"></div><div id="cryptList"></div></div></div>
 <div id="start"><h1 data-en="GRAVE TAMER">唤魂墓穴</h1><div class="en" data-en="唤魂墓穴 · PROTOTYPE">GRAVE TAMER · 样片</div><div id="modeRow"><button class="btn md" data-m="pact" data-en="Soul Pact ✦ new">魂契 ✦ 新</button><button class="btn md" data-m="classic" data-en="Crypt">墓穴</button></div><div id="modeDesc"></div><div id="startMsg"></div><button class="btn" id="bStart" data-en="Enter the Crypt">进入墓穴</button><div id="startTip"></div><div id="help"></div><button class="btn" id="bArena" data-en="⚔ Test Arena">⚔ 试炼场</button><button class="btn" id="bNew" data-en="Delete save">清除存档</button></div>
-<script src="game.js?v=a549c5eadc"></script>
+<script src="game.js?v=78a93a3bdf"></script>
 <script>try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}</script>
 </body>
 </html>

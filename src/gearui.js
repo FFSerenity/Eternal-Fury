@@ -118,13 +118,20 @@ function quick(c, p) {
   else { if (bagFree() < 0) { message(tr('背包满了', 'Bag is full')); return; } bagPut(take(c, p)); S.clank(); }
   infoIt = null; save(); render();
 }
-// auto-fill: 普通 items first, then 精良 ones (those that would be an upgrade for a summon go in last); never 稀有
+// auto-fill: the qualities ticked under the forge (普通 and 精良 unless changed; kept in this browser), the lowest first — and among
+// equals, those that would be an upgrade for a summon (or the Sentinel) go in last; tech weapons never (they can't be smelted)
+const AUTO_KEY = 'graveTamerForgeQ';
+let autoQ = (() => { try { const v = JSON.parse(localStorage.getItem(AUTO_KEY)); if (Array.isArray(v)) return new Set(v); } catch (e) {} return new Set([0, 1]); })();
+const autoSave = () => { try { localStorage.setItem(AUTO_KEY, JSON.stringify([...autoQ])); } catch (e) {} };
 function autoFill() {
-  const upgrade = it => G.crypt.some(en => (it.slot === 'a' || it.type === en.type) && itemScore(it) > itemScore(en.gear?.[it.slot === 'w' ? 'w' : 'a']) + 0.5);
-  const cand = G.bag.filter(it => it.q < 2).sort((a, b) => a.q - b.q || (a.q && (upgrade(a) - upgrade(b))) || itemScore(a) - itemScore(b));
+  const upgrade = it => it.hero ? itemScore(it) > itemScore(G.pact.gear?.[it.slot]) + 0.5
+    : G.crypt.some(en => (it.slot === 'a' || it.type === en.type) && itemScore(it) > itemScore(en.gear?.[it.slot === 'w' ? 'w' : 'a']) + 0.5);
+  const cand = G.bag.filter(it => autoQ.has(it.q) && !it.uniq).sort((a, b) => a.q - b.q || (upgrade(a) - upgrade(b)) || itemScore(a) - itemScore(b));
   let n = 0; for (const it of cand) { const fp = furnFree(); if (fp < 0) break; G.bag.splice(G.bag.indexOf(it), 1); it.fpos = fp; G.furn.push(it); n++; }
-  if (n) S.clank(); else message(fp0() < 0 ? tr('熔炉已经满了', 'The forge is full') : tr('背包里没有普通或精良装备（稀有不会自动放）', 'No normal or magic items in the bag (rares are never added automatically)')); save(); render();
+  if (n) S.clank(); else message(fp0() < 0 ? tr('熔炉已经满了', 'The forge is full') : autoQ.size ? tr('背包里没有勾选品质的装备', 'Nothing of the ticked qualities in the bag') : tr('先在熔炉下面勾选要自动放入的品质', 'Tick the qualities to auto-fill under the forge first')); save(); render();
 }
+// the quality ticks under the forge buttons
+const autoRow = () => `<div class="gfQ"><span>${tr('自动放入：', 'Auto-fill:')}</span>` + QUAL.slice(0, PACT ? 5 : 4).map((q, i) => `<button class="gfQb${autoQ.has(i) ? ' on' : ''}" data-aq="${i}" style="--qc:${q.col}"><i></i>${q.name}</button>`).join('') + `</div>`;
 const fp0 = () => furnFree();
 function emptyFurn() { for (const it of G.furn.slice()) { if (bagFree() < 0) break; G.furn.splice(G.furn.indexOf(it), 1); bagPut(it); } S.clank(); save(); render(); }
 
@@ -168,8 +175,9 @@ export function render() {
   } else {
     $('#gLeft').innerHTML = '';
     if (!$('#gF')) $('#gSide').innerHTML = `<div class="gFurn"><div class="gfT">🔥 ${tr('熔炉', 'Forge')}</div><div class="gfD">${tr('丢进 2 件以上，熔出 1 件随机装备。丢得越多、品质越好，出好东西的几率越大。', 'Put in 2 or more items to smelt them into one random item. More and better input, better odds.')}</div>
-      <div class="gGrid gF" id="gF"></div><div class="gfOdds" id="gfOdds"></div><div class="gfB"><button class="btn gAuto" id="gAuto">${tr('自动放入', 'Auto-fill')}</button><button class="btn" id="gEmpty">${tr('全部取出', 'Take all')}</button></div><button class="btn gGo" id="gGo">${tr('熔炼', 'Smelt')}</button></div>`;
-    $('#gAuto').onclick = e => { e.stopPropagation(); autoFill(); }; $('#gEmpty').onclick = e => { e.stopPropagation(); emptyFurn(); }; $('#gGo').onclick = e => { e.stopPropagation(); smelt(); };
+      <div class="gGrid gF" id="gF"></div><div class="gfOdds" id="gfOdds"></div><div class="gfB"><button class="btn gAuto" id="gAuto">${tr('自动放入', 'Auto-fill')}</button><button class="btn" id="gEmpty">${tr('全部取出', 'Take all')}</button></div><div id="gfQw">${autoRow()}</div><button class="btn gGo" id="gGo">${tr('熔炼', 'Smelt')}</button></div>`;
+    $('#gAuto').onclick = e => { e.stopPropagation(); autoFill(); };
+    $('#gfQw').onclick = e => { const b = e.target.closest('[data-aq]'); if (!b) return; e.stopPropagation(); const q = +b.dataset.aq; if (autoQ.has(q)) autoQ.delete(q); else autoQ.add(q); autoSave(); $('#gfQw').innerHTML = autoRow(); S.pick(); }; $('#gEmpty').onclick = e => { e.stopPropagation(); emptyFurn(); }; $('#gGo').onclick = e => { e.stopPropagation(); smelt(); };
     let h = ''; for (let p = 0; p < FURN_N; p++) h += cellHTML(at('furn', p), 'furn', p); $('#gF').innerHTML = h;
     const od = furnaceOdds(G.furn, G.techPity || 0), pc = v => Math.round(v * 100) + '%', pity = G.techPity || 0;
     if (PACT) { const ho = heroFurnaceOdds(G.furn), row = (q, v) => v > 0.004 ? `<span style="color:${QUAL[q].col}">${QUAL[q].name} ${pc(v)}</span>` : ''; // 魂契: the Sentinel's gear comes out, red possible; no tech pity

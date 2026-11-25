@@ -1,13 +1,14 @@
-// 魂契 · 圣骑士 (the Bone Sentinel with a mace and shield): the holy light it calls down — Smite (every third blow), Blessed Hammers (its
-// whirlwind: spectral hammers wheeling round it while it fights on), Judgement (its sundering strike: a pillar of light and rings of it)
+// 魂契 · 圣骑士 (the Bone Sentinel with a mace and shield): the holy light it calls down — Smite (every third blow), Hammer Leap (its
+// charge: the mace thrown, then the leap after it), Blessed Hammers (its whirlwind: spectral hammers wheeling round it while it fights
+// on), Judgement (its sundering strike: a pillar of light and rings of it), the Aura of Light (25 Fury: heals and shields its side)
 import * as THREE from 'three';
 import { G } from './state.js';
 import { tr } from './i18n.js';
 import { C, say, damage, hostilesOf } from './units.js';
-import { hwGeo, HOLY_C, HOLY_HOT } from './assets.js';
+import { hwGeo, HOLY_C, HOLY_HOT, HOLY_AURA_R } from './assets.js';
 import { glowSprite, ring } from './gfx.js';
 import { runeCircle } from './vfx.js';
-import { burst, shake, slamMark } from './fx.js';
+import { burst, shake, slamMark, shieldDome, domeEnd } from './fx.js';
 import { S } from './audio.js';
 
 const TAU = Math.PI * 2, dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -85,4 +86,67 @@ export function judgement(u, mv) {
     const r0 = k ? JUDGE.r[k - 1] : -1;
     for (const h of hostilesOf(u)) { const d = dist(h, o); if (h.dead || d <= r0 + h.r || d > R + h.r) continue;
       if (!k) hit(h, 0); else G.fx.push({ t: Math.max(0.01, (d - r0) / 14), fn: () => { if (!h.dead) hit(h, k); } }); } } }));
+}
+
+// ---------- Hammer Leap (its charge): the mace thrown end over end at the target — it stuns it and hangs over it, turning, while the
+// Sentinel leaps after it; at the top of the leap the mace flies back into its raised hand, and it comes down in a burst of light ----------
+export function thrownHammer(u, from, t, o) {
+  const g = hammerMesh(), h = { g, x: from.x, y: from.y, z: from.z, ph: 'fly', tx: t.x, tz: t.z, done: false, back: null }; g.rotation.order = 'YXZ'; g.position.copy(from); C.scene.add(g);
+  let last = 0, acc = 0, hy = 0; const fx = { clean: true, t: 6, fn: () => { C.scene.remove(g); h.done = true; } };
+  fx.tick = () => { const dt = Math.max(0, fx.k - last); last = fx.k; if (u.dead && h.ph !== 'fly') { fx.t = 0; return; } acc += dt * 30;
+    if (h.ph === 'fly') { if (!t.dead) { h.tx = t.x; h.tz = t.z; } const ty = 1.0, dx = h.tx - h.x, dy = ty - h.y, dz = h.tz - h.z, d = Math.hypot(dx, dy, dz), st = o.speed * dt;
+      if (d <= st + 0.35 + (t.r || 0.3) * 0.5) { h.x = h.tx; h.y = ty; h.z = h.tz; h.ph = 'hover'; hy = 0; o.onHit && o.onHit(h); }
+      else { h.x += dx / d * st; h.y += dy / d * st; h.z += dz / d * st; }
+      g.rotation.set(0, Math.atan2(dx, dz), 0); g.rotateX(fx.k * 22); }
+    else if (h.ph === 'hover') { hy = Math.min(1, hy + dt / 0.3); const e = 1 - (1 - hy) ** 3; h.x = h.tx; h.z = h.tz; h.y = 1.0 + 1.3 * e; // bounced up off it, hanging there turning
+      g.rotation.set(0, fx.k * 6, 0.35 * Math.sin(fx.k * 5)); }
+    else if (h.ph === 'back' && h.back) { h.back.getWorldPosition(_hb); const dx = _hb.x - h.x, dy = _hb.y - h.y, dz = _hb.z - h.z, d = Math.hypot(dx, dy, dz), st = 26 * dt;
+      if (d <= st + 0.15) { h.ph = 'caught'; fx.t = 0; burst(_hb.x, _hb.y, _hb.z, HOLY_HOT, 1.2); C.parts.emit(_hb.x, _hb.y, _hb.z, 14, { col: motes(), spd: 2.2, up: 1.4, grav: 2, life: 0.4, size: 0.16 }); o.onCaught && o.onCaught(); }
+      else { h.x += dx / d * st; h.y += dy / d * st; h.z += dz / d * st; } g.rotateX(dt * 20); }
+    g.position.set(h.x, h.y, h.z);
+    while (acc >= 1) { acc--; C.parts.emit(h.x, h.y, h.z, 1, { col: motes(), spd: 0.2, up: 0.2, grav: 0, life: 0.35, size: 0.22, spread: 0.12 }); } };
+  h.recall = bone => { h.back = bone; h.ph = 'back'; }; h.drop = () => { fx.t = 0; };
+  G.fx.push(fx); return h;
+}
+const _hb = new THREE.Vector3();
+export function hammerHit(u, t, mv) { // the thrown mace lands: a blow, a long stun, a flash of light on it
+  if (!t.dead) { damage(u, t, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 1, heavy: true, quiet: true }); stunHit(t, mv.stun);
+    if (!t.dead && !t.noStun) say(t.x, t.z, tr('眩晕', 'Stunned'), '#ffe08a', 15, 2.1); }
+  burst(t.x, 1.0, t.z, HOLY_HOT, 1.5); S.bonk(true); S.holy(0.5); shake(0.1, t.x, t.z); C.parts.emit(t.x, 1.0, t.z, 16, { col: motes(), spd: 2.8, up: 1.6, grav: 4, life: 0.45, size: 0.16 });
+}
+export function leapBurst(u, mv) { // down with the mace raised: a burst of light where it lands, everything close thrown back
+  const x = u.x + Math.sin(u.face) * 0.5, z = u.z + Math.cos(u.face) * 0.5; let n = 0;
+  for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - x, h.z - z) > mv.aoe + h.r) continue;
+    damage(u, h, u.dmg * mv.bmult * (0.9 + Math.random() * 0.2), { knock: 3.2, fx: x, fz: z, melee: true, heavy: true, quiet: true }); stunHit(h, mv.bstun); n++; }
+  if (n) S.bonk(true); S.boom(); S.holy(0.8); shake(0.22, x, z); u.hitStop = 0.1;
+  pillar(x, z, 1.2, 0.5, 6); burst(x, 0.6, z, HOLY_HOT, 2.2); slamMark(x, z, 1.3, HOLY_C, 2.4); consecrate(x, z, mv.aoe, 1.2, 0.5);
+  wave(x, z, HOLY_HOT, mv.aoe + 0.3, 0.4, 0.45, 0.95); G.fx.push({ clean: true, t: 0.08, fn: () => wave(x, z, HOLY_C, mv.aoe + 1.6, 0.5, 0.35, 0.7) });
+  C.parts.emit(x, 0.2, z, 20, { col: 0x4e443c, spd: 4, up: 3, grav: 11, life: 0.7, size: 0.28, spread: 0.5 });
+  for (let i = 0; i < 24; i++) { const a = i / 24 * TAU; C.parts.emit(x + Math.cos(a) * 0.6, 0.2, z + Math.sin(a) * 0.6, 1, { col: motes(), spd: 3.5, up: 2.2, grav: 1, life: 0.5, size: 0.22, spread: 0.1 }); }
+}
+
+// ---------- the Aura of Light (25 Fury): within HOLY_AURA_R of the Sentinel every one of its side (the summoner, the Sentinel itself)
+// is healed by a share of the damage it deals, and wears a shield of light — at most 20% of its own life; it fills again after 2.5 s
+// untouched, and healing past full goes into it. Out of the aura (or with no aura) it fades. damage() in units.js spends it ----------
+export const AURA = { share: 0.1, cap: 0.2, rest: 2.5, fill: 4 };
+export const auraOn = u => !!(u && !u.dead && u.mesh && u.mesh.holy && (u.fury || 0) >= 25 && !(u.spawnT > 0));
+const inAura = (u, f) => Math.hypot(f.x - u.x, f.z - u.z) <= HOLY_AURA_R;
+export function auraTick(u, dt) {
+  const on = auraOn(u);
+  for (const f of G.friends) { if (f.dead) { f.barrier = 0; f.hdome = null; continue; }
+    const cap = f.maxHp * AURA.cap, inside = on && inAura(u, f); f.barrierCap = cap;
+    if (inside) { if (G.t - (f.barrierHit || -9) > AURA.rest) f.barrier = Math.min(cap, (f.barrier || 0) + cap / AURA.fill * dt); }
+    else if (f.barrier > 0) f.barrier = Math.max(0, f.barrier - cap * 0.5 * dt);
+    if (f.hdome && f.hdome.m.parent !== f.mesh.root) { domeEnd(f.hdome); f.hdome = null; } // (its mesh was rebuilt: a new dome)
+    if (f.barrier > 0.5 && !f.hdome) f.hdome = shieldDome(f, HOLY_C, f.mesh.hero ? [1.0, 1.75] : 1); // (the tall skeleton: an upright egg of light)
+    else if (f.barrier <= 0.5 && f.hdome) { domeEnd(f.hdome); f.hdome = null; }
+    if (f.hdome) f.hdome.k = 0.22 + 0.38 * Math.min(1, f.barrier / cap); } // (faint while it holds; it flares where it is struck)
+}
+// healing the whole side from what it deals: each one in the aura gets it all; past full life it goes into the shield; one number every half second
+export function auraHeal(u, h) {
+  for (const f of G.friends) { if (f.dead || !inAura(u, f)) continue; const room = f.maxHp - f.hp, add = Math.min(room, h); f.hp += add;
+    if (h > add) f.barrier = Math.min(f.barrierCap || f.maxHp * AURA.cap, (f.barrier || 0) + (h - add));
+    if (!f.auraAcc) G.fx.push({ t: 0.45, fn: () => { const v = f.auraAcc; f.auraAcc = 0; if (f.dead || v < 1) return; say(f.x, f.z, '+' + Math.round(v), '#ffe08a', 13, 2.2);
+      C.parts.emit(f.x, 1.0, f.z, 6, { col: motes(), spd: 0.6, up: 1.4, grav: -0.6, life: 0.55, size: 0.18, spread: 0.3 }); } });
+    f.auraAcc = (f.auraAcc || 0) + h; }
 }

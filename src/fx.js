@@ -122,16 +122,17 @@ void main(){
   gl_FragColor = vec4(uCol * a, 1.0);
 }`;
 const DOMES = [], DOME_G = new THREE.SphereGeometry(1, 28, 16);
-export function shieldDome(u, col = 0x56c8ff) { if (!S.scene) return null;
+export function shieldDome(u, col = 0x56c8ff, s = 1) { if (!S.scene) return null; // (s: its size — a number, or [wide, tall] for the tall 魂契 skeleton; d.k: how strong it shows, 0..1)
+  const sx = Array.isArray(s) ? s[0] : s, sy = Array.isArray(s) ? s[1] : s;
   const m = new THREE.Mesh(DOME_G, new THREE.ShaderMaterial({ vertexShader: DOME_V, fragmentShader: DOME_F, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     uniforms: { uCol: { value: new THREE.Color(col) }, uT: { value: 0 }, uHit: { value: 0 }, uOp: { value: 0 } } }));
-  m.position.y = 0.7; m.scale.set(1.25, 1.1, 1.25); m.renderOrder = 4; u.mesh.root.add(m); const d = { u, m, t: 0, end: false }; DOMES.push(d); return d; }
+  m.position.y = 0.7 * sy; m.scale.set(1.25 * sx, 1.1 * sy, 1.25 * sx); m.renderOrder = 4; u.mesh.root.add(m); const d = { u, m, t: 0, end: false, sx, sy, k: 1 }; DOMES.push(d); return d; }
 export function domeHit(d) { if (d) d.m.material.uniforms.uHit.value = 1; }
 export function domeEnd(d) { if (d) d.end = true; }
 function updateDomes(dt) { let j = 0;
   for (const d of DOMES) { const U = d.m.material.uniforms; d.t += dt; U.uT.value += dt; U.uHit.value = Math.max(0, U.uHit.value - dt * 5);
-    U.uOp.value = d.end ? Math.max(0, U.uOp.value - dt * 4) : Math.min(1, d.t * 5); const sc = d.end ? 1 + (1 - U.uOp.value) * 0.25 : 0.6 + 0.4 * Math.min(1, d.t * 5);
-    d.m.scale.set(1.25 * sc, 1.1 * sc, 1.25 * sc);
+    U.uOp.value = d.end ? Math.max(0, U.uOp.value - dt * 4) : Math.min(1, d.t * 5) * d.k; const sc = d.end ? 1 + (1 - U.uOp.value) * 0.25 : 0.6 + 0.4 * Math.min(1, d.t * 5);
+    d.m.scale.set(1.25 * sc * d.sx, 1.1 * sc * d.sy, 1.25 * sc * d.sx);
     if ((d.end && U.uOp.value <= 0) || d.u.dead) { d.m.parent && d.m.parent.remove(d.m); d.m.material.dispose(); continue; } DOMES[j++] = d; } DOMES.length = j; }
 // an electromagnetic shockwave rolling out from (x, z) to radius R: a bright core, two rings, sparks thrown out along the ground
 export function empWave(x, z, R) { if (!S.scene) return;

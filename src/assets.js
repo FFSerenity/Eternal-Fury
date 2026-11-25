@@ -226,7 +226,7 @@ export const HERO_SETS = {
   PAL: { r: 'mace', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'], clips: 'SNS', holy: true },
 };
 // the holy light (圣骑士): its colour, the white-hot of it, and the gold of a swing's trail
-export const HOLY_C = 0xffcf66, HOLY_HOT = 0xfff4d6, HOLY_TRAIL = 0xffe08a;
+export const HOLY_C = 0xffcf66, HOLY_HOT = 0xfff4d6, HOLY_TRAIL = 0xffe08a, HOLY_AURA_R = 7; // (the reach of its Aura of Light at 25 Fury: holy.js)
 export function heroClip(n, set) {
   const C = A.heroClips, p = set ? set + '_' : '#', pick = (...ks) => ks.find(k => C[k]) || null;
   if (C[p + n]) return p + n; if (C[n]) return n;
@@ -439,7 +439,9 @@ function holyLight(model, root, head) {
   halo.add(soft, band, glow); halo.scale.setScalar(1 / ws); halo.position.copy(head.worldToLocal(new THREE.Vector3(hp.x, box.max.y + 0.08, hp.z - 0.04)));
   halo.userData.q0 = head.getWorldQuaternion(new THREE.Quaternion()).invert(); halo.quaternion.copy(halo.userData.q0); head.add(halo);
   const ground = runeCircle(1.15, HOLY_C, 0); ground.position.y = 0.05; root.add(ground);
-  return { halo, band, soft, glow, ground, acc: 0, t: Math.random() * 9 };
+  // the Aura of Light's reach (25 Fury): a thin ring of light on the ground with a soft band inside it
+  const aura = new THREE.Group(), edge = ring(1 - 0.06 / HOLY_AURA_R, 1, HOLY_C, 0), fill = ring(1 - 0.7 / HOLY_AURA_R, 1, HOLY_C, 0); aura.add(fill, edge); aura.scale.setScalar(HOLY_AURA_R); aura.visible = false; root.add(aura);
+  return { halo, band, soft, glow, ground, aura, aEdge: edge, aBand: fill, acc: 0, t: Math.random() * 9 };
 }
 const _hq = new THREE.Quaternion(), _hq2 = new THREE.Quaternion(), _hq3 = new THREE.Quaternion(), _hx = new THREE.Vector3(1, 0, 0);
 function holyTick(u, dt, emit) {
@@ -448,6 +450,7 @@ function holyTick(u, dt, emit) {
   H.halo.parent.getWorldQuaternion(_hq).invert(); m.root.getWorldQuaternion(_hq3); H.halo.quaternion.copy(_hq).multiply(_hq3).multiply(_hq2.setFromAxisAngle(_hx, -0.18));
   H.halo.visible = on; H.band.material.opacity = 0.85 * f * fade; H.soft.material.opacity = 0.22 * f * fade; H.glow.material.opacity = 0.3 * f * fade;
   H.ground.visible = on; H.ground.position.y = 0.05 - m.root.position.y; H.ground.rotation.y = t * 0.25; H.ground.material.opacity = (0.16 + 0.05 * Math.sin(t * 1.6)) * fade;
+  const au = on && (u.fury || 0) >= 25; H.aura.visible = au; if (au) { H.aura.position.y = 0.045 - m.root.position.y; H.aEdge.material.opacity = (0.5 + 0.15 * Math.sin(t * 1.9)) * fade; H.aBand.material.opacity = 0.09 * fade; }
   if (!on || !emit) return; H.acc += dt * 7;
   while (H.acc >= 1) { H.acc--; const a = Math.random() * Math.PI * 2, r = 0.25 + Math.random() * 0.6;
     emit(u.x + Math.sin(a) * r, m.root.position.y + 0.1 + Math.random() * 1.4, u.z + Math.cos(a) * r, { col: Math.random() < 0.35 ? HOLY_HOT : HOLY_C, spd: 0.05, up: 0.6, grav: -0.4, life: 0.9, size: 0.09, spread: 0.02 }); }
@@ -521,7 +524,7 @@ function shieldHang(g, dt) {
 const _ga = new THREE.Vector3(), _gb = new THREE.Vector3();
 function gearTick(u, dt, emit) {
   const m = u.mesh; if (!emit || !m.weap || !m.root.visible || u.dead) return;
-  for (const g of [m.weap.r, m.weap.l]) { const q = g && g.userData.q; if (!q || q < 2) continue;
+  for (const g of [m.weap.r, m.weap.l]) { const q = g && g.visible && g.userData.q; if (!q || q < 2) continue; // (not while the mace is thrown)
     g.userData.acc = (g.userData.acc || 0) + dt * [0, 0, 4, 9, 16][q]; const col = QUAL[q].hex;
     while (g.userData.acc >= 1) { g.userData.acc--; const e = g.userData.edge;
       if (e) { e[0].getWorldPosition(_ga); e[1].getWorldPosition(_gb); _ga.lerp(_gb, Math.random()); } else { g.getWorldPosition(_ga); _ga.x += (Math.random() - 0.5) * 0.4; _ga.y += (Math.random() - 0.3) * 0.5; _ga.z += (Math.random() - 0.5) * 0.4; }

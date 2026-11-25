@@ -30,8 +30,10 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - Weapon styles: **Sword & Shield** (tanky, high evasion, quick strikes), **Greatsword** (heavy cleaves that knock back, less evasion) or
   **Mace & Shield — Paladin** — set by the weapon it holds. The Paladin turns holy: polished silver plate with gold trim, an ivory tabard
   with a gold cross, a white crest, a halo, gold light instead of cyan. Its mace is blunt (shields don't stop it, it ignores half of armour,
-  +25% against heavy armour), every third blow is a Smite, and its skills become Holy Charge, Blessed Hammers (three hammers of light
-  wheeling round it for 6 s), Judgement (a pillar of light and three rings of it) and Holy Mending (part of the healing goes to you).
+  +25% against heavy armour), every third blow is a Smite, and its skills become Hammer Leap (it hurls the mace to stun the target,
+  leaps after it, catches it overhead and lands in a burst of light), Blessed Hammers (three hammers of light wheeling round it for 6 s),
+  Judgement (a pillar of light and three rings of it) and the Aura of Light (7 m: its damage heals everyone of its side inside, and each
+  wears a shield of light worth 20% of their life).
 - Gear drops for the Sentinel: greatswords (two-handed, no shield), swords, maces and shields, in white / blue / yellow / purple / red; equip from the Pact panel or the bag.
 - As Fury grows its soul light (cyan, like its eyes; gold for the Paladin) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
@@ -67,7 +69,8 @@ level and weapon style, and a damage meter (DPS, kills, time to kill, damage tak
 - **背包 panel** (🎒 button or **I**): the 40-cell bag (one item per cell, icons rendered from the 3D models) and the furnace with auto-fill. Click an item to pick it up, click where it should go;
   right-click or double-click = quick equip (or into the furnace). Diablo-style tooltips; items a summon can't use are tinted red.
 - **Furnace (熔炉):** put 2+ pieces into its 12 cells and smelt them into one random item; more and better input raises the odds. The result goes straight into the bag (it glows there until you close the panel).
-  Auto-fill puts normal items in first, then magic ones (those that would be an upgrade for a summon last); rares are never added automatically.
+  Auto-fill puts in the qualities ticked under it (normal and magic unless you change it; remembered in this browser), lowest first,
+  and of the same quality those that would be an upgrade go in last; tech weapons never.
 - **科技流 (tech line)**: epic weapons that turn a summon into an advanced tech unit with its own look, stance and skill tree (take the
   weapon off and it is its old self again; both skill sets are kept). They come out of the forge: every rare piece smelted (weapon or
   shield) gives +3% (at most 15%), and **魂钢能量 / soul steel** builds up by one per rare piece smelted without an epic — at 15 the next

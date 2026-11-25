@@ -103,6 +103,7 @@ export function damage(src, dst, amt, o = {}) {
   const sh = dst.shred || 0, arm = Math.max(0, dst.armor * (blunt ? 0.5 : 1) - sh); // AP rounds: each stack −1 armour, +0.6% damage taken
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
+  if (dst.barrier > 0 && d > 0) { const ab = Math.min(d, dst.barrier); dst.barrier -= ab; d -= ab; soaked = 'holy'; dst.barrierHit = G.t; domeHit(dst.hdome); } // 魂契: the paladin's aura (holy.js)
   const hp0 = dst.hp; dst.hp -= d; if (dst.immortal && dst.hp < 1) dst.hp = 1; const dealt = Math.min(d, Math.max(0, hp0)); if (PH.dmg) PH.dmg(src, dst, dealt, o); if (src && src.pact && PH.leech) PH.leech(src, dealt); // (the test arena: no-death toggles, its damage meter)
   dst.flash = Math.max(dst.flash || 0, o.heavy || o.crit ? 1 : o.sum ? 0.5 : 0.75); dst.barT = 3; dst.lastHit = G.t;
   if (o.knock && !(dst.deployT > 0) && !dst.pact) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
@@ -117,7 +118,7 @@ export function damage(src, dst, amt, o = {}) {
   if (src && src.champ && !o.noFx) for (const mod of src.mods) { const el = ELEM[mod]; if (!el) continue; C.parts.emit(dst.x, 0.7, dst.z, src.mods.length > 1 ? 6 : 11, el.hit); elemHit(mod, src, dst, d, o); }
   let shown = d; // machine-gun rounds: one number for every 3 (or at once on a crit / the killing round)
   if (o.sum) { dst.sumD = (dst.sumD || 0) + d; dst.sumN = (dst.sumN || 0) + 1; if (dst.sumN < 3 && !o.crit && !o.flush && dst.hp > 0) return d; shown = dst.sumD; dst.sumD = dst.sumN = 0; }
-  if ((!o.dot || d >= 3) && !(soaked && d < 0.5)) say(dst.x, dst.z, (o.crit ? tr('暴击 ', 'CRIT ') : '') + Math.round(shown), o.dot ? (o.dot === 'poison' ? '#8aff5a' : o.dot === 'fire' ? '#ffb060' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : soaked ? '#8fe8ff' : '#ff6b6b', o.crit ? 18 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4, o.dot ? 0 : o.crit ? 2 : 1);
+  if ((!o.dot || d >= 3) && !(soaked && d < 0.5)) say(dst.x, dst.z, (o.crit ? tr('暴击 ', 'CRIT ') : '') + Math.round(shown), o.dot ? (o.dot === 'poison' ? '#8aff5a' : o.dot === 'fire' ? '#ffb060' : '#bfe8ff') : dst.side === 'enemy' ? (o.crit ? '#ffd34d' : '#ffffff') : soaked === 'holy' ? '#ffe08a' : soaked ? '#8fe8ff' : '#ff6b6b', o.crit ? 18 : o.dot ? 12 : 14, 1.4 + Math.random() * 0.4, o.dot ? 0 : o.crit ? 2 : 1);
   if (dst.hp <= 0) { const ox = o.fx ?? (src ? src.x : dst.x), oz = o.fz ?? (src ? src.z : dst.z); dst.dieDx = dst.x - ox; dst.dieDz = dst.z - oz;
     dst.dieHard = !!(o.heavy || o.crit || (o.knock || 0) >= 2 || d > dst.maxHp * 0.45 || -dst.hp > dst.maxHp * 0.3); kill(dst, src); }
   return d;
