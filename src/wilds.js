@@ -70,7 +70,7 @@ export function genWilds(F, R) {
         // wall_half runs 1 m along its +x from its origin: turned -90° it runs along +z
         if (side < 2) put('wall_half', X + 0.5, Z, -Math.PI / 2, 0.5, 0.1 + R() * 0.26); else put('wall_half', X, Z + 0.5, 0, 0.5, 0.1 + R() * 0.26); }
       for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) if (R() < 0.5) { put('column', cx + x + 0.5, cz + z + 0.5, 0, 0.5, 0.5 + R() * 0.4); block(cx + x, cz + z, K.RUIN); }
-      put('chest', cx + 0.5, cz + 0.5, Math.PI / 4, 0.5); block(cx, cz, K.RUIN); // (a display stand now — loot.js placeStand)
+      put('chest', cx + 0.5, cz + 0.5, 0, 0.5); block(cx, cz, K.RUIN); // (a display stand now — loot.js placeStand: square to the ruin's walls, facing +z)
       for (let k = 0; k < 3; k++) { const r = R() * 6.28; put('rubble_half', cx + 0.5 + (R() - 0.5) * (hw * 2 + 3), cz + 0.5 + (R() < 0.5 ? -1 : 1) * (hh + 1.5 + R()), r, 0.22); }
       put('candle_triple', cx + 1.2, cz + 0.4, R() * 6.28, 0.5); L.push({ x: cx + 1.2, y: 0.45, z: cz + 0.4, col: 0xffa040, size: 1.1, op: 0.8, torch: 4.5 });
     } else if (p.type === 'graves') { // a fenced plot of old graves, open on at least two sides, lanterns in two corners

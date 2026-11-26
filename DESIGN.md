@@ -68,16 +68,21 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   cut at load into 12 pieces (six wedges round its middle, upper and lower) that fly out, tumble, bounce and shrink away: 20% an item
   (white 55 / blue 32 / yellow 11 / purple 2%), 35% 魂能 1 + 0.4·level (an urn: 15% an item, 60% 魂能 2 + 0.5·level, clay-coloured
   dust; a trunk: 75% an item, better odds). The barrels, crates and urns are generated models (Qwen Image → Pixal3D / TRELLIS.2 in Comfy,
-  slimmed to 2.5-4k triangles with tools/slim-gen3d.mjs PROP=1 — base at y 0, centred — and packed into assets/gen_props.glb with
-  tools/pack-props.mjs; base-colour texture only), scaled at placement to a height (loot.js PROP_H) ±8%.
+  slimmed to 2-5k triangles with tools/slim-gen3d.mjs PROP=1 and packed into assets/gen_props.glb with tools/pack-props.mjs; base-colour
+  texture only), scaled at placement to a height (loot.js PROP_H) ±8%. The generator builds a model in its picture's view, so it comes
+  out leaning 14-31° toward where the camera was and turned 30-45°: PROP=1 stands it level (its base — the downward faces at the bottom,
+  by area — turned to face straight down; AXIS=1 for the round ones, barrels, urns and the relic stand: on the line through the middles
+  of its footprint low and high), squares it up (the turn whose footprint fits the smallest rectangle, the longer side along x, the
+  side that faced the camera toward +z; FRONT=1: the rack's hooks toward +z), then sets its base on y 0, centred. Square props stand
+  along the walls (a quarter turn, ±4.6° off).
 - No chests: display stands (Nov 2026) — one item on each, in plain sight, nothing to gamble on. In the crypt a stand takes the place of
   a border prop now and then (weight 0.85 of 12.2), facing into the room, and a bigger room (5×5+) has one in its middle 25% of the time:
-  about 5 a floor (the chests were under 2). The item is rolled when the floor is made (white 12 / blue 42 / yellow 32 / purple 12 / red
+  about 5 a floor (the chests were under 2); every stand is square to the walls (one in a room's middle faces +z). The item is rolled when the floor is made (white 12 / blue 42 / yellow 32 / purple 12 / red
   2%; 15% of stands better: blue 20 / yellow 46 / purple 26 / red 8%) and decides the stand: a weapon on a weapon rack (60%, only along the
   far walls, where its hooks face the camera), purple and red on the relic stand or the crypt altar, the rest on a stone plinth. It
   floats upright over the stand, turning slowly, its glow and its light column standing on the stand's top (a rack: it lies across the
   hooks, still); kept to 0.95 m on its longest side (1.05 on a rack). Click the stand, or walk up to it: picked up within 1.65 m, no drop
-  sound. The ruin in the wilds has one in its middle, set at 45° toward the camera. Item level = the floor (the wilds: the deepest floor
+  sound. The ruin in the wilds has one in its middle, square to its walls, facing +z. Item level = the floor (the wilds: the deepest floor
   reached). Bosses (魂契): purple-or-red (red 45%), purple-or-yellow, yellow-to-red, blue-or-
   yellow, +1 (yellow / purple) for each round of the four already done (at most 3), and 40 + 8·(level+1) 魂能 into the vessel.
 - From the 5th floor down monsters take a step up in life (data.js DEEP_HP: ×2.5 at floor 5, +4% of that per floor after; by the floor or

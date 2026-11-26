@@ -183,12 +183,12 @@ export class Floor {
         const edge = x === r.x || z === r.y || x === r.x + r.w - 1 || z === r.y + r.h - 1; if (!edge || R() > 0.16) continue;
         if (r === this.start || Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) < 3 || near(x, z)) continue;
         if (!this.block(x, z)) continue; const name = pick(R()), round = /barrel|urn|keg/.test(name), px = x + 0.5 + (R() - 0.5) * 0.1, pz = z + 0.5 + (R() - 0.5) * 0.1;
-        const rot = round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.3;
+        const rot = round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.16; // (square ones along the walls, a little off now and then)
         // a stand faces into the room (a rack only along the far walls, its hooks toward the camera); the rest break, freeing their cell
         if (name === 'stand') { const far = x === r.x || z === r.y; placeStand(this, B, x + 0.5, z + 0.5, x === r.x ? Math.PI / 2 : z === r.y ? 0 : x === r.x + r.w - 1 ? -Math.PI / 2 : Math.PI, far); continue; }
         const it = B.add(name, px, 0, pz, rot, name.startsWith('brk_') ? propScale(name) * (0.92 + R() * 0.16) : 0.5); if (BOX_KIND[name]) addBox(this, name, px, pz, it, [x, z]); }
       // and now and then one more stand in the middle of a bigger room
-      if (r !== this.start && r.w >= 5 && r.h >= 5 && R() < 0.25) { const x = r.x + (r.w >> 1), z = r.y + (r.h >> 1); if (Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) > 3 && this.block(x, z)) placeStand(this, B, x + 0.5, z + 0.5, Math.PI / 4, false); } }
+      if (r !== this.start && r.w >= 5 && r.h >= 5 && R() < 0.25) { const x = r.x + (r.w >> 1), z = r.y + (r.h >> 1); if (Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) > 3 && this.block(x, z)) placeStand(this, B, x + 0.5, z + 0.5, 0, false); } }
     // floor tiles
     const FT = ['floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small_broken_A', 'floor_tile_small_broken_B', 'floor_tile_small_weeds_A', 'floor_dirt_small_A'];
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (!isF(x, z) || isStair(x, z)) continue;

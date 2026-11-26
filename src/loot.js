@@ -19,9 +19,9 @@ export const BOX_KIND = { barrel_small: 'smash', barrel_large: 'smash', keg: 'sm
   stand_stone: 'stand', stand_relic: 'stand', stand_rack: 'stand', stand_altar: 'stand' };
 // the generated props' heights in the game (their files are about a unit tall; scaled to this at placement)
 export const PROP_H = { brk_barrel1: 0.66, brk_barrel3: 0.66, brk_barrel4: 0.66, brk_crate1: 0.55, brk_crate2: 0.55, brk_urn1: 0.6, brk_urn4: 0.6,
-  stand_stone: 0.72, stand_relic: 0.78, stand_rack: 1.0, stand_altar: 0.58 };
+  stand_stone: 0.72, stand_relic: 0.8, stand_rack: 0.85, stand_altar: 0.45 };
 // where a stand's item sits: [its top (a share of its height), forward of its middle (the rack's hooks)]
-const STAND_AT = { stand_stone: [0.94, 0], stand_relic: [1, 0], stand_altar: [0.89, 0], stand_rack: [0.8, 0.2] };
+const STAND_AT = { stand_stone: [0.98, 0], stand_relic: [1, 0], stand_altar: [0.77, 0], stand_rack: [0.78, 0.1] };
 export const propScale = name => { const pg = propGeo(name); return pg && PROP_H[name] ? PROP_H[name] / Math.max(0.05, pg.box.max.y) : 0.5; };
 // loot: the chance of an item and its quality odds (white .. red; red only in 魂契), a second item's chance, 魂能 (chance, amount at item level il)
 export const BOX_LOOT = {
