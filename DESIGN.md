@@ -113,7 +113,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   the mace go at its forward point — it flies end over end at 22 m/s (the hand empty), strikes ×1.2 and stuns 1.6 s, bounces up to hang
   over the target turning; then SNS_Leap (a jump in place, the weapon overhead at the top, a crouching smash on landing; the travel is
   moved by hand, the landing spot following the target until take-off): at the top the mace flies back into the raised hand, and where it
-  lands a burst of light — ×1.5, thrown back, 0.8 s stun within 2.6 m. Block = the shield block, its counter a bolt of light; Blessed Hammers (instead of Whirlwind; 2+ within 3 m, 11 s): a prayer (SNS_Cast), then three spectral maces (the mace model
+  lands a burst of light — ×1.5, thrown back, 0.8 s stun within 2.6 m. Holy Rebound (圣盾反弹) = the same shield block, but its counter has no swing: the shield's light flares round its body (a dome of light, a ring
+  racing out, Judgement's energy burst for a sound), what stands close all round is thrown back, and a bolt of light flies straight; Blessed Hammers (instead of Whirlwind; 2+ within 3 m, 11 s): a prayer (SNS_Cast), then three spectral maces (the mace model
   in gold, a glowing shell) wheel round it for 6 s — 3.1 rad/s, each swinging in and out between ~0.9 and 2.8 m, tumbling end over end —
   each striking what it passes for 50% (once per hammer per enemy every 0.5 s) while it fights on; Judgement (instead of Sundering
   Strike): the roar becomes a burst of light, the mace fills with holy flame, and the blow brings a pillar of light down 1.3 m in front —
@@ -164,7 +165,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   Block / Parry (passive; the shield takes blows from any side, the parry only from the front; +1% per Fury stack past 10, at most +20%):
   sword & shield blocks 30% (−80%, missiles stopped whole), the greatsword parries 25%
   (−60%); each earns a counter slipped in between its swings — the guard pose for a beat, then sword & shield cuts down and a crescent of
-  qi flies ~10 m straight (at the shooter, if it stopped a missile), the greatsword sweeps 180° (GS_Spin) and a half-moon of qi fans out ~4.5 m.
+  qi flies ~10 m straight (at the shooter, if it stopped a missile) with a burning whoosh, the greatsword sweeps 180° (GS_Spin) and a half-moon
+  of qi fans out ~4.5 m.
   Whirlwind (3+ within 2.5 m, 10 s): two cuts all around, each flinging eight crescents of qi outward that cut what they meet out to
   ~5.5 m at half damage.
   Life Steal (passive, 25 Fury): 10% of the damage it deals heals it, shown as one green number every half second.

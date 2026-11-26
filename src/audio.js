@@ -82,6 +82,8 @@ export const S = {
   block(heavy) { if (!ok() || !gate('bk2', 60)) return; if (!sample(heavy ? 'block_h' : 'block_b', 0.85, 0.96 + Math.random() * 0.08)) clank(); },
   // the greatsword's fire: the blade catching light, its burning swing (tPeak as in swoosh), the blast where it lands
   ignite() { if (!ok()) return; if (!sample('fcharge', 0.85)) { hiss(500, 0.6, 0.35, 0.2); tone('sawtooth', 120, 60, 0.3, 0.05); } },
+  // the sword & shield's counter: its sword qi flies off with a burning whoosh (loudest at tPeak, the cut)
+  qi(tPeak = 0) { if (!ok()) return; if (!sample('fire_sw0', 0.8, 1, Math.max(0, tPeak - PK.fire_sw0))) this.swoosh(false, tPeak, 0.15); },
   fireLoop(v = 0.55) { return ok() ? loopSample('fireloop.wav', v) : null; },
   fireSwing(tPeak = 0) { if (!ok()) return; const n = any('fire_sw', 2); sample(n, 0.75, 1, Math.max(0, tPeak - PK[n])); },
   burst(fire) { if (!ok()) return; if (!sample(fire ? 'burst_f' : 'burst_e', 0.9)) { tone('sine', 90, 30, 0.5, 0.5); hiss(200, 0.5, 0.5, 0.5, 0, 'lowpass'); } },

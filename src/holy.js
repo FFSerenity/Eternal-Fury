@@ -8,7 +8,7 @@ import { C, say, damage, hostilesOf, plated } from './units.js';
 import { hwGeo, HOLY_C, HOLY_HOT, HOLY_AURA_R } from './assets.js';
 import { glowSprite, ring } from './gfx.js';
 import { runeCircle } from './vfx.js';
-import { burst, shake, slamMark, shieldDome, domeEnd } from './fx.js';
+import { burst, shake, slamMark, shieldDome, domeEnd, domeHit } from './fx.js';
 import { S } from './audio.js';
 
 const TAU = Math.PI * 2, dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -30,6 +30,13 @@ function consecrate(x, z, r, life = 1.8, op = 0.55) { const m = runeCircle(r, HO
 
 // ---------- Smite: every third blow the light comes down on the target, catching those beside it ----------
 export const SMITE = { r: 1.7, mult: 0.6, stun: 0.5 };
+// 圣盾反弹 (the counter its block earns): no swing — the shield's light flares round its body and the blow rebounds out of it: a ring of light,
+// what stands close thrown back, and (pactskills.js counterHit) a bolt of light flying straight
+export function shieldRebound(u) {
+  const x = u.x, z = u.z, d = shieldDome(u, HOLY_C, [1.0, 1.75]); if (d) { domeHit(d); G.fx.push({ clean: true, t: 0.35, fn: () => domeEnd(d) }); }
+  wave(x, z, HOLY_HOT, 3.2, 0.4, 0.45, 0.9); burst(x, 1.2, z, HOLY_HOT, 1.6); shake(0.12, x, z); S.burst(false);
+  C.parts.emit(x, 1.0, z, 18, { col: motes(), spd: 3.2, up: 1.4, grav: 2, life: 0.45, size: 0.18 });
+}
 export function smite(u, t) {
   const x = t.x, z = t.z; pillar(x, z, 0.8, 0.5, 6); burst(x, 1, z, HOLY_HOT, 1.3); wave(x, z, HOLY_C, SMITE.r + 0.3, 0.35, 0.3); slamMark(x, z, 0.7, HOLY_C, 1.6);
   C.parts.emit(x, 0.3, z, 16, { col: HOLY_HOT, spd: 1.6, up: 3.2, grav: -1, life: 0.6, size: 0.18 }); S.holy(0.5);
