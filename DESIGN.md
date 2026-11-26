@@ -148,7 +148,13 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   The light swings are the three new swishes plus one of the old ones (artisticdude's), so they repeat less.
   Enemies' melee blows swish too, with the same swings: a small one's (cls imp) quiet and pitched a little up, a big one's (brute, boss)
   at full weight and pitched down; they fade out past ~16 m from the summoner. Bats bite without a swish; summons stay quiet.
-  Every recorded sound falls back to its old synth while it loads. Still synth: whirlwind (kept by choice), monsters' roars, ice.
+- Monsters' sounds (round 3, loaded in every mode): a cry by kind — the living (a soldier's shout; templars, headsmen and berserkers
+  bellow), the crypt's skeletons (4 hisses), bats, ghosts and wraiths, and each tech boss its own roar (the mech's the heaviest). The
+  first of a pack to notice you cries out (one voice per kind every 2.5 s, so a whole pack is one cry); a bat shrieks as it dives back
+  in (at most every 4 s); a berserker bellows as it whirls or goes berserk; a boss roars on its entrance and when it rages. Shots: bow
+  (4), crossbow bolt (4), thrown axe (2), fireball (3), the exorcist's holy fire (2), ghosts' soul-fire (3), each cut to start near its
+  first strong sound so it lands on the release. Cries and shots, like the enemies' swings, fade out past ~16 m from the summoner.
+  Every recorded sound falls back to its old synth while it loads. Still synth: whirlwind (kept by choice), ice, the summoner's spells.
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier and one past it: they wake at 5 / 10 / 15 / 20 / 25 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).

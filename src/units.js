@@ -125,9 +125,14 @@ export function damage(src, dst, amt, o = {}) {
     dst.dieHard = !!(o.heavy || o.crit || (o.knock || 0) >= 2 || d > dst.maxHp * 0.45 || -dst.hp > dst.maxHp * 0.3); kill(dst, src); }
   return d;
 }
+// how loud a monster is to the summoner: full within ~4 m, gone past ~20 m
+export const hearAt = u => !G.player ? 1 : Math.min(1, Math.max(0, 1.25 - Math.hypot(u.x - G.player.x, u.z - G.player.z) / 16));
+// its cry, by kind: the living (a soldier's shout; the big ones' bellow), the crypt's skeletons, bats, ghosts. Bosses have their own entrance (boss.js)
+const BRUTES = { templar: 1, headsman: 1, berserker: 1 };
+export const cryOf = u => u.boss || u.droneOf ? null : !u.foe ? 'skel' : u.foe === 'bat' ? 'bat' : u.foe === 'ghost' || u.foe === 'wraith' ? 'ghost' : BRUTES[u.foe] ? 'brute' : 'human';
 export function alertPack(u, t) {
   for (const e of G.enemies) if (!e.aggro && e !== u && (e.packId === u.packId || dist(e, u) < 3.5)) { e.aggro = true; e.target = t; }
-  S.rally();
+  S.rally(); const k = cryOf(u); if (k) S.cry(k, hearAt(u)); // the first of the pack to notice you cries out
 }
 function kill(u, src) {
   u.dead = true; u.hp = 0; u.poison = null; u.chillT = 0; u.mesh.u.uStat.value.w = 0;
@@ -392,7 +397,7 @@ export function shoot(src, kind, tx, tz, o = {}) {
   else if (kind === 'wisp') { const col = (src.mesh && src.mesh.ghost) || 0xb070ff; s.col = col; s.root.add(glowSprite(col, 1.2, 0.9), glowSprite(0xffffff, 0.42, 0.95)); } // a ghost's soul-fire
   const el = src.champ && src.mods.length && ELEM[src.mods[Math.floor(Math.random() * src.mods.length)]]; if (el) { s.el = el; s.root.add(glowSprite(el.col, kind === 'fire' ? 2.0 : 0.8, 0.85)); }
   s.root.position.set(s.x, s.y, s.z); s.root.rotation.y = Math.atan2(dx, dz); C.scene.add(s.root); G.shots.push(s);
-  if (kind === 'spear') S.spear(); else if (kind === 'arrow' || kind === 'bolt' || kind === 'axe') S.arrow(); else if (kind === 'wisp') S.zap(); else S.fire();
+  if (kind === 'spear') S.spear(); else S.shot(kind === 'arrow' ? 'bow' : kind === 'bolt' ? 'xbow' : kind === 'axe' ? 'axe' : kind === 'wisp' ? 'soul' : src.foe === 'exorcist' ? 'hfire' : 'fball', hearAt(src));
   return s;
 }
 export function updateShots(dt) {
@@ -955,7 +960,7 @@ export function attackAnim(u, wind) {
   const list = u.mech ? ['1H_Melee_Attack_Stab'] : AN(u).atk, name = list[Math.floor(Math.random() * list.length)], len = clipLen(name, u.mesh), sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.4) / Math.max(0.05, wind)));
   play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
   // an enemy's melee blow swishes too: the hero's swings, a small one's quiet and a little higher, a big one's at full weight; fading out past ~16 m from the summoner
-  if (u.side === 'enemy' && MELEE(u.kind) && !u.mech && u.foe !== 'bat' && G.player) { const big = u.kind === 'brute' || !!u.boss, near = Math.min(1, Math.max(0, 1.25 - Math.hypot(u.x - G.player.x, u.z - G.player.z) / 16));
+  if (u.side === 'enemy' && MELEE(u.kind) && !u.mech && u.foe !== 'bat' && G.player) { const big = u.kind === 'brute' || !!u.boss, near = hearAt(u);
     if (near > 0.08) S.swoosh(big, Math.max(0, wind - 0.02), Math.min(0.2, wind), (big ? 0.85 : 0.4) * near, big ? 0.86 + Math.random() * 0.1 : 1.06 + Math.random() * 0.14); }
 }
 export function playerAnim(u, kind) {

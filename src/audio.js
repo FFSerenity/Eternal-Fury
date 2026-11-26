@@ -15,6 +15,12 @@ const PK = { swing_l0: 0.055, swing_l1: 0.055, swing_l2: 0.035, swing_l3: 0.024,
 export const SAMPLES = ['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2', 'swing_h3',
   'clang0', 'clang1', 'heavy0', 'heavy1', 'mace_m0', 'mace_m1', 'mace_f0', 'block_b', 'block_h', 'fire_sw0', 'fire_sw1', 'fireburst', 'fcharge', 'fireloop.wav', 'slam0', 'burst_f', 'burst_e',
   'hammers', 'poison0', 'poison1', 'thunder0', 'shadow0', 'shadow1', 'charge', 'warcry', 'warcry_pal', 'holy'];
+// the monsters' (loaded in every mode): their cries by kind (r_*: a pack noticing you, a bat diving, a boss's entrance), and their shots
+export const FOE_SAMPLES = ['r_human0', 'r_brute0', 'r_skel0', 'r_skel1', 'r_skel2', 'r_skel3', 'r_boss0', 'r_boss1', 'r_boss2', 'r_boss3', 'r_bat0', 'r_ghost0',
+  'bow0', 'bow1', 'bow2', 'bow3', 'xbow0', 'xbow1', 'xbow2', 'xbow3', 'axe0', 'axe1', 'fball0', 'fball1', 'fball2', 'hfire0', 'hfire1', 'soul0', 'soul1', 'soul2'];
+const CRY = { human: ['r_human0'], brute: ['r_brute0'], skel: ['r_skel0', 'r_skel1', 'r_skel2', 'r_skel3'], bat: ['r_bat0'], ghost: ['r_ghost0'] };
+const BOSS_CRY = { bomber: 'r_boss0', gunner: 'r_boss1', engineer: 'r_boss2', mech: 'r_boss3' };
+const SHOT = { bow: [4, 0.55], xbow: [4, 0.75], axe: [2, 0.6], fball: [3, 0.6], hfire: [2, 0.6], soul: [3, 0.55] };
 const any = (pre, n) => pre + Math.floor(Math.random() * n);
 export function loadSamples(names) { for (const n of names) if (!RAW[n]) RAW[n] = fetch(`assets/sfx/${n.includes('.') ? n : n + '.mp3'}`).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null); if (ac) decodeAll(); }
 function decodeAll() { for (const n in RAW) if (!(n in BUF)) { BUF[n] = null; RAW[n].then(ab => ab && ac.decodeAudioData(ab)).then(b => { BUF[n] = b || null; }).catch(() => {}); } }
@@ -55,6 +61,12 @@ export const S = {
     else { if (!sample('warcry', 0.95)) this.roar(); sample('fireburst', 0.75, 1, 0.04); } },
   // the Aura of Light lighting up (25 Fury)
   holyOn() { if (!ok()) return; if (!sample('holy', 0.75)) this.holy(1); },
+  // a monster's cry (v: how near it is); one of a kind at a time, so a whole pack noticing you is one voice. A single take is pitched a little each time
+  cry(kind, v = 1, boss) { if (!ok() || v < 0.05 || !gate('cry_' + kind, boss ? 400 : 2500)) return; const L = CRY[kind], n = boss ? BOSS_CRY[boss] : L && L[Math.floor(Math.random() * L.length)];
+    if (!n || !sample(n, 0.85 * v, 0.93 + Math.random() * 0.14)) { if (kind === 'human' || kind === 'brute' || boss) this.roar(); } },
+  // a monster's shot leaving: bow, crossbow bolt, thrown axe, fireball, the exorcist's holy fire, a ghost's soul-fire
+  shot(kind, v = 1) { if (!ok() || v < 0.05 || !gate('sh_' + kind, 70)) return; const sh = SHOT[kind]; if (sh && sample(any(kind, sh[0]), sh[1] * v, 0.95 + Math.random() * 0.1)) return;
+    if (kind === 'soul') this.zap(); else if (kind === 'fball' || kind === 'hfire') this.fire(); else this.arrow(); },
   roar() { if (!ok()) return; tone('sawtooth', 120, 62, 0.75, 0.16); tone('sawtooth', 181, 90, 0.7, 0.07, 0.02); hiss(380, 0.7, 0.7, 0.3, 0, 'lowpass'); hiss(1400, 0.8, 0.45, 0.12, 0.05); },
   // plate: the target is in armour (a knight, a stone-skinned champion) — the blade rings on it, the mace clangs; on cloth and flesh the old bite and a blunt thud
   blade(heavy, crit, plate) { if (!ok() || !gate('bl', 50)) return; const r = 0.96 + Math.random() * 0.08;

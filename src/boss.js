@@ -72,9 +72,9 @@ function ensureBar() {
 export function bossTick(dt) {
   const P = G.player; let show = null, bd = 1e9;
   for (const u of G.enemies) { if (!u.boss || u.dead) continue; const d = Math.hypot(u.x - P.x, u.z - P.z);
-    if (!u.intro && (d < 12 || u.aggro)) { u.intro = true; C.say(tr(`首领：${u.name}`, `Boss: ${u.name}`), true, 3500); S.roar(); shake(0.12, u.x, u.z); }
+    if (!u.intro && (d < 12 || u.aggro)) { u.intro = true; C.say(tr(`首领：${u.name}`, `Boss: ${u.name}`), true, 3500); S.cry('boss', 1, u.boss); shake(0.12, u.x, u.z); }
     if (!u.enraged && u.hp < u.maxHp * 0.5) { u.enraged = true; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.mesh.u.uRim.value.setHex(0xff2a10);
-      say(u.x, u.z, tr('狂暴！', 'Enraged!'), '#ff5a3a', 20, 2.6); S.roar(); shake(0.15, u.x, u.z); burst(u.x, 1.0, u.z, 0xff5a3a, 2.4); }
+      say(u.x, u.z, tr('狂暴！', 'Enraged!'), '#ff5a3a', 20, 2.6); S.cry('boss', 1, u.boss); shake(0.15, u.x, u.z); burst(u.x, 1.0, u.z, 0xff5a3a, 2.4); }
     if (u.enraged && C.parts && Math.random() < dt * 14) C.parts.emit(u.x + (Math.random() - 0.5) * u.r * 2, 0.3 + Math.random() * 1.4, u.z + (Math.random() - 0.5) * u.r * 2, 1, { col: 0xff4a2a, spd: 0.3, up: 1.4, grav: -0.8, life: 0.5, size: 0.22 });
     if ((u.intro || u.aggro) && d < 22 && d < bd) { bd = d; show = u; } }
   if (!show) { if (bar) bar.classList.remove('on'); return; }

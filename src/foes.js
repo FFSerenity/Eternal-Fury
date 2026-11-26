@@ -13,7 +13,7 @@
 //  幽灵 / 怨灵 Ghost / Wraith  homing soul-fire that chills (the wraith three at once); drift through bodies, leave no corpse
 import { G } from './state.js';
 import { tr } from './i18n.js';
-import { C, PH, say, damage, shoot, hostilesOf, seek, flee, faceTo, rangedLogic, nearestHostile, AN } from './units.js';
+import { C, PH, say, damage, shoot, hostilesOf, seek, flee, faceTo, rangedLogic, nearestHostile, AN, hearAt } from './units.js';
 import { play, clipLen } from './assets.js';
 import { warnLine, impact, burst, shake, spinFx } from './fx.js';
 import { S } from './audio.js';
@@ -69,7 +69,8 @@ PH.foeAct = (u, t, dt) => {
       if (u.raged && Math.random() < dt * 9) C.parts.emit(u.x, 1.0, u.z, 1, { col: 0xff5a2a, spd: 0.4, up: 1.2, grav: -1, life: 0.5, size: 0.2, spread: 0.35 });
       u.whirlCD = (u.whirlCD ?? rand(2, 4)) - dt; if (u.whirlCD <= 0 && d < 3.4) { u.whirlCD = rand(7, 9) * (u.raged ? 0.7 : 1); whirl(u, t); return true; } return false;
     case 'exorcist': return exorcist(u, t, dt);
-    case 'bat': if (u.swoopT > 0) { u.swoopT -= dt; if (!flee(u, t.x, t.z, u.speed * 1.15)) u.swoopT = 0; return true; } return false;
+    case 'bat': if (u.swoopT > 0) { u.swoopT -= dt; if (!flee(u, t.x, t.z, u.speed * 1.15)) u.swoopT = 0;
+        if (u.swoopT <= 0 && G.t > (u.cryT || 0)) { u.cryT = G.t + 4; S.cry('bat', hearAt(u)); } return true; } return false; // and it dives back in, shrieking (now and then)
   }
   return false;
 };
@@ -115,10 +116,10 @@ function smoke(u, t) {
 }
 function throwAxe(u, t) { begin(u, 'axe', 0.75, t); const len = clipLen('Throw'); play(u.mesh, 'Throw', { once: true, restart: true, speed: Math.max(0.8, len * 0.5 / 0.4), fade: 0.06 }); }
 function aim(u, t) { begin(u, 'aim', 1.45, t); u.aimA = u.face; warnLine(u.x, u.z, u.aimA, 12, 0.8, 1.1); play(u.mesh, '2H_Ranged_Aiming', { fade: 0.1 }); S.lock(); }
-function whirl(u, t) { begin(u, 'whirl', 2.1, t); u.hitT = 0; S.roar(); say(u.x, u.z, tr('旋风！', 'Whirlwind!'), '#ff8a5a', 15, 2.2); play(u.mesh, '2H_Melee_Idle', { fade: 0.1 }); }
+function whirl(u, t) { begin(u, 'whirl', 2.1, t); u.hitT = 0; S.cry('brute', hearAt(u)); say(u.x, u.z, tr('旋风！', 'Whirlwind!'), '#ff8a5a', 15, 2.2); play(u.mesh, '2H_Melee_Idle', { fade: 0.1 }); }
 function rage(u) {
   u.raged = true; const f = u.hp / u.maxHp; u.stats(); u.hp = u.maxHp * f; u.mesh.u.uRim.value.setHex(0xff3020).multiplyScalar(0.85);
-  S.roar(); say(u.x, u.z, tr('狂暴！', 'Berserk!'), '#ff5a3a', 17, 2.3); burst(u.x, 1, u.z, 0xff5030, 1.6); C.parts.emit(u.x, 1, u.z, 20, { col: 0xff5a2a, spd: 2, up: 2, life: 0.6, size: 0.25 });
+  S.cry('brute', hearAt(u)); say(u.x, u.z, tr('狂暴！', 'Berserk!'), '#ff5a3a', 17, 2.3); burst(u.x, 1, u.z, 0xff5030, 1.6); C.parts.emit(u.x, 1, u.z, 20, { col: 0xff5a2a, spd: 2, up: 2, life: 0.6, size: 0.25 });
 }
 // the exorcist: mends the most hurt of its own nearby (the same cast as a summoned mage's heal), else fights from the back
 function exorcist(u, t, dt) {

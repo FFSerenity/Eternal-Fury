@@ -12,12 +12,12 @@ import { A, play, PLUME_AT } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
-import { S, loadSamples, SAMPLES } from './audio.js';
+import { S, loadSamples, SAMPLES, FOE_SAMPLES } from './audio.js';
 import { SKILLS, skillView } from './pactskills.js';
 import { rollHeroItem, HERO_GEAR } from './data.js';
 import { soulToJar } from './soulvessel.js';
 import { smite, auraTick } from './holy.js';
-if (PACT) loadSamples(SAMPLES);
+loadSamples(FOE_SAMPLES); if (PACT) loadSamples(SAMPLES);
 
 // ---------- tunables ----------
 export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1 };
