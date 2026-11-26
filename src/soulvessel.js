@@ -80,7 +80,7 @@ export function jarTick(dt) {
     else if (G.soul <= 0) { if (G.t - J.said > 1.5) { J.said = G.t; message(tr('魂瓶空了：对尸体唤魂（Q）收集魂能', 'The vessel is empty: harvest corpses (Q) for soul')); } IN.infuse = false; } }
   const pour = !!(IN.infuse && u && u.spawnT <= 0 && G.soul > 0 && P && !P.dead);
   if (pour !== J.pour) { J.pour = pour; J.el.classList.toggle('pour', pour); if (!pour) save();
-    if (pour) { if (!J.stream) J.stream = S.pour(); } else if (J.stream) { J.stream.stop(0.35); J.stream = null; } } // the stream of souls, heard while it pours
+    if (pour) { if (!J.stream) J.stream = S.pour(); S.absorb(); } else if (J.stream) { J.stream.stop(0.35); J.stream = null; } } // the stream of souls, heard while it pours
   if (pour) { infuseTick(u, dt); J.outAcc += dt * 16; while (J.outAcc >= 1) { J.outAcc--; J.motes.push({ k: 'out', t: 0, dur: rand(0.42, 0.58), bend: rand(-1, 1), tr: [] }); } }
   J.boost = pour ? Math.min(1, J.boost + dt / 1.6) : Math.max(0, J.boost - dt / 0.9); if (u) u.soulBoost = J.boost; // it glows brighter the longer it drinks
   // souls in flight

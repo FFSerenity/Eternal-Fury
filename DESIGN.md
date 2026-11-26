@@ -155,10 +155,10 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   in (at most every 4 s); a berserker bellows as it whirls or goes berserk; a boss roars on its entrance and when it rages. Shots: bow
   (4), crossbow bolt (4), thrown axe (2), fireball (3), the exorcist's holy fire (2), ghosts' soul-fire (3), each cut to start near its
   first strong sound so it lands on the release. Cries and shots, like the enemies' swings, fade out past ~16 m from the summoner.
-- The summoner's sounds (round 4, every mode): Raise is two layers — the souls torn out of the corpse and the spell's hum under them,
-  each pitched a little differently every time — then the souls fly off with a soft whoosh. Each soul landing in the vessel is one of six
+- The summoner's sounds (round 4, every mode): Raise — the spell's hum once as it is cast, then for each corpse (they go one after another,
+  0.16 s apart) a short, quiet burst of its soul torn out, pitched apart each time so many corpses stay a quick flurry, and the soul's whoosh. Each soul landing in the vessel is one of six
   little drops cut from one take, a run of them climbing a step at a time (like coins). Pouring into the Sentinel: a stream of souls held as
-  a loop while it pours (pour.wav), the Sentinel drinking now and then (at most every 0.65 s). Party full in the crypt: the soul flies off
+  a loop while it pours (pour.wav), the Sentinel drinking at once and then now and then (at most every 0.65 s; cut to start at its full swell). Party full in the crypt: the soul flies off
   (whoosh) and is drunk by the summoner.
 - Loot: only epic (a crisp gem's ding) and legendary (a softer, warmer chime) make a sound, as they land; nothing below.
 - Gear panel: picking up, putting down, equipping, taking off — one handling clink; into the forge — a clank and a breath of embers; the
