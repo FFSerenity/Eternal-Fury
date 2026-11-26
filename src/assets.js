@@ -192,13 +192,16 @@ function zyBack(model, name, u, outline) {
   return mountWeapon(sp, src, name, c.add(new V(0, 0, -0.17 * s)), W, u, outline, null);
 }
 
-// his quiver on his right hip, hung from the belt: arrows up, leaning back and a little out, its dragon facing outward
+// his quiver across the small of his back, just above the seat, hung from the belt (it rides with the hips): lying nearly level, the
+// mouth on his right and tipped up (Q_TILT), the arrows' feathers out past his right hip for the right hand; its dragon facing back.
+// (First it hung on his right hip, arrows up: the armoured skirt and the swinging arm went through it.)
+const Q_AT = [0, -0.09, -0.25], Q_TILT = 0.42; // (centre, from his lower spine, in his model's metres: across, up, forward; tilt, radians)
 function zyHip(model, name, u, outline) {
-  const src = A.heroWeap[name], hips = findBone(model, 'mixamorig:Hips'); if (!src || !hips) return null; model.updateMatrixWorld(true);
-  const V = THREE.Vector3, Q = THREE.Quaternion, s = model.getWorldScale(new V()).x, c = hips.getWorldPosition(new V());
-  const F = new V(-0.2, 1, -0.32).normalize(), Zr = new V(-1, 0, -0.35); Zr.sub(F.clone().multiplyScalar(Zr.dot(F))).normalize();
-  const W = new Q().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new V().crossVectors(F, Zr), F, Zr));
-  return mountWeapon(hips, src, name, c.add(new V(-0.2 * s, -0.12 * s, -0.1 * s)), W, u, outline, null);
+  const src = A.heroWeap[name], hips = findBone(model, 'mixamorig:Hips'), sp = findBone(model, 'mixamorig:Spine'); if (!src || !hips || !sp) return null; model.updateMatrixWorld(true);
+  const V = THREE.Vector3, Q = THREE.Quaternion, s = model.getWorldScale(new V()).x, c = sp.getWorldPosition(new V()), at = globalThis.__qAt || Q_AT, tl = globalThis.__qTilt ?? Q_TILT;
+  const F = new V(-Math.cos(tl), Math.sin(tl), 0), Zb = new V(0, 0, -1);
+  const W = new Q().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new V().crossVectors(F, Zb), F, Zb));
+  return mountWeapon(hips, src, name, c.add(new V(at[0] * s, at[1] * s, at[2] * s)), W, u, outline, null);
 }
 // the bones whose middle is the fist (the fingers, not the thumb): where a hand holds what it holds, every frame
 function fistBones(model, S) { const hand = findBone(model, `mixamorig:${S}Hand`); if (!hand) return [];
