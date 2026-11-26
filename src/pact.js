@@ -7,17 +7,17 @@
 import * as THREE from 'three';
 import { G, save, PACT } from './state.js';
 import { tr } from './i18n.js';
-import { C, PH, say, damage, hostilesOf, removeCorpse, soulOrb, spawnAlly } from './units.js';
+import { C, PH, say, damage, hostilesOf, removeCorpse, soulOrb, spawnAlly, plated } from './units.js';
 import { A, play, PLUME_AT } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
-import { S, loadSamples } from './audio.js';
+import { S, loadSamples, SAMPLES } from './audio.js';
 import { SKILLS, skillView } from './pactskills.js';
 import { rollHeroItem, HERO_GEAR } from './data.js';
 import { soulToJar } from './soulvessel.js';
 import { smite, auraTick } from './holy.js';
-if (PACT) loadSamples(['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2']);
+if (PACT) loadSamples(SAMPLES);
 
 // ---------- tunables ----------
 export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1 };
@@ -83,12 +83,12 @@ PH.stats = u => {
 PH.name = () => heroName();
 // a swing: the target and whatever else stands in the arc in front (narrow for the sword, wide for the greatsword)
 PH.strike = (u, t) => {
-  const W = SETS[u.entry.wset] || SETS.SNS, reach = u.range + u.r + 0.35; let hits = 0, crits = false;
+  const W = SETS[u.entry.wset] || SETS.SNS, reach = u.range + u.r + 0.35; let hits = 0, crits = false, plate = false;
   if (W.heavy) { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 1.1, 0.2, u.z + Math.cos(u.face) * 1.1, 14, { col: 0xb8a890, spd: 3, up: 1.4, life: 0.5, size: 0.3 }); }
   for (const h of hostilesOf(u)) { if (h.dead) continue; const d = Math.hypot(h.x - u.x, h.z - u.z); if (d > reach + h.r + (h === t ? 0.4 : 0)) continue;
     const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (h !== t && da > W.arc && d > 0.8) continue;
-    const crit = Math.random() < (u.crit ?? 0.1); damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; }
-  if (hits) { if (W.blunt) S.bonk(crits); else S.blade(!!W.heavy, crits); } // one blade sound per swing, however many it cuts
+    const crit = Math.random() < (u.crit ?? 0.1); damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; plate = plate || plated(h); }
+  if (hits) { if (W.blunt) S.bonk(crits, 1, plate); else S.blade(!!W.heavy, crits, plate); } // one blade sound per swing, however many it cuts
   if (W.smite && t && (u.smiteN = (u.smiteN || 0) + 1) % W.smite === 0) smite(u, t); // every third blow: the light comes down where it stood
 };
 // evasion: a number-less "dodge" and, when it is free to move, a quick dodge step (the Mixamo dodges, sped up)

@@ -33,11 +33,11 @@ PH.foeGuard = (src, dst, o) => {
   if (!src || dst.state === 'windup' || dst.state === 'fskill' || dst.stun > 0) return 1;
   const fx = o.fx ?? src.x, fz = o.fz ?? src.z; if (angDiff(Math.atan2(fx - dst.x, fz - dst.z), dst.face) > 1.15) return 1;
   if (src.blunt) { // 魂契's mace: the shield takes it, and is beaten aside — the whole blow through, the knight staggered
-    const a = dst.face, x = dst.x + Math.sin(a) * 0.45, z = dst.z + Math.cos(a) * 0.45; impact(x, 0.8, z, 0xffd27a, 0.9); S.clank();
+    const a = dst.face, x = dst.x + Math.sin(a) * 0.45, z = dst.z + Math.cos(a) * 0.45; impact(x, 0.8, z, 0xffd27a, 0.9); S.block(true);
     C.parts.emit(x, 0.8, z, 9, { col: 0xffe6a0, spd: 3.4, up: 1.6, grav: 8, life: 0.3, size: 0.12 }); dst.stun = Math.max(dst.stun || 0, 0.35);
     if (G.t - (dst.blockSay || -9) > 3) { dst.blockSay = G.t; say(dst.x, dst.z, tr('破盾', 'Shield broken'), '#ffd27a', 14, 2.0); } return 1; }
   o.knock = 0; const a = dst.face, x = dst.x + Math.sin(a) * 0.45, z = dst.z + Math.cos(a) * 0.45;
-  impact(x, 0.8, z, 0xfff0c0, 0.75); C.parts.emit(x, 0.8, z, 7, { col: 0xffe6a0, spd: 3, up: 1.5, grav: 8, life: 0.25, size: 0.1 }); S.clank();
+  impact(x, 0.8, z, 0xfff0c0, 0.75); C.parts.emit(x, 0.8, z, 7, { col: 0xffe6a0, spd: 3, up: 1.5, grav: 8, life: 0.25, size: 0.1 }); S.block(false);
   if (G.t - (dst.blockSay || -9) > 1.4) { dst.blockSay = G.t; say(dst.x, dst.z, tr('格挡', 'Block'), '#d8d0c0', 13, 2.0); }
   if (dst.state !== 'recover') { play(dst.mesh, 'Block_Hit', { once: true, restart: true, speed: 1.6, fade: 0.05 }); dst.animLock = 0.3; }
   return dst.T.guard;
@@ -107,7 +107,7 @@ PH.foeEnd = u => { if (u.mesh) u.mesh.model.visible = true; };
 PH.foeVanish = u => { const c = u.mesh.ghost || 0xb070ff; C.parts.emit(u.x, 0.9, u.z, 26, { col: c, spd: 1.3, up: 2.2, grav: -1.4, life: 0.9, size: 0.32 }); burst(u.x, 0.9, u.z, c, 1.4); };
 
 function smoke(u, t) {
-  u.smoked = true; puff(u.x, u.z); S.rush(0.3);
+  u.smoked = true; puff(u.x, u.z); S.shadow();
   // out again just behind its target (away from where the target looks), else on its far side, else where it can
   const R = t.r + u.r + 0.35; let to = null;
   for (const a of [t.face + Math.PI, Math.atan2(t.x - u.x, t.z - u.z), t.face + Math.PI * 0.6, t.face - Math.PI * 0.6]) { const x = t.x + Math.sin(a) * R, z = t.z + Math.cos(a) * R; if (C.floor.fits(x, z, u.r)) { to = { x, z }; break; } }

@@ -165,5 +165,6 @@ Dungeon Remastered, Halloween Bits and Forest Nature Pack. Licensed CC0 1.0; tha
 The wilds' bats and ghosts are from **Quaternius**' Ultimate Monsters pack (quaternius.com, CC0 1.0).
 The Soul Pact skeleton ("Boneforged Sentinel") and its weapons ("Runebound Armory") were generated with **Meshy** (meshy.ai), licensed
 CC BY 4.0. Its animations are from **Mixamo** (Adobe): Pro Sword and Shield Pack, Great Sword Pack, Zombie Stand Up, Dodging.
-Its blade sounds — a metal slice and the ring of the blade, no wooden knock — are mixed from **Kenney**'s Impact Sounds and RPG Audio (www.kenney.nl, CC0; tools/mix-blades.py); its swing swishes are from **artisticdude**'s
-Swishes Sound Pack (OpenGameArt, CC0).
+Its blade sounds — a metal slice and the ring of the blade, no wooden knock — are mixed from **Kenney**'s Impact Sounds and RPG Audio (www.kenney.nl, CC0; tools/mix-blades.py).
+Its swishes, armour hits, blocks, fire, slams, Judgement and Blessed Hammers, and the champions' poison and thunder, were generated with
+**Stable Audio 3 Medium** (Stability AI) in ComfyUI and picked by ear.

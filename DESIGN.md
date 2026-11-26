@@ -133,9 +133,16 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   the shield hangs point-down along the leg when the arm is lowered;
   the greatsword drags along the floor behind it (sparks), and no blade sinks into the ground. It cannot be shoved or knocked back by anyone.
 - Its swings leave a trail and sound like blades: the air swells while the blade gathers speed and a swish peaks at its fastest moment in
-  each clip (artisticdude's CC0 Swishes pack, stretched, pitched down for the greatsword), louder than the cut with a metal ring when a blow
-  lands (Kenney samples mixed in assets/sfx by tools/mix-blades.py, one per swing: a knife slice and a metal ring only — the wooden
-  "chop" of the first mix is gone).
+  each clip (3 light and 4 heavy swishes, picked at random so they don't repeat), louder than the cut when a blow lands (one per swing).
+  What a blow sounds like depends on what it hits: plate (squires, templars, headsmen, mechs, stone-skinned champions — `plated()` in
+  units.js) rings under a sword and clangs under the mace; on anything else the sword's cut is Kenney's slice-and-ring mix
+  (tools/mix-blades.py) and the mace a blunt thud. The greatsword has its own heavy hit on everything.
+- Sounds made with Stable Audio 3 Medium (ComfyUI, local) and picked by ear on a sound-test page (old vs new, level-matched):
+  swishes, hits, blocks (a blade caught: a sharp clang; a mace or a brute's blow: a dull one), the greatsword's fire (the blade catching,
+  its burning swing, the fire blast), the leap's landing, Judgement's burst, Blessed Hammers (the cast rings out over the 6 s, and each
+  time a hammer comes round it cuts the air), a champion's poison cloud and thunderclap, and the robber's smoke step (a shadow whoosh).
+  Every recorded sound falls back to its old synth while it loads. Still synth: whirlwind (kept by choice), the roar, the shield charge,
+  holy light, ice.
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier and one past it: they wake at 5 / 10 / 15 / 20 / 25 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).

@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { tr } from './i18n.js';
-import { C, say, damage, hostilesOf } from './units.js';
+import { C, say, damage, hostilesOf, plated } from './units.js';
 import { hwGeo, HOLY_C, HOLY_HOT, HOLY_AURA_R } from './assets.js';
 import { glowSprite, ring } from './gfx.js';
 import { runeCircle } from './vfx.js';
@@ -58,12 +58,13 @@ export function blessedHammers(u) {
     const grow = Math.min(1, t / 0.35), fade = Math.min(1, (H.dur - t) / 0.4), y0 = u.mesh ? u.mesh.root.position.y : 0; acc += dt * 26;
     for (const q of list) { const a = a0 + q.ph + H.w * t, r = (0.5 + (H.r0 + H.dr * Math.sin(t * 1.35 + q.ph * 1.7) - 0.5) * grow), x = u.x + Math.sin(a) * r, z = u.z + Math.cos(a) * r;
       q.g.position.set(x, y0 + 1.0 + 0.12 * Math.sin(t * 5 + q.ph), z); q.g.rotation.set(0, a, -t * 13); q.g.scale.setScalar(0.4 + 0.6 * Math.min(grow, fade));
+      const rev = Math.floor(a / TAU); if (q.rev !== undefined && rev !== q.rev) S.spin(Math.min(grow, fade)); q.rev = rev; // each time one comes round: the air it cuts
       for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - x, h.z - z) > H.hitR + h.r || (q.hit.get(h) || -9) > G.t - H.again) continue; q.hit.set(h, G.t);
-        damage(u, h, u.dmg * H.mult * (0.9 + Math.random() * 0.2), { knock: 1.3, fx: u.x, fz: u.z, quiet: true }); S.bonk(false, 0.55);
+        damage(u, h, u.dmg * H.mult * (0.9 + Math.random() * 0.2), { knock: 1.3, fx: u.x, fz: u.z, quiet: true }); S.bonk(false, 0.55, plated(h));
         C.parts.emit(h.x, 1.0, h.z, 7, { col: motes(), spd: 2.4, up: 1.2, grav: 5, life: 0.3, size: 0.14 }); burst(x, 1.0, z, HOLY_C, 0.7); } }
     while (acc >= 1) { acc--; const q = list[Math.floor(Math.random() * list.length)], p = q.g.position; // a trail of light behind each
       C.parts.emit(p.x, p.y, p.z, 1, { col: motes(), spd: 0.2, up: 0.2, grav: 0, life: 0.35, size: 0.22 * fade, spread: 0.12 }); } };
-  G.fx.push(fx); S.holy(0.7);
+  G.fx.push(fx); S.hammers();
 }
 
 // ---------- Judgement: light gathered (the roar's moment) — a burst of it ----------
@@ -77,7 +78,7 @@ export function holyBurst(u) {
 export const JUDGE = { r: [3.5, 5.2, 6.8], mult: [1, 0.6, 0.4], stun: [1.2, 0.6, 0.4], at: [0, 0.14, 0.28] };
 export function judgement(u, mv) {
   const x = u.x + Math.sin(u.face) * 1.3, z = u.z + Math.cos(u.face) * 1.3, o = { x, z };
-  pillar(x, z, 2.4, 0.9, 9); burst(x, 0.8, z, HOLY_HOT, 2.6); slamMark(x, z, 1.5, HOLY_C, 3); consecrate(x, z, JUDGE.r[0], 2.2, 0.6); shake(0.26, x, z); S.boom(); S.holy(1);
+  pillar(x, z, 2.4, 0.9, 9); burst(x, 0.8, z, HOLY_HOT, 2.6); slamMark(x, z, 1.5, HOLY_C, 3); consecrate(x, z, JUDGE.r[0], 2.2, 0.6); shake(0.26, x, z); S.burst(false); S.holy(0.5);
   C.parts.emit(x, 0.2, z, 24, { col: 0x4e443c, spd: 4, up: 3, grav: 11, life: 0.7, size: 0.28, spread: 0.6 });
   for (let i = 0; i < 40; i++) { const a = Math.random() * TAU, r = Math.random() * 2; C.parts.emit(x + Math.sin(a) * r, 0.2, z + Math.cos(a) * r, 1, { col: motes(), spd: 0.4, up: 3 + Math.random() * 3, grav: -0.8, life: 0.8, size: 0.24 }); }
   const hit = (h, k) => { damage(u, h, u.dmg * mv.mult * JUDGE.mult[k] * (0.95 + Math.random() * 0.1), { knock: 2.5, fx: x, fz: z, heavy: !k, crit: !k, critX: 1, quiet: true }); stunHit(h, JUDGE.stun[k]);
@@ -112,13 +113,13 @@ const _hb = new THREE.Vector3();
 export function hammerHit(u, t, mv) { // the thrown mace lands: a blow, a long stun, a flash of light on it
   if (!t.dead) { damage(u, t, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 1, heavy: true, quiet: true }); stunHit(t, mv.stun);
     if (!t.dead && !t.noStun) say(t.x, t.z, tr('眩晕', 'Stunned'), '#ffe08a', 15, 2.1); }
-  burst(t.x, 1.0, t.z, HOLY_HOT, 1.5); S.bonk(true); S.holy(0.5); shake(0.1, t.x, t.z); C.parts.emit(t.x, 1.0, t.z, 16, { col: motes(), spd: 2.8, up: 1.6, grav: 4, life: 0.45, size: 0.16 });
+  burst(t.x, 1.0, t.z, HOLY_HOT, 1.5); S.bonk(true, 1, plated(t)); S.holy(0.5); shake(0.1, t.x, t.z); C.parts.emit(t.x, 1.0, t.z, 16, { col: motes(), spd: 2.8, up: 1.6, grav: 4, life: 0.45, size: 0.16 });
 }
 export function leapBurst(u, mv) { // down with the mace raised: a burst of light where it lands, everything close thrown back
   const x = u.x + Math.sin(u.face) * 0.5, z = u.z + Math.cos(u.face) * 0.5; let n = 0;
   for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - x, h.z - z) > mv.aoe + h.r) continue;
     damage(u, h, u.dmg * mv.bmult * (0.9 + Math.random() * 0.2), { knock: 3.2, fx: x, fz: z, melee: true, heavy: true, quiet: true }); stunHit(h, mv.bstun); n++; }
-  if (n) S.bonk(true); S.boom(); S.holy(0.8); shake(0.22, x, z); u.hitStop = 0.1;
+  if (n) S.bonk(true); S.slam(); S.holy(0.6); shake(0.22, x, z); u.hitStop = 0.1;
   pillar(x, z, 1.2, 0.5, 6); burst(x, 0.6, z, HOLY_HOT, 2.2); slamMark(x, z, 1.3, HOLY_C, 2.4); consecrate(x, z, mv.aoe, 1.2, 0.5);
   wave(x, z, HOLY_HOT, mv.aoe + 0.3, 0.4, 0.45, 0.95); G.fx.push({ clean: true, t: 0.08, fn: () => wave(x, z, HOLY_C, mv.aoe + 1.6, 0.5, 0.35, 0.7) });
   C.parts.emit(x, 0.2, z, 20, { col: 0x4e443c, spd: 4, up: 3, grav: 11, life: 0.7, size: 0.28, spread: 0.5 });

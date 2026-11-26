@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { tr } from './i18n.js';
-import { C, PH, say, damage, hostilesOf } from './units.js';
+import { C, PH, say, damage, hostilesOf, plated } from './units.js';
 import { A, play, heroPart, HOLY_C } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { burst, shake, trail, slamMark } from './fx.js';
@@ -69,7 +69,7 @@ const faceAt = (u, t, snap) => { if (!t) return; u.faceT = Math.atan2(t.x - u.x,
 const clipDur = n => (A.heroClips[n] ? A.heroClips[n].duration : 1);
 const styleOf = u => { const w = u.entry && u.entry.wset; return w === 'GS' || w === 'PAL' ? w : 'SNS'; };
 const colOf = u => (u.mesh.holy ? HOLY_C : u.mesh.blade ? u.mesh.blade.col : 0xbfe6ff); // (the paladin's skills: always the gold of its light)
-const hitSound = (u, cr) => { const st = styleOf(u); if (st === 'PAL') S.bonk(cr); else S.blade(st === 'GS', cr); };
+const hitSound = (u, cr, pl) => { const st = styleOf(u); if (st === 'PAL') S.bonk(cr, 1, pl); else S.blade(st === 'GS', cr, pl); };
 const stunHit = (h, t) => { if (h.dead || h.noStun) return; h.stun = Math.max(h.stun || 0, t); if (h.state === 'windup' || h.state === 'cast') h.state = 'idle'; };
 function shock(x, z, col, r, t = 0.5, w = 0.5) { const rg = ring(0.2, w, col, 0.9); rg.position.set(x, 0.05, z); C.scene.add(rg);
   G.fx.push({ clean: true, t, tick: k => { rg.scale.setScalar(1 + k * r * 2); rg.material.opacity = 0.9 * (1 - k); }, fn: () => C.scene.remove(rg) }); }
@@ -172,22 +172,22 @@ PH.skillTick = (u, dt) => {
   } else if (sk.id === 'sunder') {
     if (mv.roarAt && !sk.roared && sk.t >= mv.roarAt) { sk.roared = true; if (mv.holy) { holyBurst(u); S.holy(0.8); } else { roarBurst(u); S.roar(); } // the burst throws back whatever stands close
       for (const h of hostilesOf(u)) { const d = dist(h, u); if (h.dead || d > 3.6 + h.r) continue; const l = d || 1; h.kx += (h.x - u.x) / l * 3; h.kz += (h.z - u.z) / l * 3; stunHit(h, 0.45); } }
-    if (!sk.fire && sk.t >= mv.ignite) { sk.fire = bladeFire(u, mv.holy ? HOLY_FIRE : undefined); if (!mv.holy) S.fire(); if (u.mesh.blade) u.mesh.blade.col = mv.holy ? 0xfff0b0 : 0xff6a1a; }
+    if (!sk.fire && sk.t >= mv.ignite) { sk.fire = bladeFire(u, mv.holy ? HOLY_FIRE : undefined); if (!mv.holy) S.ignite(); if (u.mesh.blade) u.mesh.blade.col = mv.holy ? 0xfff0b0 : 0xff6a1a; }
     if (sk.fire && !sk.strike) { const r = Math.min(1, Math.max(0, (sk.t - mv.ignite) / (mv.full - mv.ignite))); sk.fire.reach = 0.08 + 0.92 * r; sk.fire.power = 0.6 + 0.6 * r;
       if (r >= 1 && !sk.flared) { sk.flared = true; const e = u.mesh.weap.r.userData.edge; if (e) { const P = e[1].getWorldPosition(new THREE.Vector3()); burst(P.x, P.y, P.z, mv.holy ? 0xfff0b0 : 0xffb050, 1.4); } } }
     if (!sk.strike) { if (t) faceAt(u, t);
       if (sk.t >= mv.preT) { sk.strike = true; sk.st0 = sk.t; const L = clipDur(mv.clip), sp = Math.max(0.6, Math.min(2.5, L * (mv.hit - mv.at) / 0.42)); sk.tHit = L * (mv.hit - mv.at) / sp; sk.len = L * (1 - mv.at) / sp;
-        play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06, at: mv.at }); trail(u, sk.len); S.swoosh(sk.st === 'GS', sk.tHit - 0.02); if (sk.fire) { sk.fire.reach = 1; sk.fire.power = 1.4; } } }
+        play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06, at: mv.at }); trail(u, sk.len); S.swoosh(sk.st === 'GS', sk.tHit - 0.02); if (sk.fire) { sk.fire.reach = 1; sk.fire.power = 1.4; if (!mv.holy) S.fireSwing(sk.tHit - 0.02); } } }
     else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; if (mv.holy) judgement(u, mv); else sunderHit(u, mv); } if (sk.fire && s >= sk.tHit + 0.3) sk.fire.power = Math.max(0, sk.fire.power - dt * 3);
       if (s >= Math.min(sk.len * 0.8, sk.tHit + 0.6)) end(u); }
   }
 };
 
 // ---------- the blows ----------
-function arcHit(u, reach, half, mult, o = {}) { let n = 0, cr = false;
+function arcHit(u, reach, half, mult, o = {}) { let n = 0, cr = false, pl = false;
   for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > reach + h.r || !inArc(u, h, half)) continue; const crit = Math.random() < 0.15; cr = cr || crit;
-    damage(u, h, u.dmg * mult * (0.9 + Math.random() * 0.2), { knock: o.knock || 0, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); if (o.stun) stunHit(h, o.stun); n++; }
-  if (n) hitSound(u, cr); return n; }
+    damage(u, h, u.dmg * mult * (0.9 + Math.random() * 0.2), { knock: o.knock || 0, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); if (o.stun) stunHit(h, o.stun); n++; pl = pl || plated(h); }
+  if (n) hitSound(u, cr, pl); return n; }
 // the shield fan's blend, set by hand: the guard pose gives way to the shield-high pose on an ease-out curve
 function fanW(sk, k) { if (!sk.upTo) return; k = Math.min(1, Math.max(0, k)); const w = 1 - (1 - k) ** 3;
   sk.upTo.setEffectiveWeight(w); if (sk.upFrom) sk.upFrom.setEffectiveWeight(1 - w); if (k >= 1) { if (sk.upFrom) sk.upFrom.stop(); sk.upTo = sk.upFrom = null; } }
@@ -204,16 +204,16 @@ function leapLand(u, mv) { // the greatsword comes down: the ground splits, ever
   const x = u.x + Math.sin(u.face) * 0.6, z = u.z + Math.cos(u.face) * 0.6, col = colOf(u); let n = 0;
   for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - x, h.z - z) > mv.aoe + h.r) continue;
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 3.2, fx: x, fz: z, melee: true, heavy: true, quiet: true }); stunHit(h, mv.stun); n++; }
-  if (n) S.blade(true, false); S.smash(); S.boom(); shake(0.22, x, z); u.hitStop = 0.1;
+  if (n) S.blade(true, false); S.slam(); shake(0.22, x, z); u.hitStop = 0.1;
   slamMark(x, z, 1.6, col, 3); burst(x, 0.4, z, col, 2.4); shock(x, z, col, mv.aoe, 0.45); shock(x, z, 0xc8bca8, mv.aoe * 1.5, 0.7, 0.3);
   C.parts.emit(x, 0.2, z, 24, { col: 0x4e443c, spd: 4.5, up: 3.2, grav: 11, life: 0.75, size: 0.3, spread: 0.6 }); // chunks of floor
   C.parts.emit(x, 0.15, z, 22, { col: 0xc8bca8, spd: 3.4, up: 0.9, grav: 1, life: 0.8, size: 0.5, spread: 0.8 }); // dust
   C.parts.emit(x, 0.3, z, 16, { col, spd: 3, up: 2, grav: 3, life: 0.5, size: 0.2 });
 }
 function whirlHit(u, mv) {
-  let n = 0, cr = false; for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > 2.7 + h.r) continue; const crit = Math.random() < 0.12; cr = cr || crit;
+  let n = 0, cr = false, pl = false; for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > 2.7 + h.r) continue; const crit = Math.random() < 0.12; cr = cr || crit; pl = pl || plated(h);
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 2, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); n++; }
-  if (n) hitSound(u, cr); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
+  if (n) hitSound(u, cr, pl); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
   // sword qi flung out all round: it cuts what it meets out to ~5.5 m, as it gets there
   const x = u.x, z = u.z, reach = QI.r0 + QI.speed * QI.life; qiWaves(x, z, colOf(u), 8, (u.sk ? u.sk.hits : 0) * 0.39 + Math.random() * 0.3);
   for (const h of hostilesOf(u)) { const d = Math.hypot(h.x - x, h.z - z); if (h.dead || d <= 2.7 + h.r || d > reach + h.r) continue;
@@ -224,7 +224,7 @@ function sunderHit(u, mv) {
   const fx = Math.sin(u.face), fz = Math.cos(u.face), x = u.x, z = u.z;
   const hit = h => { damage(u, h, u.dmg * mv.mult * (0.95 + Math.random() * 0.1), { knock: 3.5, fx: x, fz: z, melee: true, heavy: true, crit: true, critX: 1, quiet: true });
     if (!h.dead && !h.champ && h.hp < h.maxHp * 0.25) { say(h.x, h.z, tr('斩杀', 'Cut down'), '#ff6a4a', 17, 2); damage(u, h, h.hp + 1, { quiet: true, noFx: true }); } };
-  S.blade(true, true); S.boom(); S.fire();
+  S.blade(true, true); S.burst(true);
   if (mv.sweep) { // the greatsword: the fire rolls out all round (sweep = the arc it covers: a full circle) and catches each one as it gets there
     for (const h of hostilesOf(u)) { const d = dist(h, u); if (h.dead || d > CONE.range + h.r || !inArc(u, h, mv.sweep / 2 + 0.1)) continue;
       if (d < u.range + u.r + 1) hit(h); else G.fx.push({ t: Math.max(0.01, (d - 1) / 9), fn: () => { if (!h.dead) hit(h); } }); }
@@ -263,7 +263,7 @@ PH.guard = (src, u, o) => {
   const e = mv.fan && u.mesh.weap && u.mesh.weap.r && u.mesh.weap.r.userData.edge, P = new THREE.Vector3();
   if (e) e[0].getWorldPosition(P); else P.set(u.x + Math.sin(ang) * 0.55, 1.1, u.z + Math.cos(ang) * 0.55); // the spark on the side it came from
   C.parts.emit(P.x, P.y, P.z, 10, { col: 0xffe6b0, spd: 3, up: 1.4, grav: 8, life: 0.25, size: 0.1 }); burst(P.x, P.y, P.z, 0xfff0c0, 0.8);
-  say(u.x, u.z, mv.word, '#ffe6b0', 15, 2.1); S.clank(); if (mv.fan) S.blade(true, false);
+  say(u.x, u.z, mv.word, '#ffe6b0', 15, 2.1); S.block(!!src && (!!src.boss || (src.T && src.T.cls === 'brute')));
   if (!(u.ctrCD > G.t)) { u.ctrQ = { src, shot: !!o.shot, t: G.t }; u.ctrCD = G.t + 1.6; } // one counter at a time
   return o.shot && mv.missiles ? 0 : mv.keep;
 };

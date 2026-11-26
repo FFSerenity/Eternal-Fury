@@ -94,6 +94,8 @@ export const hostilesOf = u => u.side === 'enemy' ? G.friends : G.enemies;
 export function say(x, z, text, col = '#fff', size = 15, y = 1.7, num = 0) { G.msgs.push({ x, y, z, text, col, size, t: 0, max: num ? 0.9 : 1.0, num, dx: num ? (Math.random() - 0.5) * 2 : 0 }); }
 
 // ---------- damage / death ----------
+// in plate (a knight, a mech, a stone-skinned champion): blades ring on it, maces clang
+export const plated = h => !!(h && ((h.T && h.T.plate) || h.mech || (h.mods && h.mods.includes('stone'))));
 export function damage(src, dst, amt, o = {}) {
   if (!dst || dst.dead) return 0;
   if (dst.evade && !o.dot && Math.random() < dst.evade && PH.evade) { PH.evade(src, dst); return 0; } // 魂契 skeleton: evasion
@@ -224,12 +226,12 @@ function frostNova(u) {
   const lv = mlv(u, 'cold'); for (const h of hostilesOf(u)) if (!h.dead && dist(h, u) < 3.2 + 0.4 * (lv - 1)) { damage(u, h, u.dmg * 0.9 * (1 + 0.4 * (lv - 1)), { noFx: true }); h.chillT = Math.max(h.chillT || 0, 3.5 + lv - 1); }
 }
 function poisonCloud(u) {
-  S.fire(); const disc = new THREE.Mesh(new THREE.CircleGeometry(2.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3fbf2a, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  S.poison(); const disc = new THREE.Mesh(new THREE.CircleGeometry(2.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3fbf2a, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending }));
   disc.position.set(u.x, 0.04, u.z); disc.renderOrder = 2; C.scene.add(disc);
   const lv = mlv(u, 'poison'); G.clouds.push({ x: u.x, z: u.z, r: 2.3, t: 0, max: 4.5 + (lv - 1), tick: 0, dps: u.dmg * 0.55 * (1 + 0.4 * (lv - 1)), side: u.side, src: u, disc });
 }
 function thunder(u) {
-  S.zap(); S.boom(); C.parts.emit(u.x, 1.0, u.z, 30, { col: 0xfffbd0, spd: 5, up: 2, grav: 0, life: 0.3, size: 0.22 }); shock(u, 0xfff07a, 2.5);
+  S.thunder(); C.parts.emit(u.x, 1.0, u.z, 30, { col: 0xfffbd0, spd: 5, up: 2, grav: 0, life: 0.3, size: 0.22 }); shock(u, 0xfff07a, 2.5);
   const lv = mlv(u, 'lightning'), list = hostilesOf(u).filter(h => !h.dead && dist(h, u) < 4.8).sort((a, b) => dist(a, u) - dist(b, u)).slice(0, 3 + lv);
   for (const h of list) { bolt(u, h, 0.3); damage(u, h, u.dmg * 1.1 * (1 + 0.3 * (lv - 1)), { noChain: true, noFx: true }); C.parts.emit(h.x, 0.8, h.z, 8, ELEM.lightning.hit); }
 }
