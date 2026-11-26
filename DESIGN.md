@@ -145,6 +145,9 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   the sword's sunder opens with a skeleton's war cry and a burst of fire, the paladin's with its own roar and a swell of holy light (the
   same light sounds when the Aura of Light comes on at 25 Fury); the greatsword's blade gathers its fire (a charge, then a flame held as
   a loop while it burns: loops are .wav, since mp3 pads its ends with silence).
+  The light swings are the three new swishes plus one of the old ones (artisticdude's), so they repeat less.
+  Enemies' melee blows swish too, with the same swings: a small one's (cls imp) quiet and pitched a little up, a big one's (brute, boss)
+  at full weight and pitched down; they fade out past ~16 m from the summoner. Bats bite without a swish; summons stay quiet.
   Every recorded sound falls back to its old synth while it loads. Still synth: whirlwind (kept by choice), monsters' roars, ice.
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.

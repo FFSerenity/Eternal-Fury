@@ -9,10 +9,10 @@ export function unlock() {
   decodeAll();
 }
 // recorded sounds (assets/sfx): fetched when asked for, decoded once the audio context exists. The blade bites (blade_*) are Kenney's (CC0);
-// the rest were made with Stable Audio 3 Medium in ComfyUI and picked by ear (tools: the sound-test page). PK: where each is loudest (s), to line it up
+// swing_l3 is artisticdude's (Swishes, CC0: kept beside the new ones so the light swings repeat less); the rest were made with Stable Audio 3 Medium in ComfyUI and picked by ear. PK: where each is loudest (s), to line it up
 const RAW = {}, BUF = {};
-const PK = { swing_l0: 0.055, swing_l1: 0.055, swing_l2: 0.035, swing_h0: 0.045, swing_h1: 0.045, swing_h2: 0.065, swing_h3: 0.065, fire_sw0: 0.245, fire_sw1: 0.325, charge: 0.355 };
-export const SAMPLES = ['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_h0', 'swing_h1', 'swing_h2', 'swing_h3',
+const PK = { swing_l0: 0.055, swing_l1: 0.055, swing_l2: 0.035, swing_l3: 0.024, swing_h0: 0.045, swing_h1: 0.045, swing_h2: 0.065, swing_h3: 0.065, fire_sw0: 0.245, fire_sw1: 0.325, charge: 0.355 };
+export const SAMPLES = ['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2', 'swing_h3',
   'clang0', 'clang1', 'heavy0', 'heavy1', 'mace_m0', 'mace_m1', 'mace_f0', 'block_b', 'block_h', 'fire_sw0', 'fire_sw1', 'fireburst', 'fcharge', 'fireloop.wav', 'slam0', 'burst_f', 'burst_e',
   'hammers', 'poison0', 'poison1', 'thunder0', 'shadow0', 'shadow1', 'charge', 'warcry', 'warcry_pal', 'holy'];
 const any = (pre, n) => pre + Math.floor(Math.random() * n);
@@ -43,9 +43,10 @@ export const S = {
   // the 魂契 skeleton's blade: a whoosh as it swings (t: seconds from now), a slash with a metal ring when it bites
   // tPeak: seconds from now to the blade's fastest moment, where the swish (artisticdude's CC0 Swishes pack, stretched; the greatsword's pitched
   // down) is loudest; lead: how long the blade gathers speed before it — the air swells over that, so long swings get a long sound
-  swoosh(heavy, tPeak = 0.05, lead = heavy ? 0.24 : 0.14) { if (!ok()) return; const n = heavy ? any('swing_h', 4) : any('swing_l', 3), r = 0.96 + Math.random() * 0.08;
-    const pre = Math.min(Math.max(0, tPeak), lead); if (pre > 0.05) sweep(heavy ? 170 : 340, heavy ? 950 : 1800, 0.9, pre + 0.06, heavy ? 0.17 : 0.13, tPeak - pre);
-    if (!sample(n, heavy ? 1 : 0.95, r, Math.max(0, tPeak - (PK[n] ?? 0.03) / r))) { if (heavy) sweep(260, 1300, 1.1, 0.34, 0.2, Math.max(0, tPeak - 0.2)); else sweep(520, 2500, 1.3, 0.24, 0.16, Math.max(0, tPeak - 0.14)); } },
+  // (v, rate: a monster's swing — a small one's quieter and a little higher, a big one's lower)
+  swoosh(heavy, tPeak = 0.05, lead = heavy ? 0.24 : 0.14, v = 1, rate = 1) { if (!ok() || v < 0.05) return; const n = heavy ? any('swing_h', 4) : any('swing_l', 4), r = rate * (0.96 + Math.random() * 0.08);
+    const pre = Math.min(Math.max(0, tPeak), lead); if (pre > 0.05) sweep(heavy ? 170 : 340, heavy ? 950 : 1800, 0.9, pre + 0.06, (heavy ? 0.17 : 0.13) * v, tPeak - pre);
+    if (!sample(n, (heavy ? 1 : 0.95) * v, r, Math.max(0, tPeak - (PK[n] ?? 0.03) / r))) { if (heavy) sweep(260, 1300, 1.1, 0.34, 0.2 * v, Math.max(0, tPeak - 0.2)); else sweep(520, 2500, 1.3, 0.24, 0.16 * v, Math.max(0, tPeak - 0.14)); } },
   // the shield charge: a long rush of air that swells as it closes, ending in a heavy swish
   rush(dur = 0.5) { if (!ok()) return; if (sample('charge', 0.95, 1, Math.max(0, dur - 0.1 - PK.charge))) return; sweep(110, 520, 0.7, dur + 0.25, 0.34); sweep(500, 1900, 1.0, dur + 0.15, 0.2, 0.05); tone('sawtooth', 70, 48, dur + 0.2, 0.07);
     sample(any('swing_h', 4), 1, 0.78, Math.max(0, dur - 0.1)); },

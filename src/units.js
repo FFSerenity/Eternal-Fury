@@ -954,6 +954,9 @@ export function attackAnim(u, wind) {
     S.swoosh(m.wset === 'GS' || !!m.holy, (SWING_AT[name] ?? HIT_AT[name] ?? 0.42) * len / sp, (SWING_LEAD[name] ?? 0.2) * len / sp); return; }
   const list = u.mech ? ['1H_Melee_Attack_Stab'] : AN(u).atk, name = list[Math.floor(Math.random() * list.length)], len = clipLen(name, u.mesh), sp = Math.max(0.7, Math.min(3.2, len * (HIT_AT[name] ?? 0.4) / Math.max(0.05, wind)));
   play(u.mesh, name, { once: true, restart: true, speed: sp, fade: 0.08 }); u.animLock = len / sp * 0.85;
+  // an enemy's melee blow swishes too: the hero's swings, a small one's quiet and a little higher, a big one's at full weight; fading out past ~16 m from the summoner
+  if (u.side === 'enemy' && MELEE(u.kind) && !u.mech && u.foe !== 'bat' && G.player) { const big = u.kind === 'brute' || !!u.boss, near = Math.min(1, Math.max(0, 1.25 - Math.hypot(u.x - G.player.x, u.z - G.player.z) / 16));
+    if (near > 0.08) S.swoosh(big, Math.max(0, wind - 0.02), Math.min(0.2, wind), (big ? 0.85 : 0.4) * near, big ? 0.86 + Math.random() * 0.1 : 1.06 + Math.random() * 0.14); }
 }
 export function playerAnim(u, kind) {
   if (kind === 'shoot') { play(u.mesh, 'Spellcast_Shoot', { once: true, restart: true, speed: 2.1, fade: 0.06 }); u.animLock = 0.4; }
