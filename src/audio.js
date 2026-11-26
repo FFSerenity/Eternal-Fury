@@ -75,7 +75,7 @@ export const S = {
   // Raise: the spell's hum as it is cast (once), then for each corpse a short burst of its soul torn out — quiet and pitched apart, so a
   // dozen in a row stay a quick flurry — and the soul flying off
   raiseCast() { if (!ok()) return; if (!sample('rz_hum', 1, 0.95 + Math.random() * 0.1)) this.raise(); },
-  harvest(v = 1) { if (!ok() || !gate('hv', 50)) return; if (!sample('rz_rip', 0.3 * v, 0.88 + Math.random() * 0.28, Math.random() * 0.04)) this.caught(); this.soulFly(0.35 * v, 0.08); },
+  harvest(v = 1) { if (!ok() || !gate('hv', 50)) return; if (!sample('rz_rip', 0.6 * v, 0.88 + Math.random() * 0.28, Math.random() * 0.04)) this.caught(); },
   soulFly(v = 0.5, t = 0) { if (!ok() || !gate('sf', 120)) return; sample('soul_fly', v, 0.9 + Math.random() * 0.25, t); },
   // a soul landing in the vessel: one of the little drops, each one of a run a step higher than the last
   plink() { if (!ok() || !gate('gp', 45)) return; const now = ac.currentTime; plinkN = now - plinkT < 0.45 ? Math.min(plinkN + 1, 10) : 0; plinkT = now;

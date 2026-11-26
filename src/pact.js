@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { G, save, PACT } from './state.js';
 import { tr } from './i18n.js';
-import { C, PH, say, damage, hostilesOf, removeCorpse, soulOrb, spawnAlly, plated } from './units.js';
+import { C, PH, say, damage, hostilesOf, removeCorpse, soulOrb, spawnAlly, plated, soulRise } from './units.js';
 import { A, play, PLUME_AT } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
@@ -194,11 +194,12 @@ export function pactPlayer(P, dt, IN) {
 export const summonK = () => { const P = G.player; return P && P.state === 'summon' ? Math.min(1, P.st / SUMMON.cast) : 0; };
 // a new floor: the skeleton comes along if it was out (with its stacks)
 export function pactFloor(P) { if (fx) { fx.cancel(); fx = null; } if (P8.alive) spawnHero(P.x + Math.sin(P.face) * 1.4, P.z + Math.cos(P.face) * 1.4, true); }
-// 唤魂 in this mode: the corpse breaks into souls that fly across the screen into the soul vessel as 魂能
+// 唤魂 in this mode: the corpse's soul stands up out of it, pale and glowing (as in the crypt), then breaks into souls that fly across the
+// screen into the soul vessel as 魂能 (a bat's goes straight in)
 export function harvest(c) {
-  if (!G.corpses.includes(c)) return; const v = soulOf(c); removeCorpse(c);
-  C.parts.emit(c.x, 0.5, c.z, 22, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1.2 }); S.harvest();
-  say(c.x, c.z, tr(`+${v} 魂能`, `+${v} soul`), '#8ff7ea', 14, 2.0); soulToJar(c.x, 0.9, c.z, v);
+  if (!G.corpses.includes(c)) return; const v = soulOf(c), x = c.x, z = c.z, go = () => soulToJar(x, 0.9, z, v);
+  C.parts.emit(x, 0.5, z, 22, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1.2 }); S.harvest();
+  say(x, z, tr(`+${v} 魂能`, `+${v} soul`), '#8ff7ea', 14, 2.0); if (!soulRise(c, go, 2)) go(); removeCorpse(c);
 }
 // per frame: the skeleton heals up between fights
 export function pactTick(dt) {

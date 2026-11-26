@@ -284,13 +284,17 @@ export function finishRaise(c) {
     C.say((c.foe ? tr(`${FOES[c.foe].name}的尸骨站了起来——`, `The ${FOES[c.foe].name}'s bones stand up — `) : '') + tr(`收服了 ${affixName(c.mods, c.champ) + TYPES[c.kind].name}！`, `Captured ${affixName(c.mods, c.champ) + TYPES[c.kind].name}!`) + (room ? '' : tr('（灵魂收入墓典）', ' (soul stored in the Crypt)'))); save();
   } else { S.fail(); C.parts.emit(c.x, 0.3, c.z, 24, { col: 0x8a8090, spd: 1.2, up: 1.2, life: 0.9, size: 0.3 }); say(c.x, c.z, tr('唤魂失败', 'Raise failed'), '#b9a8c8', 16); }
 }
-// party full: the captured monster still stands up, then turns into a soul that flies into the summoner
-function soulToSummoner(c) {
-  const m = makeUnitMesh(c.kind, { scale: c.champ ? 1.1 : 1, emis: 0x0a2a2a, rim: 0x2fbfb2, soul: true });
+// a corpse's soul standing up out of it — the monster as it was, pale and glowing — then going off as souls: by default into the summoner
+// (the crypt, party full); done: what happens instead (魂契: into the vessel). Not for the flyers (bats: another rig) — returns false
+export function soulRise(c, done = null, sp = 1.6) {
+  if (c.foe && FOES[c.foe] && FOES[c.foe].fly) return false;
+  const m = makeUnitMesh(c.kind, { foe: c.foe, scale: c.champ ? 1.1 : 1, emis: 0x0a2a2a, rim: 0x2fbfb2, soul: true });
   m.root.position.set(c.rx ?? c.x, 0, c.rz ?? c.z); m.root.rotation.y = c.mesh.root.rotation.y; C.scene.add(m.root);
-  const name = 'Death_C_Skeletons_Resurrect', sp = 1.6; play(m, name, { once: true, restart: true, speed: sp, fade: 0 }); m.mixer.update(0);
-  G.ghosts.push({ m, t: 0, rise: clipLen(name) / sp * 0.9, x: c.x, z: c.z, orb: null });
+  const name = 'Death_C_Skeletons_Resurrect'; play(m, name, { once: true, restart: true, speed: sp, fade: 0 }); m.mixer.update(0);
+  G.ghosts.push({ m, t: 0, rise: clipLen(name, m) / sp * 0.9, x: c.x, z: c.z, orb: null, done }); return true;
 }
+// party full: the captured monster still stands up, then turns into a soul that flies into the summoner
+function soulToSummoner(c) { soulRise(c); }
 export function soulOrb(x, y, z, to, onHit, col = 0x6ff7e8) {
   const orb = new THREE.Group(); orb.add(glowSprite(col, 1.1, 0.95), glowSprite(0xffffff, 0.4, 0.9)); orb.position.set(x, y, z); C.scene.add(orb);
   G.ghosts.push({ orb, t: 0, fly: 0.65, x0: x, y0: y, z0: z, to, onHit, col });
@@ -301,7 +305,7 @@ export function updateGhosts(dt) {
     if (g.m) { const m = g.m; m.mixer.update(dt);
       if (g.t > g.rise) { const k = Math.min(1, (g.t - g.rise) / 0.45); m.u.uFade.value = 1 - k; m.u.uEmis.value.setRGB(0.04 + 0.5 * k, 0.16 + 0.75 * k, 0.16 + 0.7 * k); m.root.position.y = k * 0.5;
         if (!g.sent) { g.sent = true; S.soulFly(0.6); C.parts.emit(g.x, 0.7, g.z, 22, { col: 0x6ff7e8, spd: 1.2, up: 2.5, life: 0.7, size: 0.28, grav: -1.5 });
-          soulOrb(g.x, 1.0, g.z, () => G.player, () => { const P = G.player; S.absorb(); P.flash = 0.5;
+          if (g.done) g.done(); else soulOrb(g.x, 1.0, g.z, () => G.player, () => { const P = G.player; S.absorb(); P.flash = 0.5;
             C.parts.emit(P.x, 0.9, P.z, 30, { col: 0x6ff7e8, spd: 2.2, up: 1.5, life: 0.6, size: 0.25, grav: 0 });
             const rg = ring(0.25, 0.45, 0x6ff7e8, 0.9); rg.position.set(P.x, 0.05, P.z); C.scene.add(rg); G.fx.push({ clean: true, t: 0.45, tick: q => { rg.scale.setScalar(1 + q * 3); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) }); }); }
         if (k >= 1) { C.scene.remove(m.root); continue; } } }
