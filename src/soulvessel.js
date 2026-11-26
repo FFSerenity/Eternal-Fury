@@ -79,7 +79,8 @@ export function jarTick(dt) {
     if (!u || u.spawnT > 0 || !P || P.dead) { if (!u && G.t - J.said > 1.5) { J.said = G.t; message(tr('先召唤骸骨卫士（E），才能把魂能灌给它', 'Summon the Bone Sentinel first (E) to pour soul into it')); } if (!u) IN.infuse = false; }
     else if (G.soul <= 0) { if (G.t - J.said > 1.5) { J.said = G.t; message(tr('魂瓶空了：对尸体唤魂（Q）收集魂能', 'The vessel is empty: harvest corpses (Q) for soul')); } IN.infuse = false; } }
   const pour = !!(IN.infuse && u && u.spawnT <= 0 && G.soul > 0 && P && !P.dead);
-  if (pour !== J.pour) { J.pour = pour; J.el.classList.toggle('pour', pour); if (!pour) save(); }
+  if (pour !== J.pour) { J.pour = pour; J.el.classList.toggle('pour', pour); if (!pour) save();
+    if (pour) { if (!J.stream) J.stream = S.pour(); } else if (J.stream) { J.stream.stop(0.35); J.stream = null; } } // the stream of souls, heard while it pours
   if (pour) { infuseTick(u, dt); J.outAcc += dt * 16; while (J.outAcc >= 1) { J.outAcc--; J.motes.push({ k: 'out', t: 0, dur: rand(0.42, 0.58), bend: rand(-1, 1), tr: [] }); } }
   J.boost = pour ? Math.min(1, J.boost + dt / 1.6) : Math.max(0, J.boost - dt / 0.9); if (u) u.soulBoost = J.boost; // it glows brighter the longer it drinks
   // souls in flight
@@ -89,8 +90,8 @@ export function jarTick(dt) {
     const e = m.k === 'in' ? Math.pow(Math.min(1, m.t), 1.7) : 1 - Math.pow(1 - Math.min(1, m.t), 2), d = Math.hypot(x1 - x0, y1 - y0) || 1;
     const cx = (x0 + x1) / 2 - (y1 - y0) / d * m.bend * d * 0.3, cy = (y0 + y1) / 2 + (x1 - x0) / d * m.bend * d * 0.3 - d * 0.22; // an arc, bowed up and to one side
     const q = 1 - e; m.x = q * q * x0 + 2 * q * e * cx + e * e * x1; m.y = q * q * y0 + 2 * q * e * cy + e * e * y1; m.tr.push(m.x, m.y); if (m.tr.length > 16) m.tr.splice(0, 2);
-    if (m.t >= 1) { if (m.k === 'in') { J.inflight = Math.max(0, J.inflight - m.v); S.gulp(); if (J.orb.animate) J.orb.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }], { duration: 220 }); }
-      else if (u) { S.infuse(); C.parts.emit(u.x, 1.25, u.z, 3, { col: Math.random() < 0.3 ? 0xffffff : 0x8ff7ea, spd: 1.5, up: 1, grav: 0, life: 0.4, size: 0.2, spread: 0.15 }); }
+    if (m.t >= 1) { if (m.k === 'in') { J.inflight = Math.max(0, J.inflight - m.v); S.plink(); if (J.orb.animate) J.orb.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }], { duration: 220 }); }
+      else if (u) { S.absorb(); C.parts.emit(u.x, 1.25, u.z, 3, { col: Math.random() < 0.3 ? 0xffffff : 0x8ff7ea, spd: 1.5, up: 1, grav: 0, life: 0.4, size: 0.2, spread: 0.15 }); }
       continue; }
     J.motes[j++] = m; }
   J.motes.length = j;

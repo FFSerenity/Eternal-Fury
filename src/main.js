@@ -169,7 +169,7 @@ function updatePlayer(dt) {
       else { const n = Math.min(list.length, 1 + Math.floor((P.mp - SKILLS.raise.mana) / SKILLS.raise.extra)); if (n < list.length) message(tr(`法力只够唤 ${n} 具`, `Mana for only ${n}`)); list = list.slice(0, n);
         P.mp -= SKILLS.raise.mana + SKILLS.raise.extra * (n - 1); P.state = 'channel'; P.st = 0; P.chanList = list; for (const c of list) c.claim = P;
         const cx = list.reduce((a, c) => a + c.x, 0) / n, cz = list.reduce((a, c) => a + c.z, 0) / n; P.faceT = Math.atan2(cx - P.x, cz - P.z);
-        P.chanFx = new SoulChannel(scene, P, list, R); S.raise(); return; } } }
+        P.chanFx = new SoulChannel(scene, P, list, R); S.harvest(); return; } } }
   // 愈合
   if (IN.mend) { IN.mend = false; if (P.mendCD > 0) message(tr('愈合冷却中', 'Mend is cooling down')); else if (P.mp < SKILLS.mend.mana) message(tr('法力不足', 'Not enough mana')); else { P.mp -= SKILLS.mend.mana; P.mendCD = SKILLS.mend.cd; S.heal(); playerAnim(P, 'mend');
     const rg = ring(0.3, 0.6, 0x7dff9a, 0.9); rg.position.set(P.x, 0.05, P.z); scene.add(rg); G.fx.push({ clean: true, t: 0.5, tick: k => { rg.scale.setScalar(1 + k * 14); rg.material.opacity = 0.9 * (1 - k); }, fn: () => scene.remove(rg) });
@@ -267,4 +267,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); if (PACT) jarDraw(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { loadGLB, spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, openBox, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { S, loadGLB, spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, openBox, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

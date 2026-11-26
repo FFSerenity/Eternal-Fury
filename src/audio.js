@@ -18,6 +18,9 @@ export const SAMPLES = ['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h
 // the monsters' (loaded in every mode): their cries by kind (r_*: a pack noticing you, a bat diving, a boss's entrance), and their shots
 export const FOE_SAMPLES = ['r_human0', 'r_brute0', 'r_skel0', 'r_skel1', 'r_skel2', 'r_skel3', 'r_boss0', 'r_boss1', 'r_boss2', 'r_boss3', 'r_bat0', 'r_ghost0',
   'bow0', 'bow1', 'bow2', 'bow3', 'xbow0', 'xbow1', 'xbow2', 'xbow3', 'axe0', 'axe1', 'fball0', 'fball1', 'fball2', 'hfire0', 'hfire1', 'soul0', 'soul1', 'soul2'];
+// the summoner's: Raise (two layers), the souls (flight, a drop into the vessel, the Sentinel drinking, the pour), loot, gear and forge
+export const SOUL_SAMPLES = ['rz_rip', 'rz_hum', 'soul_fly', 'absorb', 'pour.wav', 'plink0', 'plink1', 'plink2', 'plink3', 'plink4', 'plink5', 'drop_epic', 'drop_legend', 'gear', 'furn_in', 'draw'];
+let plinkT = -9, plinkN = 0;
 const CRY = { human: ['r_human0'], brute: ['r_brute0'], skel: ['r_skel0', 'r_skel1', 'r_skel2', 'r_skel3'], bat: ['r_bat0'], ghost: ['r_ghost0'] };
 const BOSS_CRY = { bomber: 'r_boss0', gunner: 'r_boss1', engineer: 'r_boss2', mech: 'r_boss3' };
 const SHOT = { bow: [4, 0.55], xbow: [4, 0.75], axe: [2, 0.6], fball: [3, 0.6], hfire: [2, 0.6], soul: [3, 0.55] };
@@ -67,6 +70,22 @@ export const S = {
   // a monster's shot leaving: bow, crossbow bolt, thrown axe, fireball, the exorcist's holy fire, a ghost's soul-fire
   shot(kind, v = 1) { if (!ok() || v < 0.05 || !gate('sh_' + kind, 70)) return; const sh = SHOT[kind]; if (sh && sample(any(kind, sh[0]), sh[1] * v, 0.95 + Math.random() * 0.1)) return;
     if (kind === 'soul') this.zap(); else if (kind === 'fball' || kind === 'hfire') this.fire(); else this.arrow(); },
+  // Raise: the souls torn out of the corpse and the spell's hum under them, each pitched a little differently every time, then the souls flying off
+  harvest(v = 1) { if (!ok() || !gate('hv', 90)) return; const a = sample('rz_rip', 0.8 * v, 0.92 + Math.random() * 0.16), b = sample('rz_hum', 0.6 * v, 0.9 + Math.random() * 0.2, 0.03 + Math.random() * 0.05);
+    if (!a && !b) this.caught(); this.soulFly(0.45 * v, 0.12); },
+  soulFly(v = 0.5, t = 0) { if (!ok() || !gate('sf', 120)) return; sample('soul_fly', v, 0.9 + Math.random() * 0.25, t); },
+  // a soul landing in the vessel: one of the little drops, each one of a run a step higher than the last
+  plink() { if (!ok() || !gate('gp', 45)) return; const now = ac.currentTime; plinkN = now - plinkT < 0.45 ? Math.min(plinkN + 1, 10) : 0; plinkT = now;
+    if (!sample(any('plink', 6), 0.5, (0.94 + 0.045 * plinkN) * (0.97 + Math.random() * 0.06))) this.gulp(); },
+  // the pour into the Sentinel: a stream held while it lasts (stop it with .stop), the Sentinel drinking now and then
+  pour() { return ok() ? loopSample('pour.wav', 0.6, 0.3, 600) : null; },
+  absorb() { if (!ok() || !gate('ab', 650)) return; if (!sample('absorb', 0.35, 0.92 + Math.random() * 0.16)) this.infuse(); },
+  // loot landing: only the best — an epic rings like a dropped gem, a legendary with a softer, warmer chime
+  drop(q) { if (!ok() || q < 3 || !gate('dr', 120)) return; if (!sample(q >= 4 ? 'drop_legend' : 'drop_epic', q >= 4 ? 0.7 : 0.75, 0.97 + Math.random() * 0.06)) this.level(); },
+  // the gear panel: an item picked up or put down; into the forge; the forge rolling
+  gear() { if (!ok() || !gate('ge', 60)) return; if (!sample('gear', 0.7, 0.94 + Math.random() * 0.12)) this.pick(); },
+  furnIn() { if (!ok() || !gate('fu', 80)) return; if (!sample('furn_in', 0.7, 0.96 + Math.random() * 0.08)) this.clank(); },
+  draw() { if (!ok()) return; if (!sample('draw', 0.8)) this.fire(); },
   roar() { if (!ok()) return; tone('sawtooth', 120, 62, 0.75, 0.16); tone('sawtooth', 181, 90, 0.7, 0.07, 0.02); hiss(380, 0.7, 0.7, 0.3, 0, 'lowpass'); hiss(1400, 0.8, 0.45, 0.12, 0.05); },
   // plate: the target is in armour (a knight, a stone-skinned champion) — the blade rings on it, the mace clangs; on cloth and flesh the old bite and a blunt thud
   blade(heavy, crit, plate) { if (!ok() || !gate('bl', 50)) return; const r = 0.96 + Math.random() * 0.08;

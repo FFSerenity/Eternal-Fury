@@ -155,7 +155,15 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   in (at most every 4 s); a berserker bellows as it whirls or goes berserk; a boss roars on its entrance and when it rages. Shots: bow
   (4), crossbow bolt (4), thrown axe (2), fireball (3), the exorcist's holy fire (2), ghosts' soul-fire (3), each cut to start near its
   first strong sound so it lands on the release. Cries and shots, like the enemies' swings, fade out past ~16 m from the summoner.
-  Every recorded sound falls back to its old synth while it loads. Still synth: whirlwind (kept by choice), ice, the summoner's spells.
+- The summoner's sounds (round 4, every mode): Raise is two layers — the souls torn out of the corpse and the spell's hum under them,
+  each pitched a little differently every time — then the souls fly off with a soft whoosh. Each soul landing in the vessel is one of six
+  little drops cut from one take, a run of them climbing a step at a time (like coins). Pouring into the Sentinel: a stream of souls held as
+  a loop while it pours (pour.wav), the Sentinel drinking now and then (at most every 0.65 s). Party full in the crypt: the soul flies off
+  (whoosh) and is drunk by the summoner.
+- Loot: only epic (a crisp gem's ding) and legendary (a softer, warmer chime) make a sound, as they land; nothing below.
+- Gear panel: picking up, putting down, equipping, taking off — one handling clink; into the forge — a clank and a breath of embers; the
+  forge's roll — fire and tumbling metal over the ~2 s of the reel (its old ticks are gone), then the reveal as before.
+  Every recorded sound falls back to its old synth while it loads. Still synth: whirlwind (kept by choice), ice, the summon circle, Mend.
   Swings: sword & shield Atk2 / Atk3, greatsword Atk2 / Atk3 / Atk4 (not the pommel strike, nor the high sweep that passes over small heads); each
   lands when the blade passes closest to a body 1.5 m in front.
 - Skills, one per crest tier and one past it: they wake at 5 / 10 / 15 / 20 / 25 战魂 and are lost with them; used on its own (pactskills.js, effects pactfx.js).

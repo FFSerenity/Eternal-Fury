@@ -82,8 +82,8 @@ function tapCell(c, p) {
   if ((c === 'w' || c === 'a') && !selEn) return;
   const it = at(c, p), now = performance.now();
   if (tsel && tsel.c === c && tsel.p === p) { const dbl = now - tsel.t < 380; tsel = null; if (dbl && it) quick(c, p); else render(); return; } // tapped again: off (twice quickly: the quick move)
-  if (!tsel || !at(tsel.c, tsel.p)) { tsel = null; if (it) { tsel = { c, p, t: now }; infoIt = it; S.pick(); } render(); return; }
-  if (it && tsel.c === c && c !== 'w' && c !== 'a') { tsel = { c, p, t: now }; infoIt = it; S.pick(); render(); return; } // another item in the same grid
+  if (!tsel || !at(tsel.c, tsel.p)) { tsel = null; if (it) { tsel = { c, p, t: now }; infoIt = it; S.gear(); } render(); return; }
+  if (it && tsel.c === c && c !== 'w' && c !== 'a') { tsel = { c, p, t: now }; infoIt = it; S.gear(); render(); return; } // another item in the same grid
   const from = tsel; tsel = null; moveTo(from, c, p);
 }
 function moveTo(from, c, p) {
@@ -94,28 +94,28 @@ function moveTo(from, c, p) {
   if (c === 'w' && !freeOffHand(it)) { stash(put(from.c, from.p, it)); render(); return; }
   const o = put(c, p, it);
   if (o) { if (from.c === 'w' || from.c === 'a') stash(fitsSlot(o, from.c) ? setGear(selEn, from.c, o) : o); else stash(put(from.c, from.p, o)); } // what was there goes where the moved one came from
-  S.clank(); infoIt = it; save(); render();
+  if (c === 'furn') S.furnIn(); else S.gear(); infoIt = it; save(); render();
 }
 function clickCell(c, p) {
   if (tapMode()) { tapCell(c, p); return; } tsel = null;
   if ((c === 'w' || c === 'a') && !selEn) return;
   const now = performance.now();
-  if (!held) { const it = take(c, p); if (!it) return; held = { it, from: c, pos: p }; lastPick = { c, p, t: now }; S.pick(); }
+  if (!held) { const it = take(c, p); if (!it) return; held = { it, from: c, pos: p }; lastPick = { c, p, t: now }; S.gear(); }
   else { // a quick second tap on the same cell = double-click: quick move
     if (lastPick && lastPick.c === c && lastPick.p === p && now - lastPick.t < 380 && held.from === c) { lastPick = null; put(c, p, held.it); held = null; quick(c, p); return; }
     if ((c === 'w' || c === 'a') && !fitsSlot(held.it, c)) { cantUse(held.it, c); return; }
     if (c === 'w' && !freeOffHand(held.it)) return;
     if (c === 'furn' && held.it.uniq) { noSmelt(); return; }
-    const o = put(c, p, held.it); held = o ? { it: o, from: c, pos: p } : null; lastPick = null; S.clank(); }
+    const o = put(c, p, held.it); held = o ? { it: o, from: c, pos: p } : null; lastPick = null; if (c === 'furn') S.furnIn(); else S.gear(); }
   infoIt = held ? held.it : at(c, p); save(); render();
 }
 // quick move: 装备 panel equips / takes off; 背包 panel moves between bag and furnace
 function quick(c, p) {
   if (held) return; const it = at(c, p); if (!it) return;
   if (c === 'bag' && mode === 'doll') { const s = it.slot === 'w' ? 'w' : 'a'; if (!fitsSlot(it, s)) { cantUse(it, s); return; }
-    take('bag', p); if (s === 'w' && !freeOffHand(it)) { it.pos = p; G.bag.push(it); return; } const o = setGear(selEn, s, it); if (o) { if (G.bag.some(i => i.pos === p)) bagPut(o); else { o.pos = p; G.bag.push(o); } } S.clank(); }
-  else if (c === 'bag') { if (it.uniq) { noSmelt(); return; } const fp = furnFree(); if (fp < 0) { message(tr('熔炉放满了', 'The forge is full')); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.clank(); }
-  else { if (bagFree() < 0) { message(tr('背包满了', 'Bag is full')); return; } bagPut(take(c, p)); S.clank(); }
+    take('bag', p); if (s === 'w' && !freeOffHand(it)) { it.pos = p; G.bag.push(it); return; } const o = setGear(selEn, s, it); if (o) { if (G.bag.some(i => i.pos === p)) bagPut(o); else { o.pos = p; G.bag.push(o); } } S.gear(); }
+  else if (c === 'bag') { if (it.uniq) { noSmelt(); return; } const fp = furnFree(); if (fp < 0) { message(tr('熔炉放满了', 'The forge is full')); return; } take('bag', p); it.fpos = fp; G.furn.push(it); S.furnIn(); }
+  else { if (bagFree() < 0) { message(tr('背包满了', 'Bag is full')); return; } bagPut(take(c, p)); S.gear(); }
   infoIt = null; save(); render();
 }
 // auto-fill: the qualities ticked under the forge (普通 and 精良 unless changed; kept in this browser), the lowest first — and among
@@ -128,12 +128,12 @@ function autoFill() {
     : G.crypt.some(en => (it.slot === 'a' || it.type === en.type) && itemScore(it) > itemScore(en.gear?.[it.slot === 'w' ? 'w' : 'a']) + 0.5);
   const cand = G.bag.filter(it => autoQ.has(it.q) && !it.uniq).sort((a, b) => a.q - b.q || (upgrade(a) - upgrade(b)) || itemScore(a) - itemScore(b));
   let n = 0; for (const it of cand) { const fp = furnFree(); if (fp < 0) break; G.bag.splice(G.bag.indexOf(it), 1); it.fpos = fp; G.furn.push(it); n++; }
-  if (n) S.clank(); else message(fp0() < 0 ? tr('熔炉已经满了', 'The forge is full') : autoQ.size ? tr('背包里没有勾选品质的装备', 'Nothing of the ticked qualities in the bag') : tr('先在熔炉下面勾选要自动放入的品质', 'Tick the qualities to auto-fill under the forge first')); save(); render();
+  if (n) S.furnIn(); else message(fp0() < 0 ? tr('熔炉已经满了', 'The forge is full') : autoQ.size ? tr('背包里没有勾选品质的装备', 'Nothing of the ticked qualities in the bag') : tr('先在熔炉下面勾选要自动放入的品质', 'Tick the qualities to auto-fill under the forge first')); save(); render();
 }
 // the quality ticks under the forge buttons
 const autoRow = () => `<div class="gfQ"><span>${tr('自动放入：', 'Auto-fill:')}</span>` + QUAL.slice(0, PACT ? 5 : 4).map((q, i) => `<button class="gfQb${autoQ.has(i) ? ' on' : ''}" data-aq="${i}" style="--qc:${q.col}"><i></i>${q.name}</button>`).join('') + `</div>`;
 const fp0 = () => furnFree();
-function emptyFurn() { for (const it of G.furn.slice()) { if (bagFree() < 0) break; G.furn.splice(G.furn.indexOf(it), 1); bagPut(it); } S.clank(); save(); render(); }
+function emptyFurn() { for (const it of G.furn.slice()) { if (bagFree() < 0) break; G.furn.splice(G.furn.indexOf(it), 1); bagPut(it); } S.gear(); save(); render(); }
 
 // ---------- DOM ----------
 function build() {
@@ -214,13 +214,13 @@ function tipHTML(it) {
 // ---------- furnace ----------
 function smelt() {
   if (G.furn.length < 2 || held) return; const pity = G.techPity || 0, nr = rareItems(G.furn), odds = furnaceOdds(G.furn, pity), ho = PACT && heroFurnaceOdds(G.furn), res = PACT ? heroFurnaceRoll(G.furn, G.uid++) : furnaceRoll(G.furn, G.uid++, pity);
-  if (!PACT) G.techPity = res.q === 3 ? 0 : Math.min(TECH_PITY, pity + nr); G.furn = [res]; res.fpos = 0; pending = res; save(); S.fire();
+  if (!PACT) G.techPity = res.q === 3 ? 0 : Math.min(TECH_PITY, pity + nr); G.furn = [res]; res.fpos = 0; pending = res; save(); S.draw();
   const box = document.createElement('div'); box.className = 'gReel'; box.innerHTML = `<div class="lt">${tr('炉火翻滚……', 'The forge roars…')}</div><div class="reel"></div><button class="btn ok" style="visibility:hidden">${tr('收下', 'Take it')}</button>`;
   $('.gFurn').appendChild(box); const reel = box.querySelector('.reel'); let dly = 45;
   const show = it => { reel.innerHTML = `<div class="ri q${it.q}"><img src="${iconOf(it)}"><div class="tN" style="color:${QUAL[it.q].col}">${itemName(it)}</div></div>`; };
   const tick = () => { if (!gearOpen || !box.isConnected) return; if (dly > 300) { show(res); reel.classList.add('done', 'q' + res.q); box.querySelector('.lt').textContent = res.q === 4 ? tr('🔥 熔出了传说装备！', '🔥 A legendary item!') : res.q === 3 ? (res.hero ? tr('🌟 熔出了史诗装备！', '🌟 An epic item!') : tr('🌟 熔出了史诗科技武器！', '🌟 An epic tech weapon!')) : res.q === 2 ? tr('✨ 熔出了稀有装备！', '✨ A rare item!') : res.q === 1 ? tr('熔出了精良装备', 'A magic item') : tr('熔出了一件普通装备', 'A normal item');
       box.querySelector('.ok').style.visibility = 'visible'; collect(); infoIt = res; render(); if (res.q >= 2) S.level(); else if (res.q === 1) S.caught(); else S.pick(); return; }
-    const r = Math.random(); show(PACT ? rollHeroItem(0, res.il, heroOddsQ(ho, r)) : rollItem(0, res.il, r < odds.epic + odds.gold ? 2 : r < odds.epic + odds.gold + odds.blue ? 1 : 0)); S.pick(); dly *= 1.13; setTimeout(tick, dly); };
+    const r = Math.random(); show(PACT ? rollHeroItem(0, res.il, heroOddsQ(ho, r)) : rollItem(0, res.il, r < odds.epic + odds.gold ? 2 : r < odds.epic + odds.gold + odds.blue ? 1 : 0)); dly *= 1.13; setTimeout(tick, dly); };
   tick(); box.querySelector('.ok').addEventListener('click', e => { e.stopPropagation(); box.remove(); render(); });
   render();
 }

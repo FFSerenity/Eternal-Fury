@@ -12,12 +12,12 @@ import { A, play, PLUME_AT } from './assets.js';
 import { ring, glowSprite } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake } from './fx.js';
-import { S, loadSamples, SAMPLES, FOE_SAMPLES } from './audio.js';
+import { S, loadSamples, SAMPLES, FOE_SAMPLES, SOUL_SAMPLES } from './audio.js';
 import { SKILLS, skillView } from './pactskills.js';
 import { rollHeroItem, HERO_GEAR } from './data.js';
 import { soulToJar } from './soulvessel.js';
 import { smite, auraTick } from './holy.js';
-loadSamples(FOE_SAMPLES); if (PACT) loadSamples(SAMPLES);
+loadSamples(FOE_SAMPLES); loadSamples(SOUL_SAMPLES); if (PACT) loadSamples(SAMPLES);
 
 // ---------- tunables ----------
 export const SUMMON = { mana: 10, cast: 1.5, riseSp: 1 };
@@ -197,7 +197,7 @@ export function pactFloor(P) { if (fx) { fx.cancel(); fx = null; } if (P8.alive)
 // 唤魂 in this mode: the corpse breaks into souls that fly across the screen into the soul vessel as 魂能
 export function harvest(c) {
   if (!G.corpses.includes(c)) return; const v = soulOf(c); removeCorpse(c);
-  C.parts.emit(c.x, 0.5, c.z, 22, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1.2 }); S.caught();
+  C.parts.emit(c.x, 0.5, c.z, 22, { col: 0x6ff7e8, spd: 1.4, up: 2.5, life: 0.8, size: 0.26, grav: -1.2 }); S.harvest();
   say(c.x, c.z, tr(`+${v} 魂能`, `+${v} soul`), '#8ff7ea', 14, 2.0); soulToJar(c.x, 0.9, c.z, v);
 }
 // per frame: the skeleton heals up between fights

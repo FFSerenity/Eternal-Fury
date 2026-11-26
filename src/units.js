@@ -173,7 +173,7 @@ export function dropLoot(it, x, z) {
   let beam = null; if (it.q >= 2) { beam = lootBeam(Q.hex, it.q); root.add(beam); } // rare and up: a column of light straight up from it, once it has landed
   const a = Math.random() * 6.28, r = 0.5 + Math.random() * 0.7; root.position.set(x, 1, z); C.scene.add(root);
   G.loot.push({ it, root, m, beam, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: 0, ph: Math.random() * 6 });
-  if (it.q >= 2) S.level(); else if (it.q === 1) S.heal();
+  if (it.q >= 3) G.fx.push({ t: 0.45, fn: () => S.drop(it.q) }); // epic and legendary only: the sound as it lands
 }
 // the camp coffin's secret: opens once per save and spits out the gatling
 export function openCoffin() {
@@ -300,8 +300,8 @@ export function updateGhosts(dt) {
   for (const g of G.ghosts) { g.t += dt;
     if (g.m) { const m = g.m; m.mixer.update(dt);
       if (g.t > g.rise) { const k = Math.min(1, (g.t - g.rise) / 0.45); m.u.uFade.value = 1 - k; m.u.uEmis.value.setRGB(0.04 + 0.5 * k, 0.16 + 0.75 * k, 0.16 + 0.7 * k); m.root.position.y = k * 0.5;
-        if (!g.sent) { g.sent = true; S.raise(); C.parts.emit(g.x, 0.7, g.z, 22, { col: 0x6ff7e8, spd: 1.2, up: 2.5, life: 0.7, size: 0.28, grav: -1.5 });
-          soulOrb(g.x, 1.0, g.z, () => G.player, () => { const P = G.player; S.caught(); P.flash = 0.5;
+        if (!g.sent) { g.sent = true; S.soulFly(0.6); C.parts.emit(g.x, 0.7, g.z, 22, { col: 0x6ff7e8, spd: 1.2, up: 2.5, life: 0.7, size: 0.28, grav: -1.5 });
+          soulOrb(g.x, 1.0, g.z, () => G.player, () => { const P = G.player; S.absorb(); P.flash = 0.5;
             C.parts.emit(P.x, 0.9, P.z, 30, { col: 0x6ff7e8, spd: 2.2, up: 1.5, life: 0.6, size: 0.25, grav: 0 });
             const rg = ring(0.25, 0.45, 0x6ff7e8, 0.9); rg.position.set(P.x, 0.05, P.z); C.scene.add(rg); G.fx.push({ clean: true, t: 0.45, tick: q => { rg.scale.setScalar(1 + q * 3); rg.material.opacity = 0.9 * (1 - q); }, fn: () => C.scene.remove(rg) }); }); }
         if (k >= 1) { C.scene.remove(m.root); continue; } } }
