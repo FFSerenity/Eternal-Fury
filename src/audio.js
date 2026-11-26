@@ -50,8 +50,8 @@ export const S = {
   // the shield charge: a long rush of air that swells as it closes, ending in a heavy swish
   rush(dur = 0.5) { if (!ok()) return; if (sample('charge', 0.95, 1, Math.max(0, dur - 0.1 - PK.charge))) return; sweep(110, 520, 0.7, dur + 0.25, 0.34); sweep(500, 1900, 1.0, dur + 0.15, 0.2, 0.05); tone('sawtooth', 70, 48, dur + 0.2, 0.07);
     sample(any('swing_h', 4), 1, 0.78, Math.max(0, dur - 0.1)); },
-  // the Sentinel's war cry, and the burst of power that throws back what stands close: fire — or, the paladin's roar, holy light
-  warcry(pal) { if (!ok()) return; if (pal) { if (!sample('warcry_pal', 0.9)) this.roar(); if (!sample('holy', 0.6, 1, 0.05)) this.holy(0.8); }
+  // the Sentinel's war cry, and the burst of power that throws back what stands close (fire); the paladin's: its own roar alone
+  warcry(pal) { if (!ok()) return; if (pal) { if (!sample('warcry_pal', 1)) this.holy(0.8); }
     else { if (!sample('warcry', 0.95)) this.roar(); sample('fireburst', 0.75, 1, 0.04); } },
   // the Aura of Light lighting up (25 Fury)
   holyOn() { if (!ok()) return; if (!sample('holy', 0.75)) this.holy(1); },
