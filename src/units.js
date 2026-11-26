@@ -4,7 +4,7 @@ import { G, save, bagPut, PACT } from './state.js';
 import { TYPES, FOES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, DEEP_HP, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
 import { auraMat, glowSprite, ring, toonMat, part, merge, lootBeam, beamTime } from './gfx.js';
 import { tr } from './i18n.js';
-import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose, A, ZY_WALK_REF, ZY_IDLE, zyPart } from './assets.js';
+import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose, A, ZY_WALK_REF, ZY_IDLE, ZY_FIGHT_WALK, ZY_FIGHT_WALK_REF } from './assets.js';
 import { slash, impact, burst, shake, trail, spinFx, slamMark, debris, shieldDome, domeHit, domeEnd, empWave, warnCircle, warnLine, warnCone } from './fx.js';
 import { S } from './audio.js';
 import { runeCircle } from './vfx.js';
@@ -1016,8 +1016,8 @@ function animate(u, dt, sp) {
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
   if (m.hero) { const w = m.walk || 'Walk_SNS', ref = m.zy && A.zy.own ? ZY_WALK_REF * m.model.scale.x : w === 'Walk_GS' ? 2.02 : 1.56; // (Zhao Yun: his own walk) // walk only (no run yet); strides from the clips' root travel, world m/s
-    const fight = m.zy && zyFighting(u), wsp = Math.max(0.6, Math.min(1.6, sp / ref)); // (Zhao Yun in a fight: his legs walk, the spear stance held above — out of one, the calm walk)
-    if (sp > 0.3 && fight && A.zy.own.ZY_Spear_Walk) { play(m, zyPart('ZY_Spear_Walk', 'lower'), { speed: wsp, fade: 0.22 }); playUpper(m, zyPart('ZY_Combat_Stance', 'upper'), { fade: 0.22 }); }
+    const fight = m.zy && zyFighting(u), wsp = Math.max(0.6, Math.min(1.6, sp / ref)); // (Zhao Yun in a fight: the spear walk, the spear held ready — out of one, the calm walk)
+    if (sp > 0.3 && fight && A.zy.own[ZY_FIGHT_WALK]) play(m, ZY_FIGHT_WALK, { speed: Math.max(0.6, Math.min(1.7, sp / (ZY_FIGHT_WALK_REF * m.model.scale.x))), fade: 0.22 });
     else if (sp > 0.3) play(m, w, { speed: wsp, fade: 0.22 }); else if (m.zy && !fight && A.zy.own[ZY_IDLE]) play(m, ZY_IDLE, { fade: 0.3, speed: ZY_EASE_SP }); else play(m, 'Stand', { fade: 0.3 }); return; } // by name: the styles' own guarded Idle must not win (Zhao Yun: at ease, the spear grounded, till a fight is near)
   if (m.fly != null) { play(m, sp > a.runAt || u.state === 'panic' ? a.run : sp > 0.35 ? a.walk : a.idle, { speed: sp > 0.35 ? 1.25 : 1, fade: 0.2 }); return; } // flyers: no stride to match
   const k = (m.sc || CHARS[u.kind].scale) * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;

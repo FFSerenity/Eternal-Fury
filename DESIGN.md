@@ -280,12 +280,24 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   his right fist round it. It is downloaded on its own (Meshy's "Current" animation: past the 20 the "All Added" download allows) and
   merged in by bone name (tools/zy-fix-rig.mjs extra.glb), keeps its travel (he steps forward as he rises) and is stood on his spot by
   its last frame. Its last 1.2 s, played there and back, is his calm stand (ZY_Stand_Ease, ZY_IDLE): while no fight is near he stands at
-  ease with the spear grounded; near one, the two-handed spear stance (Combat_Stance). (Fixed on the way: a rise's animation lock only
+  ease with the spear grounded; near one, the spear guard (ZY_SP_Idle, below). (Fixed on the way: a rise's animation lock only
   began to run out after the rise, so every risen unit stood frozen in its last frame as long again.)
-- In a fight (zyFighting) he walks on the spear walk's legs with the spear stance held above (zyPart: the clips split at the hips,
-  playUpper over play), his chest turned back square each frame (zyChest: the stance's upper body sat on side-on hips; the spine turned
-  about the vertical till the line between his fists points forward, the neck turned back as much). Out of one, the calm spear walk.
-  His calm stand plays at 0.45× (its breath was quick).
+- In a fight (zyFighting) — Nov 26, second version: the Unreal pack's spear guard and spear walk (Thunder Cloud Studio's "Sword &
+  Spear Animation", 23 spear clips on UE5's Manny; the person exported them from UE 5.4 as FBX). tools/bl_zy_ue.py moves them onto his
+  rig in world space as bl_ybot.py does Y Bot's: his skeleton posed into Manny's reference pose (each bone aimed along Manny's; the
+  hips by their frame — left-right across the thighs, up to the mid spine — since his hips bone stands well in front of and above his
+  thighs; the thumbs matched), then his(b) = S(b)·S_R(b)⁻¹·O_R(b) per frame; his spine follows spine_02 / spine_04 / spine_05, and his
+  thighs' midpoint follows Manny's, scaled by thigh-to-ankle height (0.925). Out come SP_Idle (the guard, 2 s) and SP_Walk (one 32-frame
+  cycle of the pack's walk, which starts and stops: its frames 68–100 repeat exactly), merged in by zy-fix-rig.mjs (SP_* keep their
+  travel). ZY_ALIAS.Stand is now ZY_SP_Idle; walking in a fight he plays ZY_SP_Walk whole (stride 1.31 m/s; the old split walk with
+  the stance above and zyChest is no longer used). Out of one, still the calm spear walk; his calm stand plays at 0.45×.
+- The Unreal clips hold the spear fixed in the right hand (a weapon bone, at the shaft's middle), so for them it is not laid through
+  the fists: its line in the hand is taken where the pack's thrusts reach their full stretch (right arm out alone, spear straight ahead
+  — the same line in the hand in all four thrust clips to a few degrees: ZY_UE_AXIS), the fist at the middle (UE_AT), the hands left as
+  the clip has them. Along it the guard holds the point low by his right foot and the butt up across his left shoulder, the left hand
+  free — as the pack's pictures show. (The first try, the line through both fists, held it across his belly: in the guard the left hand
+  is off the shaft.) The rest of the pack — thrusts, triple thrust, spin, tornado kick, parry, dodges, jumps — is there to use for his
+  blows and skills; the dashing ones travel 2–10 m (UE root motion), for the game to follow.
 - His bow (zyBow, every frame while it is out): upright across the line he shoots along (string hand through bow hand), the string
   toward the drawing hand, the grip in his left fist, the left hand turned round it thumb-up. (Fitted once on one frame it stood askew.)
   The volley: the aim held (Archery_Shot_2), then Meshy's Archery Shot 3 once per arrow — it opens at full draw and lets go at 0.22 of

@@ -57,7 +57,10 @@ for (const f of extra) { const ed = await io.read(f);
 // the archery clips' turn, degrees: the bow arm forward (77), or — the ones he shoots with — the arrow's own line (string hand through bow
 // hand) forward, 18 more (tools/bl_zy_aim.py: it ran 18 deg to his left of the way the arrows fly)
 const ARCH_TURN = { Archery_Shot_2: 95, Archery_Shot_3: 95 };
-const LOOP = new Set(['Running', 'Walking', 'Spear_Walk', 'Standard_Forward_Charge']), DROP = new Set(['Draw_and_Shoot_from_Back_1']), BYEND = new Set(['Axe_Stance']);
+const LOOP = new Set(['Running', 'Walking', 'Spear_Walk', 'Standard_Forward_Charge', 'SP_Idle', 'SP_Walk', 'SP_Run']), DROP = new Set(['Draw_and_Shoot_from_Back_1']), BYEND = new Set(['Axe_Stance']);
+// the Unreal spear clips (SP_*, tools/bl_zy_ue.py) keep their travel: their loops run in place anyway, and the dashing attacks' travel
+// (UE root motion: up to 10 m) is the game's to follow, not to be spread backwards over the clip
+const KEEPGO = n => BYEND.has(n) || /^SP_/.test(n);
 const hips = root.listNodes().find(n => n.getName() === 'mixamorig:Hips');
 for (const a of root.listAnimations()) {
   const name = a.getName(); if (DROP.has(name)) { for (const c of a.listChannels()) { const sm = c.getSampler(); c.dispose(); sm.dispose(); } a.dispose(); continue; }
@@ -65,7 +68,7 @@ for (const a of root.listAnimations()) {
   const ch = a.listChannels().find(c => c.getTargetNode() === hips && c.getTargetPath() === 'translation'); if (!ch) continue;
   const t = ch.getSampler().getInput().getArray(), o = ch.getSampler().getOutput().getArray().slice(), n = t.length, T = t[n - 1] - t[0] || 1;
   // the drift over the clip (x and z: the ground plane), taken out in proportion to time: a loop then joins up in place, an attack returns
-  const dx = BYEND.has(name) ? 0 : o[(n - 1) * 3] - o[0], dz = BYEND.has(name) ? 0 : o[(n - 1) * 3 + 2] - o[2]; // (a clip stood by its end keeps its travel)
+  const dx = KEEPGO(name) ? 0 : o[(n - 1) * 3] - o[0], dz = KEEPGO(name) ? 0 : o[(n - 1) * 3 + 2] - o[2]; // (a clip stood by its end keeps its travel)
   for (let i = 0; i < n; i++) { const f = (t[i] - t[0]) / T; o[i * 3] -= dx * f; o[i * 3 + 2] -= dz * f; }
   ch.getSampler().getOutput().setArray(o);
   if (/^Archery/.test(name)) { // the whole clip turned about the vertical: the hips' turn and place (the hips hang straight off the armature root)

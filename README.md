@@ -35,8 +35,8 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
   Judgement (a pillar of light and three rings of it) and the Aura of Light (7 m: its damage heals everyone of its side inside, and each
   wears a shield of light worth 20% of their life).
 - **Spear — Zhao Yun 赵云** (Nov 2026): equip a spear and the skeleton becomes Zhao Yun — his own model in silver armour
-  with a dragon pauldron, a silver dragon spear, a bow slung across his back. He stands in a spear stance, walks with the spear
-  upright and draws the bow side-on (his own motions). Quick on his feet, a long reach, and every thrust runs on
+  with a dragon pauldron, a silver dragon spear, a bow slung across his back. At ease he stands with the spear grounded; near a
+  fight he takes a low spear guard and stalks forward in it, and draws the bow side-on. Quick on his feet, a long reach, and every thrust runs on
   through the line behind the target. At enemies still 6–13 m off he takes the bow and looses three arrows first. His skills: Changban
   Charge (a lunge spear-first straight through the line), Parry (and a thrust back whose qi flies down the line), Spear Flower (the spin)
   and Hundred Birds (dragon light gathered on the point, then five bolts of it fanned ahead).
@@ -172,6 +172,10 @@ motions ZY_*, takes the hips' drift out, turns the archery clips to face forward
 `tools/bl_zy_feet.py` on the tool's own output) and simplifies the mesh to 70% → `node tools/build-hero.mjs` → `hero_zy.glb`.
 `python3 tools/bl_zy_weapons.py -- spear.glb bow.glb quiver.glb out.glb` (Meshy's remeshed weapons) straightens the spear's shaft to its
 full length, gives the bow a string and packs the three onto one texture atlas → `node tools/build-hero.mjs` → `hero_zyweap.glb`.
+His fighting guard and walk come from Unreal Engine 5 (exported from UE as FBX on the Manny skeleton):
+`python3 tools/bl_zy_ue.py -- <meshy.glb> zy_ue.glb SP_Idle=Spear_Idle_Seq.FBX SP_Walk=Spear_Walk_Seq.FBX@68-100` moves them onto his rig
+(world space, through Manny's reference pose); pass `zy_ue.glb` to zy-fix-rig.mjs as an extra clip file (with the Axe Stance and
+Archery Shot 3 downloads), measure the feet on that output without a feet file, then run it again with it.
 Clips he has none of are the Sentinel's, moved onto his rig in the game (assets.js zyClips).
 
 ## Credits
@@ -184,4 +188,5 @@ Its blade sounds — a metal slice and the ring of the blade, no wooden knock �
 Its swishes, armour hits, blocks, fire, slams, war cries, charges, holy light, Judgement and Blessed Hammers, the champions' poison and thunder, the monsters' cries and shots, and the summoner's Raise, souls, loot and forge sounds, were generated with
 **Stable Audio 3 Medium** (Stability AI) in ComfyUI and picked by ear.
 Zhao Yun was drawn with GPT image generation and made 3D, rigged and animated with **Meshy** (meshy.ai: Meshy 7.5, its auto-rig and
-preset motions and text-to-motion; private licence); his spear, bow and quiver were drawn with GPT image generation and made 3D with Meshy. The display stands, barrels, crates and urns too.
+preset motions and text-to-motion; private licence); his spear, bow and quiver were drawn with GPT image generation and made 3D with Meshy.
+His spear guard and fighting walk are from **Sword & Spear Animation** by Thunder Cloud Studio (Fab, Unreal Engine), moved onto his rig. The display stands, barrels, crates and urns too.
