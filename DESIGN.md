@@ -274,6 +274,12 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   breadth off the floor; on his own fighting clips, along the line from his right fist through his left (both hands always on the
   shaft), the right fist 18% of the way up from the butt (TWO_AT; the parry holds it by the middle); on the Sentinel's clips, the line
   fitted on them.
+- His hands on the shaft (assets.js gripHand): Meshy's clips hold the fist the wrong way round for a spear — walking, the thumb toward
+  the butt (as if to throw it). Each frame, after the clip is posed, the hand is turned about its wrist so the shaft runs in at the little
+  finger and out past the thumb toward the point, the palm toward his body (one hand: at ease, walking) or in-and-up / cradling palm up
+  (both hands, his own fighting clips; the shaft laid again through both fists after the turn); half of any twist about the forearm
+  goes to the forearm. Walking needs ~115°. His fingers curl toward his real palms (ZY_PALM, measured on the mesh by
+  tools/zy-palm.mjs: in, down and back in the A-pose) — they had curled forward, the Sentinel's way.
 - His frame cost: he appeared with a stall of most of a second (a new shader, seven textures to decode and upload, the spear's lines
   fitted): now done while the game loads (prewarmHero: one of him built, compiled, his textures uploaded). His body simplified to 70%
   (17.4k triangles, as the Sentinel's; drawn twice with the outline) and his three weapons on one atlas.

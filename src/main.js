@@ -50,11 +50,11 @@ function perf(ms) { PM.ft += ms; PM.fn++; if (PM.ft > 500) { PM.fps = Math.round
   PM.t += ms; PM.n++; if (ms > 24) PM.slow++; if (PM.t > 2500) { if (PM.n > 20 && PM.slow > PM.n * 0.25 && qLvl < 3) { qLvl++; RS = RS_STEPS[qLvl]; resize(); PM.cool = 3000; } PM.t = PM.n = PM.slow = 0; } }
 
 // ---------- camera: fixed diagonal view that follows the summoner ----------
-const YAW = Math.PI / 4, PITCH = QS.has('pitch') ? +QS.get('pitch') : 0.8, CAM_D = QS.has('cam') ? +QS.get('cam') : 14.5; const camT = new THREE.Vector3(), camB = new THREE.Vector3();
+const YAW = Math.PI / 4, PITCH = QS.has('pitch') ? +QS.get('pitch') : 0.8, CAM_D = QS.has('cam') ? +QS.get('cam') : 14.5, CAM_Y = QS.has('camy') ? +QS.get('camy') : 0; const camT = new THREE.Vector3(), camB = new THREE.Vector3();
 function placeCamera(snap) {
   const P = G.player; const D = CAM_D * (VW < VH ? 1.35 : 1); camT.set(P.x, 0, P.z);
-  const target = new THREE.Vector3(P.x + Math.sin(YAW) * Math.cos(PITCH) * D, Math.sin(PITCH) * D, P.z + Math.cos(YAW) * Math.cos(PITCH) * D);
-  if (snap) camB.copy(target); else camB.lerp(target, 0.12); camera.position.copy(camB); camera.lookAt(camB.x - Math.sin(YAW) * Math.cos(PITCH) * D, 0.6, camB.z - Math.cos(YAW) * Math.cos(PITCH) * D);
+  const target = new THREE.Vector3(P.x + Math.sin(YAW) * Math.cos(PITCH) * D, Math.sin(PITCH) * D + CAM_Y, P.z + Math.cos(YAW) * Math.cos(PITCH) * D);
+  if (snap) camB.copy(target); else camB.lerp(target, 0.12); camera.position.copy(camB); camera.lookAt(camB.x - Math.sin(YAW) * Math.cos(PITCH) * D, 0.6 + CAM_Y, camB.z - Math.cos(YAW) * Math.cos(PITCH) * D);
   camera.position.add(shakeOffset()); // camera shake moves the view without turning it
 }
 const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
