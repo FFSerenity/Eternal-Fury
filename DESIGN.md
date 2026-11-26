@@ -281,6 +281,15 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   its last frame. Its last 1.2 s, played there and back, is his calm stand (ZY_Stand_Ease, ZY_IDLE): while no fight is near he stands at
   ease with the spear grounded; near one, the two-handed spear stance (Combat_Stance). (Fixed on the way: a rise's animation lock only
   began to run out after the rise, so every risen unit stood frozen in its last frame as long again.)
+- In a fight (zyFighting) he walks on the spear walk's legs with the spear stance held above (zyPart: the clips split at the hips,
+  playUpper over play), his chest turned back square each frame (zyChest: the stance's upper body sat on side-on hips; the spine turned
+  about the vertical till the line between his fists points forward, the neck turned back as much). Out of one, the calm spear walk.
+  His calm stand plays at 0.45× (its breath was quick).
+- His bow (zyBow, every frame while it is out): upright across the line he shoots along (string hand through bow hand), the string
+  toward the drawing hand, the grip in his left fist, the left hand turned round it thumb-up. (Fitted once on one frame it stood askew.)
+  The volley: the aim held (Archery_Shot_2), then Meshy's Archery Shot 3 once per arrow — it opens at full draw and lets go at 0.22 of
+  its length; the last plays on to 0.75, before its arms fall. The Parry's answer is the bow too: after the parry, the bow drawn and one
+  dragon-lit arrow loosed back down the line at the attacker, through everything in it (1.8×, pierces 6).
 - His hands on the shaft (assets.js gripHand): Meshy's clips hold the fist the wrong way round for a spear — walking, the thumb toward
   the butt (as if to throw it). Each frame, after the clip is posed, the hand is turned about its wrist so the shaft runs in at the little
   finger and out past the thumb toward the point, the palm toward his body (one hand: at ease, walking) or in-and-up / cradling palm up
