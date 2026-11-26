@@ -112,6 +112,7 @@ uniform vec4 uTL[TN]; uniform vec3 uTC;
 uniform float uCut; uniform vec2 uCutC; uniform float uCutR; uniform float uCutZ;
 uniform sampler2D uMap; uniform sampler2D uNMap; uniform sampler2D uMR;
 uniform float uHoly; // 圣骑士 (the mace and shield): its black armour and its weapons turned to gold
+uniform vec3 uLook; // x: albedo boost (the Sentinel's dark scan 1.3), y: eye glow (its blue sockets; 0 for Zhao Yun, whose blue is cloth), z: polished metal (Zhao Yun's silver)
 varying vec3 vN; varying vec3 vW; varying vec3 vC; varying float vVZ; varying vec2 vUv;
 float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 #ifdef PLUME
@@ -134,7 +135,7 @@ void main(){
   if (uCut > 0.5) { vec2 d = gl_FragCoord.xy - uCutC; float k = length(d) / uCutR;
     if (vVZ > uCutZ + 0.8 && k < 1.0 && (k < 0.8 || h21(gl_FragCoord.xy) > (k - 0.8) / 0.2)) discard; }
   if (uFade < 0.999 && h21(gl_FragCoord.xy) > uFade) discard;
-  vec3 base = texture2D(uMap, vUv).rgb * uTint * 1.3; // the scan's albedo is dark next to KayKit's bright palette
+  vec3 base = texture2D(uMap, vUv).rgb * uTint * uLook.x; // the scan's albedo is dark next to KayKit's bright palette
   vec3 tn = texture2D(uNMap, vUv).xyz * 2.0 - 1.0; tn.xy *= 0.85;
   vec3 N = perturb(normalize(vN), vW, vUv, tn), V = normalize(cameraPosition - vW);
   vec4 mr = texture2D(uMR, vUv); float rough = clamp(mr.g, 0.18, 1.0), metal = mr.b;
@@ -147,7 +148,7 @@ void main(){
   dif = min(dif, vec3(1.15));
   vec3 F0 = mix(vec3(0.05), base, metal);
   vec3 col = base * (1.0 - metal * 0.55) * dif + spe * F0 * 3.0 + uEmis;
-  float eye = smoothstep(0.18, 0.4, min(base.g, base.b) - base.r) * smoothstep(0.45, 0.7, base.b); vec3 eyeC = base;
+  float eye = smoothstep(0.18, 0.4, min(base.g, base.b) - base.r) * smoothstep(0.45, 0.7, base.b) * uLook.y; vec3 eyeC = base;
   #ifdef PLUME
   eyeC = mix(base, uSoulC * 0.85, uHoly); // (the paladin's eyes burn gold)
   #endif
@@ -183,6 +184,12 @@ void main(){
     hCloth = cloth; hPlate = plate;
     #endif
     col = mix(col, mtl, plate * uHoly); }
+  // polished metal (Zhao Yun's armour and spear): the metal of the map mirrors a floor below, a dark horizon band and a bright sky above,
+  // the lights caught sharp, a pale edge; its own colour kept (silver, the gold trim)
+  if (uLook.z > 0.001) { float mm = smoothstep(0.3, 0.7, metal) * uLook.z; vec3 Rf = reflect(-V, N);
+    float env = mix(mix(0.6, 0.3, smoothstep(-0.6, 0.05, Rf.y)), 1.45, smoothstep(0.12, 0.85, Rf.y)), fr3 = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    vec3 pm = base * (0.45 + 0.5 * dif) * (0.55 + env) + spe * mix(vec3(1.0), base, 0.4) * 3.2 + vec3(0.85, 0.9, 1.0) * fr3 * 0.35;
+    col = mix(col, pm, mm); }
   #ifdef PLUME
   if (vPl.x > 0.002) { float m = clamp(vPl.x, 0.0, 1.0), rim = vPl.y, t = uPlFx.x;
     // dyed: the texture's light and shade in the tier colour
@@ -227,7 +234,7 @@ void main(){
 export function realMat(o = {}) {
   const u = o.u || charUniforms(o);
   return new THREE.ShaderMaterial({ vertexShader: TOON_V, fragmentShader: REAL_F, defines: o.plume ? { PLUME: '' } : {},
-    uniforms: { ...SH, ...u, uCut: { value: o.cut ? 1 : 0 }, uMap: { value: o.map }, uNMap: { value: o.nmap }, uMR: { value: o.mr } } });
+    uniforms: { ...SH, ...u, uLook: u.uLook || (u.uLook = { value: new THREE.Vector3(1.3, 1, 0) }), uCut: { value: o.cut ? 1 : 0 }, uMap: { value: o.map }, uNMap: { value: o.nmap }, uMR: { value: o.mr } } });
 }
 const OUT_V = `
 #include <common>

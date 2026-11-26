@@ -49,7 +49,7 @@ export const itemIconURL = it => ICON[itemBase(it).model] || '';
 // skull face, eyes lit; remade only when the crest or the soul light changes
 const HPV = { k: '', url: '' }, HEAD_CAM = [0.12, 0.06, 1.12, 0.42]; // look-at above the head bone, camera above that, distance, its turn
 export function heroHeadURL(en, fury = 0) {
-  const g = en.gear || {}, key = [plumeTier(fury), soulTier(fury), String(globalThis.__headCam || '')].join(':'); if (HPV.k === key) return HPV.url;
+  const g = en.gear || {}, key = [plumeTier(fury), soulTier(fury), en.wset === 'SPR' ? 'zy' : '', String(globalThis.__headCam || '')].join(':'); // (the spear: Zhao Yun's face) if (HPV.k === key) return HPV.url;
   if (!A.hero) return ''; initR(); const m = makeUnitMesh('brute', { hero: true, wset: en.wset, gear: g });
   const C = globalThis.__headCam || HEAD_CAM; play(m, 'Stand', {}); m.mixer.update(0.4); m.root.rotation.y = C[3]; m.root.updateMatrixWorld(true);
   heroWeaponPose({ mesh: m, fury, dead: false, spawnT: 0, x: 0, z: 0 }, 0.016, null);

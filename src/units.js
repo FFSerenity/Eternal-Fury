@@ -401,7 +401,7 @@ export function shoot(src, kind, tx, tz, o = {}) {
   const s = { kind, src, side: src.side === 'enemy' ? 'enemy' : 'friend', x: src.x + dx / d * 0.4, z: src.z + dz / d * 0.4, y: kind === 'fire' ? 0.9 : kind === 'wisp' ? (src.mesh.fly || 0) + 0.7 : 0.85, vx: dx / d * sp, vz: dz / d * sp,
     dmg: o.dmg ?? src.dmg, life: (o.life ?? 1.1) / PACE.act, hit: new Set(), root: new THREE.Group(), pierce: o.pierce || 0, splash: o.splash || 1.4, home: o.home || null, chill: o.chill || 0, sp };
   if (kind === 'spear') { const m = new THREE.Mesh(SPEAR_G, toonMat({ emis: 0x2a3a3a })); s.root.add(m, glowSprite(0x9ff7ff, 0.9, 0.6)); }
-  else if (kind === 'arrow') s.root.add(new THREE.Mesh(ARROW_G, toonMat()));
+  else if (kind === 'arrow') { s.root.add(new THREE.Mesh(ARROW_G, toonMat(o.glow ? { emis: 0x334455 } : {}))); if (o.glow) s.root.add(glowSprite(o.glow, 0.8, 0.7)); } // (Zhao Yun's: a silver gleam)
   else if (kind === 'bolt') { const m = new THREE.Mesh(ARROW_G, toonMat({ emis: 0x3a0a00 })); m.scale.set(1.5, 1.5, 1.8); s.root.add(m, glowSprite(0xff5a3a, 1.0, 0.7)); } // the crossbowman's aimed shot
   else if (kind === 'axe') { const pg = propGeo('axe_1handed'), m = new THREE.Mesh(pg.geo, toonMat({ map: pg.map, vc: false })), piv = new THREE.Group(); // a thrown axe, end over end
     m.scale.setScalar(0.5); m.position.y = -(pg.box.max.y + pg.box.min.y) * 0.25; piv.add(m); s.root.add(piv); s.spin = piv; }
@@ -960,8 +960,8 @@ export const AN = u => (u.foe && FANIM[u.foe]) || ANIM[u.kind];
 const HIT_AT = { '1H_Melee_Attack_Stab': 0.4, '1H_Melee_Attack_Chop': 0.56, '1H_Melee_Attack_Slice_Diagonal': 0.42, '1H_Melee_Attack_Slice_Horizontal': 0.26, '2H_Melee_Attack_Chop': 0.52, '2H_Melee_Attack_Slice': 0.36,
   '1H_Ranged_Shoot': 0.35, Spellcast_Shoot: 0.4, '2H_Ranged_Shoot': 0.2, Dualwield_Melee_Attack_Stab: 0.42, Dualwield_Melee_Attack_Slice: 0.4, Dualwield_Melee_Attack_Chop: 0.45, Headbutt: 0.42, Punch: 0.4,
   // the 魂契 skeleton's Mixamo swings: when the blade passes closest to a body 1.5 m in front (measured on the retargeted clips)
-  SNS_Atk2: 0.41, SNS_Atk3: 0.52, GS_Atk2: 0.51, GS_Atk3: 0.51, GS_Atk4: 0.44 };
-const SWING_AT = { SNS_Atk2: 0.4, SNS_Atk3: 0.51, GS_Atk2: 0.5, GS_Atk3: 0.5, GS_Atk4: 0.39 }; // and its blade at full speed: the swish (the cut sounds at the hit)
+  SNS_Atk2: 0.41, SNS_Atk3: 0.52, GS_Atk2: 0.51, GS_Atk3: 0.51, GS_Atk4: 0.44, SNS_Lunge: 0.45 }; // (SNS_Lunge: Zhao Yun's thrust, the spear point at full reach)
+const SWING_AT = { SNS_Atk2: 0.4, SNS_Atk3: 0.51, GS_Atk2: 0.5, GS_Atk3: 0.5, GS_Atk4: 0.39, SNS_Lunge: 0.42 }; // and its blade at full speed: the swish (the cut sounds at the hit)
 const SWING_LEAD = { SNS_Atk2: 0.2, SNS_Atk3: 0.2, GS_Atk2: 0.25, GS_Atk3: 0.22, GS_Atk4: 0.22 }; // clip time the blade gathers speed before that
 // stride references (world units per second at model scale 0.5)
 const REF = { Walking_A: 1.35, Walking_D_Skeletons: 1.2, Running_A: 3.6, Running_B: 3.4, Walking_Backwards: 1.2, Running_Strafe_Left: 2.6, Running_Strafe_Right: 2.6 };

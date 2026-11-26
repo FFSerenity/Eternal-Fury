@@ -230,6 +230,37 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   it) with a big ⚔ 装备卫士 button, and the 战魂 skills as a row of badges on a track filled up to its Fury (each in its crest tier's
   colour, locked ones grey); the picked badge is described in one fixed box underneath.
 
+## 长枪 · 赵云 / The spear: Zhao Yun (first version, Nov 2026)
+- A fourth style, set by a new hero weapon, the spear (data.js HERO_GEAR.spear: two-handed, its extra lines from the greatsword's pool,
+  damage ×1.2; 骨枪 / 银龙枪 / 龙胆亮银枪 by item level). Holding it, the skeleton becomes 赵云: his own model (makeHeroMesh model 'zy'),
+  no crest, no eye glow; heroName() says 赵云 / Zhao Yun, and the HUD portrait is his.
+- His model: a GPT picture (A-pose, the hems above the knee, the dragon pauldron from the design sheet) → Pixal3D / TRELLIS.2 in Comfy
+  (50k faces) → stood up straight, 1.8 m, 22k triangles (tools/bl_zy_prep.py) → Mixamo's auto-rigger (33 bones: one finger chain per
+  hand, a mitten) → textures put back (tools/bl_zy_build.py) → build-hero.mjs. Meshy's own model looked better but needs a paid plan to
+  download; it can be swapped in later (any Mixamo-named rig works).
+- His clips are the Sentinel's, moved onto his rig the first time each is asked for (assets.js zyClips, a proxy): every body bone's world
+  turn away from the Sentinel's bind pose is given to the same bone of his from his own bind pose (both stand in an A-pose; the Sentinel's
+  clips already carry its posture fixes, so he gets the poses as they look); the hips travel the same, scaled by hip height.
+- His fists: the mitten's chain curled toward the palm (the palms, measured on the mesh, face in and back). The spear in his right fist:
+  its line fitted on the two-handed clips (from the right fist toward the left, in the right hand's frame), the point away from the left
+  hand; 2.6 m, the grip 40% of the way up. While he stands or walks it is carried upright (CARRY), never dragged. The bow hangs across
+  his back (Spine2) and comes into his left fist, upright in the bow pose (fitted the same way), only while he shoots.
+- His look (shader uLook): his own albedo ×1.3, no eye glow (the eye test would light his blue cloth), and polished metal: the map's
+  metal mirrors a floor below, a dark band and a bright sky, the lights caught sharp, its own colour kept (silver, the gold trim).
+- The style (pact.js SETS.SPR): quick (move 2.4), life ×1.1, damage ×1.25, armour +8, a long reach (2.0) and a thin arc — and pierce:
+  every blow also runs through what stands in a line 0.45 m either side of its facing, out to 1.6 m past its reach (PH.strike). Blows
+  alternate a thrust (SNS_Lunge: the spear point drives forward) with the greatsword's swings.
+- His bow (not a Fury skill: the spear's own way): at a target 6–13 m off, in sight, with nothing close, every 5 s — the spear set
+  aside, the bow off his back, three arrows 0.28 s apart (0.55× damage each, a silver gleam, led onto a moving target), then back
+  to the spear. Its pose is a stand-in (SNS_Block, the shield arm held out) until Mixamo's longbow clips are downloaded.
+- His skills (pactskills.js MOVES.SPR, names and words in each skill's spr): 长坂冲阵 Changban Charge — a lunge spear-first along a path
+  through the target and 1.6 m past it (stopped short by walls); everything near the path is run through (1.6×, the target 2×), thrown
+  aside to whichever side it stood and stunned 0.7 s. 招架 Parry — 30% of blows from the front (−60%), then a thrust back whose qi flies
+  down the line. 枪花 Spear Flower — the greatsword's spin. 百鸟朝凤 Hundred Birds — dragon light (pale blue) gathers on the point,
+  then five bolts of it fan out ahead about 9 m, each running through what it meets (2.6×; non-elites under 25% cut down).
+- Placeholders to replace: the bow pose, and spear thrusts of its own (Mixamo has no spear pack: Bayonet Stab, Upward Thrust and the
+  staff Smash are the candidates; the longbow pack for the bow).
+
 ## 野外的敌人 / The wilds' foes (Nov 2026)
 The wilds hold no skeletons: the living (KayKit Adventurers — Knight, Barbarian, Rogue, Rogue Hooded, and the Mage *with* its hat;
 the summoner is the bare-headed Mage) and flying vermin (Quaternius Ultimate Monsters — Goleling as the bat, Ghost, Ghost Skull).

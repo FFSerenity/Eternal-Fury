@@ -184,13 +184,14 @@ export function rollItem(id, il, q, slot = Math.random() < 0.62 ? 'w' : 'a', typ
 export const itemBase = it => it.hero ? HERO_GEAR[it.hero].bases[it.b] : it.slot === 'w' ? WEAPONS[it.type].bases[it.b] : ARMORS[it.b];
 export const itemName = it => (it.q && (it.hero || it.q < 3) ? QUAL[it.q].name + ' ' : '') + itemBase(it).name;
 // ---------- 魂契: the Bone Sentinel's own gear — a greatsword (both hands: no shield with it), a sword or a mace, and a shield ----------
-// The weapon decides its style (greatsword → 大剑, sword → 剑盾, mace → 圣骑士). Base names go up with the item level; the qualities run white, blue,
+// The weapon decides its style (greatsword → 大剑, sword → 剑盾, mace → 圣骑士, spear → 长枪: the skeleton becomes 赵云). Base names go up with the item level; the qualities run white, blue,
 // yellow, purple and red, each one more extra line (from the slot's pool) and stronger numbers
 const hb = (cat, model, names, o = {}) => ({ cat, model, ...o, bases: names.map(name => ({ name, cat, model, cd: 1 })) });
 export const HERO_GEAR = {
   gs: hb(tr('双手大剑', 'Greatsword'), 'hw_greatsword', [tr('骨刃大剑', 'Bonecleaver'), tr('亡者巨剑', 'Deathsworn Greatsword'), tr('魂钢大剑', 'Soulsteel Greatsword')], { slot: 'w', two: true, style: 'GS', dm: 1.3 }),
   sword: hb(tr('单手剑', 'Sword'), 'hw_sword', [tr('骨剑', 'Bone Sword'), tr('亡者长剑', 'Deathsworn Blade'), tr('魂钢长剑', 'Soulsteel Sword')], { slot: 'w', style: 'SNS', dm: 1 }),
   mace: hb(tr('单手锤', 'Mace'), 'hw_mace', [tr('骨锤', 'Bone Mace'), tr('圣徒战锤', 'Saint\'s Warhammer'), tr('审判之锤', 'Hammer of Judgement')], { slot: 'w', style: 'PAL', dm: 0.95 }),
+  spear: hb(tr('长枪', 'Spear'), 'hw_spear', [tr('骨枪', 'Bone Spear'), tr('银龙枪', 'Silver Dragon Spear'), tr('龙胆亮银枪', 'Dragon-Heart Silver Spear')], { slot: 'w', two: true, style: 'SPR', dm: 1.2 }),
   shield: hb(tr('盾牌', 'Shield'), 'hw_shield', [tr('骨盾', 'Bone Shield'), tr('亡者鸢盾', 'Deathward Kite'), tr('魂钢塔盾', 'Soulsteel Bulwark')], { slot: 'a' }),
 };
 export const HERO_AFX = { // extra lines: per slot pool; value at item level il (× quality)
@@ -199,13 +200,13 @@ export const HERO_AFX = { // extra lines: per slot pool; value at item level il 
   a: { blk: il => 3 + 0.4 * il, eva: il => 2 + 0.3 * il, dmg: il => 5 + 2 * il, move: il => 4 + 0.6 * il },
 };
 // the styles by name (an item's line says which one its weapon fights)
-export const STYLE_NAME = { SNS: tr('剑盾流派', 'Sword & Shield'), GS: tr('大剑流派', 'Greatsword'), PAL: tr('锤盾圣骑士', 'Mace & Shield Paladin') };
-const HERO_WEAPONS = ['gs', 'sword', 'mace'];
+export const STYLE_NAME = { SNS: tr('剑盾流派', 'Sword & Shield'), GS: tr('大剑流派', 'Greatsword'), PAL: tr('锤盾圣骑士', 'Mace & Shield Paladin'), SPR: tr('长枪 · 赵云', 'Spear · Zhao Yun') };
+const HERO_WEAPONS = ['gs', 'sword', 'mace', 'spear'];
 export function rollHeroItem(id, il, q, kind = Math.random() < 0.6 ? HERO_WEAPONS[Math.floor(Math.random() * HERO_WEAPONS.length)] : 'shield') {
   const H = HERO_GEAR[kind], qm = QUAL[q].k, it = { id, hero: kind, slot: H.slot, q, il, b: il < 6 ? 0 : il < 12 ? 1 : 2, v: {} };
   if (H.slot === 'w') it.v.dmg = Math.round((8 + 3 * il) * qm * H.dm * jit());
   else { it.v.hp = Math.round((8 + 3 * il) * qm * jit()); it.v.arm = Math.round((4 + 2 * il) * qm * jit()); }
-  const pool = Object.entries(HERO_AFX[kind === 'gs' ? 'gs' : H.slot]).sort(() => Math.random() - 0.5), xk = 1 + 0.12 * q;
+  const pool = Object.entries(HERO_AFX[H.two ? 'gs' : H.slot]).sort(() => Math.random() - 0.5), xk = 1 + 0.12 * q;
   for (const [k, f] of pool.slice(0, q)) it.v[k] = (it.v[k] || 0) + Math.max(1, Math.round(f(il) * xk * jit()));
   return it;
 }
@@ -284,6 +285,7 @@ export function itemLines(it) {
     if (H.two) L.push('✦ ' + tr('双手武器：装上后盾牌格不能用', 'Two-handed: no shield with it'));
     if (H.style) L.push('✦ ' + tr(`骸骨卫士拿上它：${STYLE_NAME[H.style]}`, `The Sentinel holding it fights ${STYLE_NAME[H.style]}`));
     if (H.style === 'PAL') L.push('✦ ' + tr('钝击：盾挡不住，无视一半护甲，打重甲 +25%', 'Blunt: no shield stops it, it ignores half of armour, +25% against heavy armour'));
+    if (H.style === 'SPR') L.push('✦ ' + tr('骸骨卫士化身赵云：枪长刺远，一枪穿透一列敌人；背上一张弓，敌人在远处时先放箭', 'The Sentinel becomes Zhao Yun: a long reach, each thrust runs through a whole line; a bow on his back, loosed at enemies still far off'));
     return L; }
   if (it.slot === 'w') { L.push(`${W.dmg} +${v.dmg}%`); if (B.cd !== 1) L.push(`${W.cd} ${B.cd < 1 ? '-' : '+'}${Math.round(Math.abs(1 - B.cd) * 100)}%`); if (v.spd) L.push(`${W.spd} +${v.spd}%`); if (v.hp) L.push(`${W.hp} +${v.hp}%`); }
   else { L.push(`${W.hp} +${v.hp}%`, `${W.arm} +${v.arm}`); if (v.dmg) L.push(`${W.dmg} +${v.dmg}%`); if (v.move) L.push(`${W.move} +${v.move}%`); }

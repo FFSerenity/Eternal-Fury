@@ -33,6 +33,12 @@ export const SETS = {
   PAL: { name: tr('锤盾', 'Mace & Shield'), style: tr('圣骑士', 'Paladin'), icon: '🔨', mv: 1.97, hp: 1.4, dmg: 1.05, arm: 18, cd: 1.3, wind: 0.48, range: 1.15, eva: 0.24, arc: 0.55, side: 0.6, knock: 2, blunt: true, holy: true, smite: 3,
     desc: tr('生命和护甲最高，出手比剑盾慢。钝击：盾牌挡不住锤子，无视目标一半护甲，打重甲（护甲 15 以上）伤害 +25%。每第三下是圣击：圣光砸在目标身上，波及身边的敌人并短暂眩晕。',
       'The most life and armour, a little slower than the sword. Blunt: shields don\'t stop a mace, it ignores half of armour, +25% against heavy armour (15 or more). Every third blow is a Smite: light crashes down on the target, catching those beside it and stunning them briefly.') },
+  // the spear (长枪): the skeleton becomes 赵云 — quick on its feet, a long reach, and each thrust runs on through the line behind the
+  // target (pierce: how far past its reach); a bow on his back for enemies still far off (bow: range, every cd s, n arrows at mult)
+  SPR: { name: tr('长枪', 'Spear'), style: tr('赵云', 'Zhao Yun'), icon: '🐉', mv: 2.4, hp: 1.1, dmg: 1.25, arm: 8, cd: 1.35, wind: 0.5, range: 2.0, eva: 0.26, arc: 0.3, side: 0.8, knock: 1.8,
+    pierce: 1.6, bow: { min: 6, max: 13, cd: 5, n: 3, gap: 0.28, mult: 0.55 },
+    desc: tr('骸骨卫士化身赵云。移动快，枪长刺得远，每一枪都穿透目标身后一条线上的敌人（再远 1.6 米）。背上一张弓：敌人还在 6–13 米外时停下连射三箭，再提枪冲上去。',
+      'The Sentinel becomes Zhao Yun. Quick on his feet, a long reach, and every thrust runs on through the line behind the target (1.6 m further). A bow on his back: at enemies still 6–13 m off he stops and looses three arrows, then goes in with the spear.') },
 };
 // what s 战魂 stacks give, in %: +6% damage and +4% attack speed a stack up to 25 (every skill awake), then +3% and +1.5% (it grew too
 // strong late on, gear multiplying it again); +2.5% life a stack all the way; move speed +2% a stack, at most +30%
@@ -52,7 +58,7 @@ const killWorth = v => v.boss ? 12 : v.champ ? 4 : v.kind === 'brute' ? 2 : 1; /
 // 魂能 from a corpse; lvlCost: what a summon level used to cost (only to pay old saves back, pactMigrate)
 export const soulOf = c => Math.max(1, Math.round(({ imp: 1, archer: 2, shaman: 2, brute: 3 }[c.kind] || 1) * (1 + 0.25 * (c.level - 1)) * (c.boss ? 12 : c.champ ? 3 : 1)));
 export const lvlCost = L => Math.round(10 * Math.pow(L, 1.45));
-export const heroName = () => tr('骸骨卫士', 'Bone Sentinel');
+export const heroName = () => (G.pact && G.pact.wset === 'SPR' ? tr('赵云', 'Zhao Yun') : tr('骸骨卫士', 'Bone Sentinel')); // (the spear: the skeleton has become Zhao Yun)
 
 // ---------- the skeleton's entry (one, rebuilt on every summon) ----------
 const P8 = G.pact;
@@ -71,7 +77,7 @@ export function initGear() {
   P8.gear = P8.wset === 'GS' ? { w: rollHeroItem(G.uid++, L, 0, 'gs') } : { w: rollHeroItem(G.uid++, L, 0, 'sword'), a: rollHeroItem(G.uid++, L, 0, 'shield') };
 }
 // a whole set at a quality (the test arena): the style's weapon, and a shield with the sword or the mace
-export function equipSet(style, q, il) { P8.gear = style === 'GS' ? { w: rollHeroItem(G.uid++, il, q, 'gs') } : { w: rollHeroItem(G.uid++, il, q, style === 'PAL' ? 'mace' : 'sword'), a: rollHeroItem(G.uid++, il, q, 'shield') }; PH.gear(heroEntry()); }
+export function equipSet(style, q, il) { P8.gear = style === 'GS' || style === 'SPR' ? { w: rollHeroItem(G.uid++, il, q, style === 'SPR' ? 'spear' : 'gs') } : { w: rollHeroItem(G.uid++, il, q, style === 'PAL' ? 'mace' : 'sword'), a: rollHeroItem(G.uid++, il, q, 'shield') }; PH.gear(heroEntry()); }
 
 // ---------- hooks the unit code calls (see PH in units.js) ----------
 PH.stats = u => {
@@ -86,11 +92,15 @@ PH.name = () => heroName();
 PH.strike = (u, t) => {
   const W = SETS[u.entry.wset] || SETS.SNS, reach = u.range + u.r + 0.35; let hits = 0, crits = false, plate = false;
   if (W.heavy) { S.smash(); C.parts.emit(u.x + Math.sin(u.face) * 1.1, 0.2, u.z + Math.cos(u.face) * 1.1, 14, { col: 0xb8a890, spd: 3, up: 1.4, life: 0.5, size: 0.3 }); }
-  for (const h of hostilesOf(u)) { if (h.dead) continue; const d = Math.hypot(h.x - u.x, h.z - u.z); if (d > reach + h.r + (h === t ? 0.4 : 0)) continue;
-    const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (h !== t && da > W.arc && d > 0.8) continue;
+  const fx = Math.sin(u.face), fz = Math.cos(u.face);
+  for (const h of hostilesOf(u)) { if (h.dead) continue; const d = Math.hypot(h.x - u.x, h.z - u.z);
+    if (W.pierce && h !== t) { const al = (h.x - u.x) * fx + (h.z - u.z) * fz, lat = Math.abs((h.x - u.x) * fz - (h.z - u.z) * fx); // (the spear: a thin line straight ahead, past the target)
+      if (al < 0 || al > reach + W.pierce + h.r || lat > 0.45 + h.r) continue; }
+    else { if (d > reach + h.r + (h === t ? 0.4 : 0)) continue;
+      const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (h !== t && da > W.arc && d > 0.8) continue; }
     const crit = Math.random() < (u.crit ?? 0.1); damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; plate = plate || plated(h); }
   if (hits) { if (W.blunt) S.bonk(crits, 1, plate); else S.blade(!!W.heavy, crits, plate); } // one blade sound per swing, however many it cuts
-  hitBoxes(u.x, u.z, reach, u.face, Math.max(0.7, W.arc)); // (and a barrel, a crate or an urn in front of it breaks)
+  hitBoxes(u.x, u.z, reach + (W.pierce || 0) * 0.5, u.face, Math.max(0.7, W.arc)); // (and a barrel, a crate or an urn in front of it breaks)
   if (W.smite && t && (u.smiteN = (u.smiteN || 0) + 1) % W.smite === 0) smite(u, t); // every third blow: the light comes down where it stood
 };
 // evasion: a number-less "dodge" and, when it is free to move, a quick dodge step (the Mixamo dodges, sped up)
