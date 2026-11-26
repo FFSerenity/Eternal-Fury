@@ -4,7 +4,7 @@ import { G, save, bagPut, PACT } from './state.js';
 import { TYPES, FOES, MODS, SKILLS, xpNeed, partySize, TREE, soulPoints, soulXP, ELEM, PACE, DEEP_HP, affixName, MAX_AFFIX, MAX_AFFIX_LV, QUAL, BAG_MAX, rollDrop, rollHeroDrop, itemName, itemBase, makeGun, treeKey, techOf, TECH } from './data.js';
 import { auraMat, glowSprite, ring, toonMat, part, merge, lootBeam, beamTime } from './gfx.js';
 import { tr } from './i18n.js';
-import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose } from './assets.js';
+import { makeUnitMesh, play, playUpper, partClip, clipLen, CHARS, propMesh, propGeo, heroWeaponPose, A, ZY_WALK_REF } from './assets.js';
 import { slash, impact, burst, shake, trail, spinFx, slamMark, debris, shieldDome, domeHit, domeEnd, empWave, warnCircle, warnLine, warnCone } from './fx.js';
 import { S } from './audio.js';
 import { runeCircle } from './vfx.js';
@@ -1007,7 +1007,7 @@ function animate(u, dt, sp) {
   if (u.stun > 0) { if (!u.stunAnim) { u.stunAnim = true; play(m, a.hit, { once: true, restart: true, speed: 1.5, fade: 0.05 }); } return; }
   u.stunAnim = false;
   if (u.state === 'cast' || u.state === 'channel' || u.state === 'summon') { play(m, a.cast || 'Spellcasting', { speed: 1.2 }); return; }
-  if (m.hero) { const w = m.walk || 'Walk_SNS', ref = w === 'Walk_GS' ? 2.02 : 1.56; // walk only (no run yet); strides from the clips' root travel, world m/s
+  if (m.hero) { const w = m.walk || 'Walk_SNS', ref = m.zy && A.zy.own ? ZY_WALK_REF * m.model.scale.x : w === 'Walk_GS' ? 2.02 : 1.56; // (Zhao Yun: his own walk) // walk only (no run yet); strides from the clips' root travel, world m/s
     if (sp > 0.3) play(m, w, { speed: Math.max(0.6, Math.min(1.6, sp / ref)), fade: 0.22 }); else play(m, 'Stand', { fade: 0.3 }); return; } // by name: the styles' own guarded Idle must not win
   if (m.fly != null) { play(m, sp > a.runAt || u.state === 'panic' ? a.run : sp > 0.35 ? a.walk : a.idle, { speed: sp > 0.35 ? 1.25 : 1, fade: 0.2 }); return; } // flyers: no stride to match
   const k = (m.sc || CHARS[u.kind].scale) * (u.champ ? (u.side === 'ally' ? 1.1 : 1.25) : 1) / 0.5;

@@ -73,10 +73,10 @@ MOVES.PAL = { holy: true, guard: { ...MOVES.SNS.guard, holy: true },
 // five bolts of it fanned ahead. bow: his bow, at enemies still far off (not a Fury skill: the spear's own way), three arrows and back
 export const DRAGON = [0xe8f8ff, 0x9fe4ff, 0x5fb8ff, 0xffffff];
 MOVES.SPR = { charge: { lunge: true, clip: 'SNS_Lunge', sp: 1.2, at: 0.12, go: 0.28, stop: 0.5, end: 0.72, mult: 1.6, side: 0.9, stun: 0.7, past: 1.6, max: 9 },
-  guard: { chance: 0.3, keep: 0.4, word: tr('招架', 'Parry'), pose: 'GS_Block', poseT: 0.18, clip: 'GS_Atk3', at: 0.25, hit: 0.51, mult: 1.2 },
+  guard: { chance: 0.3, keep: 0.4, word: tr('招架', 'Parry'), pose: 'ZY_Two_Handed_Parry', poseT: 0.18, clip: 'GS_Atk3', at: 0.25, hit: 0.51, mult: 1.2 },
   whirl: { ...MOVES.GS.whirl, mult: 1.1 },
   sunder: { ...MOVES.GS.sunder, sweep: 0, dragon: true, pal: DRAGON, col: 0x9fe4ff, mult: 2.6 },
-  bow: { clip: 'SNS_Block', min: 6, max: 13, cd: 5, n: 3, draw: 0.45, gap: 0.28, after: 0.35, mult: 0.55, speed: 20 } };
+  bow: { clip: 'ZY_Archery_Shot_2', min: 6, max: 13, cd: 5, n: 3, draw: 0.45, gap: 0.28, after: 0.35, mult: 0.55, speed: 20 } };
 const WAVES = [{ at: 0.16, R: 7.6, life: 0.6, mult: 0.6 }, { at: 0.32, R: 9.8, life: 0.66, mult: 0.4 }]; // the greatsword's sunder: the 2nd and 3rd waves
 const CONE = { range: 5.5, half: 0.66 }, BOLT = { range: 10, speed: 16 }, FAN = 4.5;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);

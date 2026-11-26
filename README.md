@@ -34,8 +34,9 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
   leaps after it, catches it overhead and lands in a burst of light), Blessed Hammers (three hammers of light wheeling round it for 6 s),
   Judgement (a pillar of light and three rings of it) and the Aura of Light (7 m: its damage heals everyone of its side inside, and each
   wears a shield of light worth 20% of their life).
-- **Spear — Zhao Yun 赵云** (first version, Nov 2026): equip a spear and the skeleton becomes Zhao Yun — his own model in silver armour
-  with a dragon pauldron, a silver dragon spear, a bow slung across his back. Quick on his feet, a long reach, and every thrust runs on
+- **Spear — Zhao Yun 赵云** (Nov 2026): equip a spear and the skeleton becomes Zhao Yun — his own model in silver armour
+  with a dragon pauldron, a silver dragon spear, a bow slung across his back. He stands in a spear stance, walks with the spear
+  upright and draws the bow side-on (his own motions). Quick on his feet, a long reach, and every thrust runs on
   through the line behind the target. At enemies still 6–13 m off he takes the bow and looses three arrows first. His skills: Changban
   Charge (a lunge spear-first straight through the line), Parry (and a thrust back whose qi flies down the line), Spear Flower (the spin)
   and Hundred Birds (dragon light gathered on the point, then five bolts of it fanned ahead).
@@ -165,11 +166,12 @@ Assets: `node tools/build-assets.mjs <path to the KayKit packs>` rebuilds `asset
 Soul Pact skeleton: `tools/bl_retarget.py` (Blender as a Python module) copies Mixamo clips made for the standard Y Bot onto the Meshy rig in
 world space, through both T-poses (`tools/bl_ybot.py`; Mixamo's own retarget bent our knees sideways), and strips root travel into `tools/hero-meta/*.json`; `tools/bl_weapons.py` splits the weapon sheet; `node tools/build-hero.mjs` compresses each glb
 (`hero.glb` model + rise/dodges, `hero_sns.glb` / `hero_gs.glb` clip packs, `hero_weapons.glb`). They load only in Soul Pact mode.
-Zhao Yun (the spear): `tools/bl_zy_prep.py` stands the Pixal3D model up straight (it came leaning 16° toward the picture's camera), 1.8 m, decimated
-to 22k triangles, an FBX for Mixamo's auto-rigger; `tools/bl_zy_build.py` puts the textures back on the rigged FBX (same UVs) →
-`hero_zy.glb`; `tools/bl_zy_weapons.py` builds the spear (the generated spearhead, its socket stretched into a 1.4 m shaft) and the bow
-(the arrow it was drawn with cut away) → `hero_zyweap.glb`. He has no clips of his own: the Sentinel's are moved onto his rig in the game
-(assets.js zyClips).
+Zhao Yun (the spear): made, remeshed, rigged and animated in Meshy and downloaded as one GLB (Mixamo skeleton, all motions);
+`node tools/zy-fix-rig.mjs <meshy.glb> <out.glb> tools/zy-feet.json` moves the skin weights off Meshy's stray helper bones, renames the
+motions ZY_*, takes the hips' drift out, turns the archery clips to face forward and stands each clip on his spot (the feet measured by
+`tools/bl_zy_feet.py` on the tool's own output) → `node tools/build-hero.mjs` → `hero_zy.glb`. `tools/bl_zy_weapons.py` builds the spear
+(the generated spearhead, its socket stretched into a 1.4 m shaft) and the bow (the arrow it was drawn with cut away) → `hero_zyweap.glb`.
+Clips he has none of are the Sentinel's, moved onto his rig in the game (assets.js zyClips).
 
 ## Credits
 3D models and animations: **KayKit** by Kay Lousberg (www.kaylousberg.com) — Character Pack: Skeletons, Character Pack: Adventurers,
@@ -180,5 +182,5 @@ CC BY 4.0. Its animations are from **Mixamo** (Adobe): Pro Sword and Shield Pack
 Its blade sounds — a metal slice and the ring of the blade, no wooden knock — are mixed from **Kenney**'s Impact Sounds and RPG Audio (www.kenney.nl, CC0; tools/mix-blades.py); one light swish is from **artisticdude**'s Swishes Sound Pack (OpenGameArt, CC0).
 Its swishes, armour hits, blocks, fire, slams, war cries, charges, holy light, Judgement and Blessed Hammers, the champions' poison and thunder, the monsters' cries and shots, and the summoner's Raise, souls, loot and forge sounds, were generated with
 **Stable Audio 3 Medium** (Stability AI) in ComfyUI and picked by ear.
-Zhao Yun was drawn with GPT image generation, made 3D with **Pixal3D / TRELLIS.2** in ComfyUI and rigged by **Mixamo**'s auto-rigger;
-his spearhead and bow were drawn with **Qwen Image** and made 3D the same way. The display stands, barrels, crates and urns too.
+Zhao Yun was drawn with GPT image generation and made 3D, rigged and animated with **Meshy** (meshy.ai: Meshy 7.5, its auto-rig and
+preset motions; private licence); his spearhead and bow were drawn with **Qwen Image** and made 3D with **Pixal3D / TRELLIS.2** in ComfyUI. The display stands, barrels, crates and urns too.
