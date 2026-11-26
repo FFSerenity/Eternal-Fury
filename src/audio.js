@@ -71,8 +71,8 @@ export const S = {
   shot(kind, v = 1) { if (!ok() || v < 0.05 || !gate('sh_' + kind, 70)) return; const sh = SHOT[kind]; if (sh && sample(any(kind, sh[0]), sh[1] * v, 0.95 + Math.random() * 0.1)) return;
     if (kind === 'soul') this.zap(); else if (kind === 'fball' || kind === 'hfire') this.fire(); else this.arrow(); },
   // Raise: the souls torn out of the corpse and the spell's hum under them, each pitched a little differently every time, then the souls flying off
-  harvest(v = 1) { if (!ok() || !gate('hv', 90)) return; const a = sample('rz_rip', 0.8 * v, 0.92 + Math.random() * 0.16), b = sample('rz_hum', 0.6 * v, 0.9 + Math.random() * 0.2, 0.03 + Math.random() * 0.05);
-    if (!a && !b) this.caught(); this.soulFly(0.45 * v, 0.12); },
+  harvest(v = 1) { if (!ok() || !gate('hv', 90)) return; const a = sample('rz_rip', 0.35 * v, 0.92 + Math.random() * 0.16), b = sample('rz_hum', 0.65 * v, 0.9 + Math.random() * 0.2, 0.03 + Math.random() * 0.05);
+    if (!a && !b) this.caught(); this.soulFly(0.55 * v, 0.12); },
   soulFly(v = 0.5, t = 0) { if (!ok() || !gate('sf', 120)) return; sample('soul_fly', v, 0.9 + Math.random() * 0.25, t); },
   // a soul landing in the vessel: one of the little drops, each one of a run a step higher than the last
   plink() { if (!ok() || !gate('gp', 45)) return; const now = ac.currentTime; plinkN = now - plinkT < 0.45 ? Math.min(plinkN + 1, 10) : 0; plinkT = now;
