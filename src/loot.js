@@ -1,12 +1,12 @@
-// 宝箱与木桶 / Chests and barrels: the crypt's barrels, kegs, boxes, crates and trunks break when the summoner gets to them (click / tap
-// one), the chests (now and then a gold one) open — and the chest in the middle of a ruin in the wilds. Barrels: now and then an item,
-// some soul energy (魂契); chests: always an item, often a second, better odds, more soul. They stay instanced in the floor's PropBatch:
-// a breaking one's instance is shrunk away (its cell walkable again) and pieces of it fly apart; a chest's lid (an instance of its own,
-// its origin on the hinge) swings open and stays open.
+// 底座与木桶 / Stands and barrels: the crypt's barrels, crates, urns, kegs and trunks break when the summoner gets to them (click / tap
+// one) or when the bone spear or the Sentinel's blows land on them (hitBoxes); now and then an item, some soul energy (魂契). No more
+// chests to gamble on: a display stand (a stone plinth, a relic stand, a weapon rack, a crypt altar — generated models, assets/gen_props)
+// holds one item in plain sight, picked up by walking to it; one in the middle of a ruin in the wilds too. Boxes stay instanced in the
+// floor's PropBatch: a breaking one's instance is shrunk away (its cell walkable again) and pieces of it fly apart.
 import * as THREE from 'three';
 import { G, PACT } from './state.js';
 import { tr } from './i18n.js';
-import { C, say, dropLoot } from './units.js';
+import { C, PH, say, dropLoot } from './units.js';
 import { rollHeroItem, rollItem, QUAL } from './data.js';
 import { propGeo, propMat } from './assets.js';
 import { glowSprite } from './gfx.js';
@@ -14,15 +14,25 @@ import { burst, shake } from './fx.js';
 import { S } from './audio.js';
 import { soulToJar } from './soulvessel.js';
 
-export const BOX_KIND = { barrel_small: 'smash', barrel_large: 'smash', keg: 'smash', box_small: 'smash', box_large: 'smash', crates_stacked: 'smash', trunk_large_A: 'trunk', chest: 'chest', chest_gold: 'gold' };
+export const BOX_KIND = { barrel_small: 'smash', barrel_large: 'smash', keg: 'smash', box_small: 'smash', box_large: 'smash', crates_stacked: 'smash', trunk_large_A: 'trunk', chest: 'chest', chest_gold: 'gold',
+  brk_barrel1: 'smash', brk_barrel3: 'smash', brk_barrel4: 'smash', brk_crate1: 'smash', brk_crate2: 'smash', brk_urn1: 'urn', brk_urn4: 'urn',
+  stand_stone: 'stand', stand_relic: 'stand', stand_rack: 'stand', stand_altar: 'stand' };
+// the generated props' heights in the game (their files are about a unit tall; scaled to this at placement)
+export const PROP_H = { brk_barrel1: 0.66, brk_barrel3: 0.66, brk_barrel4: 0.66, brk_crate1: 0.55, brk_crate2: 0.55, brk_urn1: 0.6, brk_urn4: 0.6,
+  stand_stone: 0.72, stand_relic: 0.78, stand_rack: 1.0, stand_altar: 0.58 };
+// where a stand's item sits: [its top (a share of its height), forward of its middle (the rack's hooks)]
+const STAND_AT = { stand_stone: [0.94, 0], stand_relic: [1, 0], stand_altar: [0.89, 0], stand_rack: [0.8, 0.2] };
+export const propScale = name => { const pg = propGeo(name); return pg && PROP_H[name] ? PROP_H[name] / Math.max(0.05, pg.box.max.y) : 0.5; };
 // loot: the chance of an item and its quality odds (white .. red; red only in 魂契), a second item's chance, 魂能 (chance, amount at item level il)
 export const BOX_LOOT = {
   smash: { item: 0.2, q: [0.55, 0.32, 0.11, 0.02, 0], again: 0, soul: 0.35, soulN: il => 1 + Math.round(il * 0.4) },
+  urn: { item: 0.15, q: [0.5, 0.34, 0.13, 0.03, 0], again: 0, soul: 0.6, soulN: il => 2 + Math.round(il * 0.5) }, // (a burial urn: more soul in it)
+  stand: { item: 1, q: [0.12, 0.42, 0.32, 0.12, 0.02] }, standGold: { item: 1, q: [0, 0.2, 0.46, 0.26, 0.08] }, // (one item, in plain sight)
   trunk: { item: 0.75, q: [0.3, 0.45, 0.2, 0.05, 0], again: 0.15, soul: 0.6, soulN: il => 2 + Math.round(il * 0.6) },
   chest: { item: 1, q: [0.2, 0.45, 0.26, 0.08, 0.01], again: 0.35, soul: 1, soulN: il => 4 + il },
   gold: { item: 1, q: [0, 0.25, 0.45, 0.24, 0.06], again: 0.8, soul: 1, soulN: il => 10 + 2 * il },
 };
-export const GOLD_CHEST = 0.12; // the share of chests that are gold
+export const GOLD_CHEST = 0.12, GOLD_STAND = 0.15; // the share of chests / stands that hold something better
 const _up = new THREE.Vector3(0, 1, 0), _x = new THREE.Vector3(1, 0, 0);
 // a box's place in the floor: name, where, its PropBatch item (for the instance), the grid cell it blocks (crypt only: freed when it breaks)
 export function addBox(F, name, x, z, it, cell, lid = null) { const b = { name, kind: BOX_KIND[name], x, z, it, cell, lid, open: false }; (F.boxes || (F.boxes = [])).push(b); return b; }
@@ -31,6 +41,22 @@ export function placeChest(F, B, name, x, z, r, s = 0.5, cell = null) {
   const lg = propGeo(name + '_lid'), h = lg ? lg.hinge : new THREE.Vector3(), w = new THREE.Vector3(h.x, h.y, h.z).multiplyScalar(s).applyAxisAngle(_up, r);
   const it = B.add(name + '_body', x, 0, z, r, s), lid = B.add(name + '_lid', x + w.x, w.y, z + w.z, r, s); return addBox(F, name, x, z, it, cell, lid);
 }
+// a display stand with its one item, rolled now (shown on it once the floor is up — boxTick): a weapon now and then on a rack, an epic or
+// legendary on the relic stand or the crypt altar, the rest on a stone plinth
+// (rack: a rack may stand here — its hooks face r, toward the camera)
+export function placeStand(F, B, x, z, r, rack = true, cell = null) {
+  const il = Math.max(1, G.depth || G.deep || 1), item = itemOf(il, rollQ((Math.random() < GOLD_STAND ? BOX_LOOT.standGold : BOX_LOOT.stand).q));
+  const name = rack && item.slot === 'w' && Math.random() < 0.6 ? 'stand_rack' : item.q >= 3 ? (Math.random() < 0.5 ? 'stand_relic' : 'stand_altar') : 'stand_stone', s = propScale(name);
+  const it = B.add(name, x, 0, z, r, s), b = addBox(F, name, x, z, it, cell), [top, fwd] = STAND_AT[name];
+  b.item = item; b.r = r; b.top = PROP_H[name] * top; b.dz = PROP_H[name] * fwd; return b;
+}
+// what the Sentinel's blows and the bone spear break: the barrels, crates, urns, kegs and trunks within r of (x, z) — and, given a facing
+// (face, half: its half-width in radians), only those in front
+export function hitBoxes(x, z, r, face = null, half = Math.PI) { const F = G.floor; if (!F || !F.boxes) return 0; let n = 0;
+  for (const b of F.boxes) { if (b.open || b.kind === 'stand' || b.kind === 'chest' || b.kind === 'gold') continue; const dx = b.x - x, dz = b.z - z, d = Math.hypot(dx, dz); if (d > r + 0.35) continue;
+    if (face != null && d > 0.4 && Math.abs(((Math.atan2(dx, dz) - face + Math.PI * 3) % (Math.PI * 2)) - Math.PI) > half) continue; openBox(b); n++; }
+  return n; }
+PH.shotBox = s => s.kind === 'spear' && s.side === 'friend' && hitBoxes(s.x, s.z, 0.25) > 0; // (the bone spear: it breaks on what it hits)
 // the box under a click (the click can land a little behind a tall one, the camera looking down along -x/-z)
 export function pickBox(p, r = 0.75) { const F = G.floor; if (!F || !F.boxes || !p) return null; let best = null, bd = r;
   for (const b of F.boxes) { if (b.open) continue; for (let h = 0; h <= 0.9; h += 0.3) { const k = 0.69 * h, d = Math.hypot(p.x + k - b.x, p.z + k - b.z); if (d < bd) { bd = d; best = b; } } }
@@ -75,10 +101,11 @@ function lidOpen(b) {
   G.fx.push({ clean: true, t: 1.2, tick: k => { glow.material.opacity = 0.75 * Math.sin(Math.PI * Math.min(1, k * 1.6)) * (1 - k * 0.5); glow.position.y = 0.55 + k * 0.4; }, fn: () => C.scene.remove(glow) });
 }
 export function openBox(b) {
-  if (!b || b.open) return; b.open = true; const L = BOX_LOOT[b.kind], il = Math.max(1, G.depth || G.deep || 1), x = b.x, z = b.z;
-  if (b.kind === 'smash' || b.kind === 'trunk') { // it bursts: pieces, splinters and dust; its cell can be walked again
-    setInst(b.it, [0, 0]); shatter(b); if (b.cell) C.floor.unblock(b.cell[0], b.cell[1]); S.smash(); S.hit(1); shake(0.06, x, z);
-    C.parts.emit(x, 0.45, z, 14, { col: 0x8a5a32, spd: 2.8, up: 2.6, grav: 9, life: 0.6, size: 0.16, spread: 0.3 }); C.parts.emit(x, 0.3, z, 10, { col: 0xc8b49a, spd: 1.2, up: 0.8, grav: 0.5, life: 0.8, size: 0.4, spread: 0.3 }); }
+  if (!b || b.open || b.kind === 'stand') return; b.open = true; // (a stand: walking up to it picks up its item — units.js updateLoot)
+  const L = BOX_LOOT[b.kind], il = Math.max(1, G.depth || G.deep || 1), x = b.x, z = b.z;
+  if (b.kind === 'smash' || b.kind === 'trunk' || b.kind === 'urn') { // it bursts: pieces, splinters (an urn: shards of clay) and dust; its cell can be walked again
+    const clay = b.kind === 'urn'; setInst(b.it, [0, 0]); shatter(b); if (b.cell) C.floor.unblock(b.cell[0], b.cell[1]); S.smash(); S.hit(1); shake(0.06, x, z);
+    C.parts.emit(x, 0.45, z, 14, { col: clay ? 0xa87a52 : 0x8a5a32, spd: 2.8, up: 2.6, grav: 9, life: 0.6, size: 0.16, spread: 0.3 }); C.parts.emit(x, 0.3, z, 10, { col: clay ? 0xb8a890 : 0xc8b49a, spd: 1.2, up: 0.8, grav: 0.5, life: 0.8, size: 0.4, spread: 0.3 }); }
   else { // the lid swings up on a burst of gold light; what is in it comes out a moment later
     S.pick(); S.caught(); lidOpen(b); burst(x, 0.7, z, 0xffe6a0, b.kind === 'gold' ? 2.2 : 1.6);
     C.parts.emit(x, 0.6, z, b.kind === 'gold' ? 34 : 22, { col: 0xffd27a, spd: 1.2, up: 3, grav: 2, life: 0.9, size: 0.16, spread: 0.25 }); }
@@ -90,5 +117,6 @@ export function openBox(b) {
 }
 // a faint glint now and then from the chests not yet opened, so they are noticed (only near the summoner; the gold ones more)
 export function boxTick(dt) { const F = G.floor, P = G.player; if (!F || !F.boxes || !P) return;
+  for (const b of F.boxes) if (b.kind === 'stand' && !b.shown && !b.open) { b.shown = true; dropLoot(b.item, b.x, b.z, { stand: b.top, box: b, rack: b.name === 'stand_rack' ? b.r : null, dz: b.dz }); } // (its item, on it)
   for (const b of F.boxes) { if (b.open || !b.lid || Math.random() > dt * (b.kind === 'gold' ? 4 : 2.2) || Math.hypot(b.x - P.x, b.z - P.z) > 16) continue;
     C.parts.emit(b.x + (Math.random() - 0.5) * 0.7, 0.55 + Math.random() * 0.2, b.z + (Math.random() - 0.5) * 0.7, 1, { col: Math.random() < 0.5 ? 0xffe6a0 : QUAL[2].hex, spd: 0.06, up: 0.5, grav: -0.2, life: 1.2, size: 0.13 }); } }

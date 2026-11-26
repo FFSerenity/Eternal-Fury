@@ -3,6 +3,7 @@
 // node tools/slim-gen3d.mjs in.glb out.glb [triangles=4000] [texture size=1024]
 // WEAPON=1: stood up as the hero weapons are — its handle found (the turn in the picture's plane that makes its lower part thinnest)
 // and turned to +y, the head up, the blade or wider side toward +x, the origin on the handle at GRIP (0.22) of the way up
+// PROP=1: a floor prop — its base set on y = 0 and centred on x / z
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { weld, simplify, dedup, prune, textureCompress, quantize, getBounds, transformMesh } from '@gltf-transform/functions';
@@ -20,6 +21,8 @@ const t0 = tris();
 for (const m of root.listMeshes()) for (const p of m.listPrimitives()) { const t = p.getAttribute('TANGENT'); if (t) { p.setAttribute('TANGENT', null); t.dispose(); } }
 await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, TRIS / t0), error: +(process.env.ERR || 0.004), lockBorder: process.env.LOCK === '1' }));
 if (process.env.WEAPON === '1') standUp(+(process.env.GRIP || 0.22));
+if (process.env.PROP === '1') { const b0 = getBounds(root.listScenes()[0]), c = [-(b0.min[0] + b0.max[0]) / 2, -b0.min[1], -(b0.min[2] + b0.max[2]) / 2];
+  for (const m of root.listMeshes()) transformMesh(m, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, c[0], c[1], c[2], 1]); } // PROP=1: a prop standing on the floor — its base at y = 0, centred on x / z
 await doc.transform(dedup(), prune(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [TEX, TEX], quality: 88 }), quantize());
 await io.write(out, doc);
 const b = getBounds(root.listScenes()[0]);

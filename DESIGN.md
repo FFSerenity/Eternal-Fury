@@ -62,13 +62,23 @@ elite + elite → each partner affix: add (2nd 35%, 3rd 20%, max 3) or strengthe
 
 ## 魂契 / Soul Pact mode (first playable, Nov 2026)
 A separate mode with its own save (start screen). The fun to find: one summon you raise by hand and that is the centre of every fight.
-- Barrels / kegs / boxes / crates / trunks and chests (loot.js): click or tap one, the summoner walks to it; a barrel bursts — its
-  instance shrunk away, its cell walkable again, the prop cut at load into 12 pieces (six wedges round its middle, upper and lower) that
-  fly out, tumble, bounce and shrink away: 20% an item (white 55 / blue 32 / yellow 11 / purple 2%), 35% 魂能 1 + 0.4·level (a trunk:
-  75% an item, better odds); a chest (the pack's chest has its lid apart: baked as chest_body + chest_lid, the lid's origin on its hinge,
-  each an instance) swings its lid open and stays open: an item always (white 20 / blue 45 / yellow 26 / purple 8 / red 1%), a second 35%,
-  魂能 4 + level; 12% of chests are gold (heaped with coins): blue+ only, a second item 80%, 魂能 10 + 2·level. Item
-  level = the floor (the wilds: the deepest floor reached). Bosses (魂契): purple-or-red (red 45%), purple-or-yellow, yellow-to-red, blue-or-
+- Barrels / crates / urns / kegs / trunks (loot.js): click or tap one, the summoner walks to it — or the Sentinel's blows (its swings and
+  every skill that lands near one: PH.strike, arcHit, the leap, the whirl, Sunder, the Paladin's leap and Judgement) or a bone spear
+  (it stops on the box) break it, hitBoxes(x, z, r, face, half); it bursts — its instance shrunk away, its cell walkable again, the prop
+  cut at load into 12 pieces (six wedges round its middle, upper and lower) that fly out, tumble, bounce and shrink away: 20% an item
+  (white 55 / blue 32 / yellow 11 / purple 2%), 35% 魂能 1 + 0.4·level (an urn: 15% an item, 60% 魂能 2 + 0.5·level, clay-coloured
+  dust; a trunk: 75% an item, better odds). The barrels, crates and urns are generated models (Qwen Image → Pixal3D / TRELLIS.2 in Comfy,
+  slimmed to 2.5-4k triangles with tools/slim-gen3d.mjs PROP=1 — base at y 0, centred — and packed into assets/gen_props.glb with
+  tools/pack-props.mjs; base-colour texture only), scaled at placement to a height (loot.js PROP_H) ±8%.
+- No chests: display stands (Nov 2026) — one item on each, in plain sight, nothing to gamble on. In the crypt a stand takes the place of
+  a border prop now and then (weight 0.85 of 12.2), facing into the room, and a bigger room (5×5+) has one in its middle 25% of the time:
+  about 5 a floor (the chests were under 2). The item is rolled when the floor is made (white 12 / blue 42 / yellow 32 / purple 12 / red
+  2%; 15% of stands better: blue 20 / yellow 46 / purple 26 / red 8%) and decides the stand: a weapon on a weapon rack (60%, only along the
+  far walls, where its hooks face the camera), purple and red on the relic stand or the crypt altar, the rest on a stone plinth. It
+  floats upright over the stand, turning slowly, its glow and its light column standing on the stand's top (a rack: it lies across the
+  hooks, still); kept to 0.95 m on its longest side (1.05 on a rack). Click the stand, or walk up to it: picked up within 1.65 m, no drop
+  sound. The ruin in the wilds has one in its middle, set at 45° toward the camera. Item level = the floor (the wilds: the deepest floor
+  reached). Bosses (魂契): purple-or-red (red 45%), purple-or-yellow, yellow-to-red, blue-or-
   yellow, +1 (yellow / purple) for each round of the four already done (at most 3), and 40 + 8·(level+1) 魂能 into the vessel.
 - From the 5th floor down monsters take a step up in life (data.js DEEP_HP: ×2.5 at floor 5, +4% of that per floor after; by the floor or
   wilds zone they were made for, else their level; champions and bosses on top of their own multipliers): by then the Sentinel has 25-30+

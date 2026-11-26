@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PropBatch } from './assets.js';
-import { placeChest, GOLD_CHEST } from './loot.js';
+import { placeStand } from './loot.js';
 import { toonMat } from './gfx.js';
 import { LEAF, tint } from './forest.js';
 
@@ -70,7 +70,7 @@ export function genWilds(F, R) {
         // wall_half runs 1 m along its +x from its origin: turned -90° it runs along +z
         if (side < 2) put('wall_half', X + 0.5, Z, -Math.PI / 2, 0.5, 0.1 + R() * 0.26); else put('wall_half', X, Z + 0.5, 0, 0.5, 0.1 + R() * 0.26); }
       for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) if (R() < 0.5) { put('column', cx + x + 0.5, cz + z + 0.5, 0, 0.5, 0.5 + R() * 0.4); block(cx + x, cz + z, K.RUIN); }
-      put('chest', cx + 0.5, cz + 0.5, Math.floor(R() * 4) * Math.PI / 2, 0.5); block(cx, cz, K.RUIN);
+      put('chest', cx + 0.5, cz + 0.5, Math.PI / 4, 0.5); block(cx, cz, K.RUIN); // (a display stand now — loot.js placeStand)
       for (let k = 0; k < 3; k++) { const r = R() * 6.28; put('rubble_half', cx + 0.5 + (R() - 0.5) * (hw * 2 + 3), cz + 0.5 + (R() < 0.5 ? -1 : 1) * (hh + 1.5 + R()), r, 0.22); }
       put('candle_triple', cx + 1.2, cz + 0.4, R() * 6.28, 0.5); L.push({ x: cx + 1.2, y: 0.45, z: cz + 0.4, col: 0xffa040, size: 1.1, op: 0.8, torch: 4.5 });
     } else if (p.type === 'graves') { // a fenced plot of old graves, open on at least two sides, lanterns in two corners
@@ -228,7 +228,7 @@ export function buildWilds(F, B, grp) {
     if (open && b < 0.3 && R() < 0.008) FB.add(pick(R, ['Bush_1_C', 'Bush_4_B']), cx, 0, cz, R() * 6.28, 0.5 * (0.8 + R() * 0.4), null, null, tint(pick(R, LEAVES[biome(cx, cz)]).map(v => v * 0.78), R));
     if (open && !pathM[i] && R() < 0.01) { const n = pick(R, BITS); B.add(n, x + 0.2 + R() * 0.6, 0.03, z + 0.2 + R() * 0.6, R() * 6.28, n === 'skull' ? 0.35 : 0.5); } }
   // the places
-  for (const p of F.wprops) { if (p.n === 'chest') placeChest(F, B, R() < GOLD_CHEST ? 'chest_gold' : 'chest', p.x, p.z, p.r, p.s); else B.add(p.n, p.x, p.y, p.z, p.r, p.s, p.ys); } // (a ruin's chest opens: loot.js)
+  for (const p of F.wprops) { if (p.n === 'chest') placeStand(F, B, p.x, p.z, p.r); else B.add(p.n, p.x, p.y, p.z, p.r, p.s, p.ys); } // (a ruin's stand: its item on it — loot.js)
   for (const l of F.wlights) { F.glow(l.x, l.y, l.z, l.col, l.size, l.op); if (l.torch) F.torch(l.x, l.y + 0.2, l.z, l.torch); }
   // the gates in the camp fence
   for (const gt of F.gates) B.add('arch_gate_open', gt.rot ? 31.95 : gt.x, 0, gt.rot ? gt.z : 31.95, gt.rot, 0.9);

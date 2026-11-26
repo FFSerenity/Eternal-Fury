@@ -17,6 +17,7 @@ import { SKILLS, skillView } from './pactskills.js';
 import { rollHeroItem, HERO_GEAR } from './data.js';
 import { soulToJar } from './soulvessel.js';
 import { smite, auraTick } from './holy.js';
+import { hitBoxes } from './loot.js';
 loadSamples(FOE_SAMPLES); loadSamples(SOUL_SAMPLES); if (PACT) loadSamples(SAMPLES);
 
 // ---------- tunables ----------
@@ -89,6 +90,7 @@ PH.strike = (u, t) => {
     const a = Math.atan2(h.x - u.x, h.z - u.z), da = Math.abs(((a - u.face + Math.PI * 3) % (Math.PI * 2)) - Math.PI); if (h !== t && da > W.arc && d > 0.8) continue;
     const crit = Math.random() < (u.crit ?? 0.1); damage(u, h, u.dmg * (0.9 + Math.random() * 0.2) * (h === t ? 1 : W.side), { knock: W.knock, melee: true, heavy: !!W.heavy, crit, critX: 1.8, quiet: true }); hits++; crits = crits || crit; plate = plate || plated(h); }
   if (hits) { if (W.blunt) S.bonk(crits, 1, plate); else S.blade(!!W.heavy, crits, plate); } // one blade sound per swing, however many it cuts
+  hitBoxes(u.x, u.z, reach, u.face, Math.max(0.7, W.arc)); // (and a barrel, a crate or an urn in front of it breaks)
   if (W.smite && t && (u.smiteN = (u.smiteN || 0) + 1) % W.smite === 0) smite(u, t); // every third blow: the light comes down where it stood
 };
 // evasion: a number-less "dodge" and, when it is free to move, a quick dodge step (the Mixamo dodges, sped up)

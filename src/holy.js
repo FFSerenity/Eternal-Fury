@@ -10,6 +10,7 @@ import { glowSprite, ring } from './gfx.js';
 import { runeCircle } from './vfx.js';
 import { burst, shake, slamMark, shieldDome, domeEnd, domeHit } from './fx.js';
 import { S } from './audio.js';
+import { hitBoxes } from './loot.js';
 
 const TAU = Math.PI * 2, dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const motes = () => (Math.random() < 0.4 ? HOLY_HOT : HOLY_C);
@@ -85,7 +86,7 @@ export function holyBurst(u) {
 export const JUDGE = { r: [3.5, 5.2, 6.8], mult: [1, 0.6, 0.4], stun: [1.2, 0.6, 0.4], at: [0, 0.14, 0.28] };
 export function judgement(u, mv) {
   const x = u.x + Math.sin(u.face) * 1.3, z = u.z + Math.cos(u.face) * 1.3, o = { x, z };
-  pillar(x, z, 2.4, 0.9, 9); burst(x, 0.8, z, HOLY_HOT, 2.6); slamMark(x, z, 1.5, HOLY_C, 3); consecrate(x, z, JUDGE.r[0], 2.2, 0.6); shake(0.26, x, z); S.burst(false); S.holy(0.5);
+  pillar(x, z, 2.4, 0.9, 9); burst(x, 0.8, z, HOLY_HOT, 2.6); slamMark(x, z, 1.5, HOLY_C, 3); consecrate(x, z, JUDGE.r[0], 2.2, 0.6); shake(0.26, x, z); S.burst(false); S.holy(0.5); hitBoxes(x, z, JUDGE.r[0]);
   C.parts.emit(x, 0.2, z, 24, { col: 0x4e443c, spd: 4, up: 3, grav: 11, life: 0.7, size: 0.28, spread: 0.6 });
   for (let i = 0; i < 40; i++) { const a = Math.random() * TAU, r = Math.random() * 2; C.parts.emit(x + Math.sin(a) * r, 0.2, z + Math.cos(a) * r, 1, { col: motes(), spd: 0.4, up: 3 + Math.random() * 3, grav: -0.8, life: 0.8, size: 0.24 }); }
   const hit = (h, k) => { damage(u, h, u.dmg * mv.mult * JUDGE.mult[k] * (0.95 + Math.random() * 0.1), { knock: 2.5, fx: x, fz: z, heavy: !k, crit: !k, critX: 1, quiet: true }); stunHit(h, JUDGE.stun[k]);
@@ -126,7 +127,7 @@ export function leapBurst(u, mv) { // down with the mace raised: a burst of ligh
   const x = u.x + Math.sin(u.face) * 0.5, z = u.z + Math.cos(u.face) * 0.5; let n = 0;
   for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - x, h.z - z) > mv.aoe + h.r) continue;
     damage(u, h, u.dmg * mv.bmult * (0.9 + Math.random() * 0.2), { knock: 3.2, fx: x, fz: z, melee: true, heavy: true, quiet: true }); stunHit(h, mv.bstun); n++; }
-  if (n) S.bonk(true); S.slam(); S.holy(0.6); shake(0.22, x, z); u.hitStop = 0.1;
+  if (n) S.bonk(true); S.slam(); S.holy(0.6); shake(0.22, x, z); u.hitStop = 0.1; hitBoxes(x, z, mv.aoe);
   pillar(x, z, 1.2, 0.5, 6); burst(x, 0.6, z, HOLY_HOT, 2.2); slamMark(x, z, 1.3, HOLY_C, 2.4); consecrate(x, z, mv.aoe, 1.2, 0.5);
   wave(x, z, HOLY_HOT, mv.aoe + 0.3, 0.4, 0.45, 0.95); G.fx.push({ clean: true, t: 0.08, fn: () => wave(x, z, HOLY_C, mv.aoe + 1.6, 0.5, 0.35, 0.7) });
   C.parts.emit(x, 0.2, z, 20, { col: 0x4e443c, spd: 4, up: 3, grav: 11, life: 0.7, size: 0.28, spread: 0.5 });

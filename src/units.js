@@ -165,15 +165,22 @@ function fireBlast(u) {
   const lv = mlv(u, 'fire'); for (const h of (u.side === 'enemy' ? G.friends : G.enemies)) if (!h.dead && dist(h, u) < 2.4 + 0.3 * (lv - 1)) damage(u, h, u.dmg * 1.6 * (1 + 0.4 * (lv - 1)), { knock: 3, fx: u.x, fz: u.z, noFx: true });
 }
 // ---------- loot on the ground: glows in its quality colour (rare items get a light beam), walk over it to pick it up ----------
-export function dropLoot(it, x, z) {
-  const root = new THREE.Group(), model = itemBase(it).model, m = propMesh(model); m.scale.setScalar(0.5); m.rotation.set(Math.PI / 2, 0, Math.random() * 6.28); root.add(m);
+// on a display stand (o: { stand: its top, box, rack: its facing for a weapon rack }): no throw and no sound — it floats upright over the
+// stand, slowly turning (on a rack: lies across the hooks, still), and is picked up from a little farther off
+export function dropLoot(it, x, z, o = null) {
+  const root = new THREE.Group(), model = itemBase(it).model, m = propMesh(model); let spin = null;
+  if (!o) { m.scale.setScalar(0.5); m.rotation.set(Math.PI / 2, 0, Math.random() * 6.28); root.add(m); }
+  else { const b0 = propGeo(model).box, len = Math.max(b0.max.y - b0.min.y, b0.max.x - b0.min.x), rack = o.rack != null; // (about its longest side, kept to a size the stand can show)
+    m.scale.setScalar(Math.min(0.5, (rack ? 1.05 : 0.95) / len)); m.rotation.set(0, 0, rack ? Math.PI / 2 : 0); m.updateMatrix(); const bb = b0.clone().applyMatrix4(m.matrix);
+    m.position.set(-(bb.min.x + bb.max.x) / 2, rack ? -(bb.min.y + bb.max.y) / 2 : -bb.min.y, -(bb.min.z + bb.max.z) / 2);
+    spin = new THREE.Group(); spin.add(m); root.add(spin); if (rack) { spin.rotation.y = o.rack; m.position.z += o.dz || 0; } }
   if (it.q >= 2) { const pg = propGeo(model), b = pg.box, zl = b.max.z - b.min.z > b.max.y - b.min.y; // rare and up: the same flowing energy as in a hand
     m.add(new THREE.Mesh(pg.geo, auraMat(QUAL[it.q].hex, zl ? b.max.z - b.min.z : b.max.y, null, 0.05, it.q >= 4 ? 2 : it.q === 3 ? 1.7 : 1.45, zl ? new THREE.Vector3(0, 0, 1) : undefined))); }
   const Q = QUAL[it.q], gl = glowSprite(Q.hex, it.q ? 1.4 : 0.9, it.q ? 0.75 : 0.45); gl.position.y = 0.1; root.add(gl);
   let beam = null; if (it.q >= 2) { beam = lootBeam(Q.hex, it.q); root.add(beam); } // rare and up: a column of light straight up from it, once it has landed
-  const a = Math.random() * 6.28, r = 0.5 + Math.random() * 0.7; root.position.set(x, 1, z); C.scene.add(root);
-  G.loot.push({ it, root, m, beam, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: 0, ph: Math.random() * 6 });
-  if (it.q >= 3) G.fx.push({ t: 0.45, fn: () => S.drop(it.q) }); // epic and legendary only: the sound as it lands
+  const a = Math.random() * 6.28, r = o ? 0 : 0.5 + Math.random() * 0.7; root.position.set(x, o ? o.stand : 1, z); C.scene.add(root);
+  G.loot.push({ it, root, m, beam, x0: x, z0: z, x: x + Math.cos(a) * r, z: z + Math.sin(a) * r, t: o ? 0.45 : 0, ph: Math.random() * 6, spin, base: o ? o.stand : 0, box: o && o.box, rack: o && o.rack != null });
+  if (it.q >= 3 && !o) G.fx.push({ t: 0.45, fn: () => S.drop(it.q) }); // epic and legendary only: the sound as it lands
 }
 // the camp coffin's secret: opens once per save and spits out the gatling
 export function openCoffin() {
@@ -186,15 +193,15 @@ export function openCoffin() {
 }
 export function updateLoot(dt) {
   const P = G.player; let j = 0; beamTime.value = G.t;
-  for (const L of G.loot) { L.t += dt; const k = Math.min(1, L.t / 0.45), x = L.x0 + (L.x - L.x0) * k, z = L.z0 + (L.z - L.z0) * k, y = k < 1 ? 1 * (1 - k) + Math.sin(Math.PI * k) * 0.8 : 0.12 + Math.sin(G.t * 2.5 + L.ph) * 0.04;
-    L.root.position.set(x, y, z); L.m.rotation.z += dt * 0.8;
+  for (const L of G.loot) { L.t += dt; const k = Math.min(1, L.t / 0.45), x = L.x0 + (L.x - L.x0) * k, z = L.z0 + (L.z - L.z0) * k, y = k < 1 ? 1 * (1 - k) + Math.sin(Math.PI * k) * 0.8 : L.base ? L.base + (L.rack ? 0 : 0.07 + Math.sin(G.t * 2 + L.ph) * 0.04) : 0.12 + Math.sin(G.t * 2.5 + L.ph) * 0.04;
+    L.root.position.set(x, y, z); if (!L.spin) L.m.rotation.z += dt * 0.8; else if (!L.rack) L.spin.rotation.y += dt * 0.7;
     if (L.beam) { const B = L.beam.userData, f = Math.min(1, Math.max(0, (L.t - 0.4) / 0.5)), on = f * f * (3 - 2 * f); // the beam rises out of it once it lands
-      L.beam.position.y = -y; B.mat.uniforms.uI.value = on * (0.75 + 0.25 * B.k); B.mat.uniforms.uH.value = B.h * (0.15 + 0.85 * on);
+      L.beam.position.y = L.base - y; B.mat.uniforms.uI.value = on * (0.75 + 0.25 * B.k); B.mat.uniforms.uH.value = B.h * (0.15 + 0.85 * on);
       B.pool.material.opacity = on * (0.5 + 0.12 * Math.sin(G.t * 2.2 + L.ph)) * (0.7 + 0.3 * B.k);
-      if (on > 0.5 && L.it.q >= 3 && Math.random() < dt * (L.it.q >= 4 ? 4 : 2.2)) C.parts.emit(x, 0.25, z, 1, { col: QUAL[L.it.q].hex, spd: 0.15, up: 2.2, grav: -0.6, life: 1.3, size: 0.11, spread: 0.08 }); }
-    if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < 1.5) {
+      if (on > 0.5 && L.it.q >= 3 && Math.random() < dt * (L.it.q >= 4 ? 4 : 2.2)) C.parts.emit(x, L.base + 0.25, z, 1, { col: QUAL[L.it.q].hex, spd: 0.15, up: 2.2, grav: -0.6, life: 1.3, size: 0.11, spread: 0.08 }); }
+    if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < (L.base ? 1.65 : 1.5)) {
       if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say(tr('背包满了，打开背包（I）把多余的丢进熔炉吧', 'Bag is full — open the bag (I) and feed the spares to the forge')); } }
-      else { bagPut(L.it); C.scene.remove(L.root); S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0);
+      else { bagPut(L.it); C.scene.remove(L.root); if (L.box) L.box.open = true; S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0);
         if (L.it.hero && !G.gearTip) { G.gearTip = 1; C.say(tr('骸骨卫士的装备！打开背包（I）或魂契面板，点「装备卫士」换上', 'Gear for the Bone Sentinel! Open the bag (I) or the Pact panel and tap "Equip"'), true, 5000); }
         if (L.it.uniq && TECH[L.it.uniq]) { const tn = TYPES[TECH[L.it.uniq].type].name; C.say(tr(`史诗武器！点左上角的${tn}卡片，把它装上试试`, `An epic weapon! Tap a ${tn} card (top left) and equip it`), true, 6000); } save(); continue; } }
     G.loot[j++] = L; }
@@ -412,7 +419,7 @@ export function updateShots(dt) {
       const a = Math.atan2(s.vx, s.vz), want = Math.atan2(s.home.x - s.x, s.home.z - s.z); let da = ((want - a + Math.PI * 3) % TAU) - Math.PI; da = Math.max(-1.7 * dt, Math.min(1.7 * dt, da));
       s.vx = Math.sin(a + da) * s.sp; s.vz = Math.cos(a + da) * s.sp; s.y += ((s.home.mesh.fly ? 0.9 : 0.85) - s.y) * Math.min(1, dt * 2); }
     if (s.spin) s.spin.rotation.x += dt * 17;
-    s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z);
+    s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z); if (dead && s.kind === 'spear' && PH.shotBox) PH.shotBox(s);
     if (s.kind === 'fire' && Math.random() < 0.6) C.parts.emit(s.x, s.y, s.z, 1, { col: 0xff8a2a, spd: 0.4, up: 0.5, life: 0.35, size: 0.3, grav: 0 });
     if (s.kind === 'wisp' && Math.random() < 0.7) C.parts.emit(s.x, s.y, s.z, 1, { col: s.col, spd: 0.25, up: 0.3, life: 0.45, size: 0.26, grav: -0.3 });
     if (s.el && Math.random() < 0.8) C.parts.emit(s.x, s.y, s.z, 1, s.el.part);

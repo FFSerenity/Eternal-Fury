@@ -9,6 +9,7 @@ import { ring, glowSprite } from './gfx.js';
 import { burst, shake, trail, slamMark } from './fx.js';
 import { S } from './audio.js';
 import { bladeFire, roarBurst, qiWaves, QI, fireCone, fireArc, qiBolt, qiFan, swipeUp, HOLY_FIRE } from './pactfx.js';
+import { hitBoxes } from './loot.js';
 import { blessedHammers, holyBurst, judgement, HAMMERS, thrownHammer, hammerHit, leapBurst, auraOn, auraHeal, shieldRebound } from './holy.js';
 
 export const SKILLS = [
@@ -190,7 +191,7 @@ PH.skillTick = (u, dt) => {
 function arcHit(u, reach, half, mult, o = {}) { let n = 0, cr = false, pl = false;
   for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > reach + h.r || !inArc(u, h, half)) continue; const crit = Math.random() < 0.15; cr = cr || crit;
     damage(u, h, u.dmg * mult * (0.9 + Math.random() * 0.2), { knock: o.knock || 0, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); if (o.stun) stunHit(h, o.stun); n++; pl = pl || plated(h); }
-  if (n && !o.silent) hitSound(u, cr, pl); return n; }
+  if (n && !o.silent) hitSound(u, cr, pl); hitBoxes(u.x, u.z, reach, u.face, half); return n; }
 // the shield fan's blend, set by hand: the guard pose gives way to the shield-high pose on an ease-out curve
 function fanW(sk, k) { if (!sk.upTo) return; k = Math.min(1, Math.max(0, k)); const w = 1 - (1 - k) ** 3;
   sk.upTo.setEffectiveWeight(w); if (sk.upFrom) sk.upFrom.setEffectiveWeight(1 - w); if (k >= 1) { if (sk.upFrom) sk.upFrom.stop(); sk.upTo = sk.upFrom = null; } }
@@ -199,7 +200,7 @@ function shieldBash(u, t, mv) { // the shield sweeps up into them: the target an
   for (const h of hostilesOf(u)) { if (h.dead || (h !== t && (dist(h, u) > u.r + h.r + 0.9 || !inArc(u, h, 0.7)))) continue;
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 4.5, heavy: true, quiet: true }); stunHit(h, mv.stun); h.hitStop = Math.max(h.hitStop || 0, 0.1);
     if (!h.dead && !h.champ && !h.noStun) { const lift = 0.55 + Math.random() * 0.2; G.fx.push({ t: 0.5, tick: k => { if (!h.dead) h.y = Math.sin(Math.PI * k) * lift; }, fn: () => { h.y = 0; } }); } } // a hop in the air
-  say(t.x, t.z, tr('击倒', 'Knocked down'), '#ffe6b0', 15, 2.1); u.hitStop = 0.08; swipeUp(u.x, u.z, u.face, colOf(u));
+  say(t.x, t.z, tr('击倒', 'Knocked down'), '#ffe6b0', 15, 2.1); u.hitStop = 0.08; swipeUp(u.x, u.z, u.face, colOf(u)); hitBoxes(fx, fz, 0.9);
   S.clank(); S.smash(); shake(0.12, fx, fz); burst(fx, 1.0, fz, colOf(u), 1.5); shock(fx, fz, colOf(u), 1.6, 0.35, 0.4);
   C.parts.emit(fx, 1.0, fz, 12, { col: 0xffe6b0, spd: 3, up: 1.2, grav: 7, life: 0.3, size: 0.12 }); C.parts.emit(fx, 0.2, fz, 14, { col: 0xb8a890, spd: 2.4, up: 1, life: 0.5, size: 0.3, grav: 5 });
 }
@@ -207,7 +208,7 @@ function leapLand(u, mv) { // the greatsword comes down: the ground splits, ever
   const x = u.x + Math.sin(u.face) * 0.6, z = u.z + Math.cos(u.face) * 0.6, col = colOf(u); let n = 0;
   for (const h of hostilesOf(u)) { if (h.dead || Math.hypot(h.x - x, h.z - z) > mv.aoe + h.r) continue;
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 3.2, fx: x, fz: z, melee: true, heavy: true, quiet: true }); stunHit(h, mv.stun); n++; }
-  if (n) S.blade(true, false); S.slam(); shake(0.22, x, z); u.hitStop = 0.1;
+  if (n) S.blade(true, false); S.slam(); shake(0.22, x, z); u.hitStop = 0.1; hitBoxes(x, z, mv.aoe);
   slamMark(x, z, 1.6, col, 3); burst(x, 0.4, z, col, 2.4); shock(x, z, col, mv.aoe, 0.45); shock(x, z, 0xc8bca8, mv.aoe * 1.5, 0.7, 0.3);
   C.parts.emit(x, 0.2, z, 24, { col: 0x4e443c, spd: 4.5, up: 3.2, grav: 11, life: 0.75, size: 0.3, spread: 0.6 }); // chunks of floor
   C.parts.emit(x, 0.15, z, 22, { col: 0xc8bca8, spd: 3.4, up: 0.9, grav: 1, life: 0.8, size: 0.5, spread: 0.8 }); // dust
@@ -216,7 +217,7 @@ function leapLand(u, mv) { // the greatsword comes down: the ground splits, ever
 function whirlHit(u, mv) {
   let n = 0, cr = false, pl = false; for (const h of hostilesOf(u)) { if (h.dead || dist(h, u) > 2.7 + h.r) continue; const crit = Math.random() < 0.12; cr = cr || crit; pl = pl || plated(h);
     damage(u, h, u.dmg * mv.mult * (0.9 + Math.random() * 0.2), { knock: 2, melee: true, heavy: true, crit, critX: 1.8, quiet: true }); n++; }
-  if (n) hitSound(u, cr, pl); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35);
+  if (n) hitSound(u, cr, pl); shock(u.x, u.z, colOf(u), 2.7, 0.35, 0.35); hitBoxes(u.x, u.z, 2.7);
   // sword qi flung out all round: it cuts what it meets out to ~5.5 m, as it gets there
   const x = u.x, z = u.z, reach = QI.r0 + QI.speed * QI.life; qiWaves(x, z, colOf(u), 8, (u.sk ? u.sk.hits : 0) * 0.39 + Math.random() * 0.3);
   for (const h of hostilesOf(u)) { const d = Math.hypot(h.x - x, h.z - z); if (h.dead || d <= 2.7 + h.r || d > reach + h.r) continue;
@@ -227,7 +228,7 @@ function sunderHit(u, mv) {
   const fx = Math.sin(u.face), fz = Math.cos(u.face), x = u.x, z = u.z;
   const hit = h => { damage(u, h, u.dmg * mv.mult * (0.95 + Math.random() * 0.1), { knock: 3.5, fx: x, fz: z, melee: true, heavy: true, crit: true, critX: 1, quiet: true });
     if (!h.dead && !h.champ && h.hp < h.maxHp * 0.25) { say(h.x, h.z, tr('斩杀', 'Cut down'), '#ff6a4a', 17, 2); damage(u, h, h.hp + 1, { quiet: true, noFx: true }); } };
-  S.blade(true, true); S.burst(true);
+  S.blade(true, true); S.burst(true); hitBoxes(x, z, mv.sweep ? CONE.range : 2.2, u.face, mv.sweep ? mv.sweep / 2 + 0.1 : 0.9);
   if (mv.sweep) { // the greatsword: the fire rolls out all round (sweep = the arc it covers: a full circle) and catches each one as it gets there
     for (const h of hostilesOf(u)) { const d = dist(h, u); if (h.dead || d > CONE.range + h.r || !inArc(u, h, mv.sweep / 2 + 0.1)) continue;
       if (d < u.range + u.r + 1) hit(h); else G.fx.push({ t: Math.max(0.01, (d - 1) / 9), fn: () => { if (!h.dead) hit(h); } }); }

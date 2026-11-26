@@ -38,9 +38,11 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
 - As Fury grows its soul light (cyan, like its eyes; gold for the Paladin) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
   From floor 5 down (and in the wilds' level-5+ zones) monsters, champions and bosses have 2.5× life, +4% more per floor after that.
-- **Barrels, kegs, boxes, crates and trunks** burst into pieces when you click / tap them (sometimes an item, some soul energy);
-  **chests** swing their lids open (always an item, often two, better odds, more soul) — now and then a **gold chest** full of coins with
-  better loot still; unopened chests glint now and then; the chest in a ruin in the wilds too.
+- **Barrels, crates, urns, kegs and trunks** burst into pieces when you click / tap them — or when the Bone Sentinel's blows and
+  skills or a bone spear hit them (sometimes an item, some soul energy; urns hold more soul).
+- **No chests to gamble on**: **display stands** — a stone plinth, a relic stand, a weapon rack, a crypt altar — each show **one item**
+  in plain sight, floating and turning over it (a weapon on a rack lies across its hooks); about five a floor, better odds than the
+  barrels; walk up to one (or click it) to take it. The ruins in the wilds have one in the middle.
 - Fury's damage and attack speed per stack slow down past 25 (+3% / +1.5% a stack instead of +6% / +4%).
 
 **Bosses**: every 5th crypt floor, one of the four tech skeletons guards the way down (bombardier, gunner, mech, engineer — their big
@@ -118,7 +120,7 @@ energy flowing from the grip to the tip (gold / purple) and shed sparks — in a
 You start in a small graveyard camp; the crypt's door is a glowing portal — walk up its steps into it (or click anywhere on the building) to go down to the deepest floor you have reached.
 **The Wilds**: two open gates in the camp fence (east and south) lead out into a big open map (120 × 120 m) that is generated anew
 every time you come back to the camp: groves of dead trees and autumn pines, winding paths with lantern posts, and places worth
-finding — roofless ruins with a chest, fenced old graveyards, candle-lit shrines, pumpkin patches. Monster packs wait all over it,
+finding — roofless ruins with a display stand, fenced old graveyards, candle-lit shrines, pumpkin patches. Monster packs wait all over it,
 denser than in the crypt, none close to the camp; they get tougher (and more often champion-led) the farther they wait from the
 camp, and every one of the places is guarded by a champion pack (two affixes once you are some way out). Monster level follows
 the deepest crypt floor you have reached, loot follows the monster's level. Packs are only created when you come near them.

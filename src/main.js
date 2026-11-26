@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { G, save, load, wipe, bagPut, PACT, MODE, setMode } from './state.js';
 import { pactPlayer, pactFloor, pactTick, harvest, heroEntry, pactMigrate } from './pact.js';
 import { initJar, jarTick, jarDraw, jarReset } from './soulvessel.js';
-import { openBox, boxTick } from './loot.js';
+import { openBox, boxTick, hitBoxes } from './loot.js';
 import { PACKS, WILD_PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, rollHeroItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
 import { A, loadAll, loadGLB, propGeo, PropBatch, heroWeaponPose, heroPart } from './assets.js';
@@ -267,4 +267,4 @@ function loop(now) {
   renderer.render(scene, camera);
   drawOverlay(); if (PACT) jarDraw(); updateHUD(dt, PM.fps); updateMap(dt);
 }
-window.__gt = { S, loadGLB, spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, openBox, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };
+window.__gt = { S, loadGLB, spawnWildPack, mkEnemy, PropBatch, fx: FXM, parts, auraMat, propMat: null, dbg: { dropLoot, rollItem, rollHeroItem, openBox, hitBoxes, shoot, heroEntry, fuse, fusionOdds, message, setGear, openCoffin, heroWeaponPose, heroPart, addXP, pfx: PFX }, A, propGeo, THREE, scene, renderer, G, IN, makeFloor, get RS() { return RS; }, camera, groundAt, Unit, spawnAlly, damage };

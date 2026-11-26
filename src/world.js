@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { glowSprite } from './gfx.js';
 import { PropBatch } from './assets.js';
-import { addBox, placeChest, BOX_KIND, GOLD_CHEST } from './loot.js';
+import { addBox, placeStand, BOX_KIND, propScale } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
 
@@ -173,18 +173,22 @@ export class Floor {
     const st = this.stairs, isStair = (x, z) => (x === st.x || x === st.x - 1) && (z === st.z || z === st.z - 1);
     const hsh = (x, z, k = 0) => { let h = (x * 374761393 + z * 668265263 + k * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
     // props along room borders (they block movement) — never near doorways or the start / stairs
-    const PROPS = [['barrel_small', 3], ['barrel_large', 2], ['box_small', 2], ['box_large', 2], ['crates_stacked', 1], ['chest', 0.6], ['keg', 1], ['trunk_large_A', 0.6], ['table_medium_broken', 0.7]];
+    // (brk_*: the generated barrels, crates and urns — assets/gen_props; stand: a display stand with one item on it — loot.js)
+    const PROPS = [['brk_barrel1', 1.2], ['brk_barrel3', 1.2], ['brk_barrel4', 1.2], ['brk_crate1', 1.5], ['brk_crate2', 1.5], ['brk_urn1', 1.1], ['brk_urn4', 1.1], ['crates_stacked', 0.8],
+      ['stand', 0.85], ['keg', 0.7], ['trunk_large_A', 0.5], ['table_medium_broken', 0.7]];
     const pw = PROPS.reduce((a, p) => a + p[1], 0), pick = r => { let t = r * pw; for (const p of PROPS) { t -= p[1]; if (t <= 0) return p[0]; } return PROPS[0][0]; };
     for (const r of this.rooms) {
       const near = (x, z) => { for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) { const X = x + dx, Z = z + dz; if (isF(X, Z) && (X < r.x || X >= r.x + r.w || Z < r.y || Z >= r.y + r.h)) return true; } return false; };
       for (let z = r.y; z < r.y + r.h; z++) for (let x = r.x; x < r.x + r.w; x++) {
         const edge = x === r.x || z === r.y || x === r.x + r.w - 1 || z === r.y + r.h - 1; if (!edge || R() > 0.16) continue;
         if (r === this.start || Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) < 3 || near(x, z)) continue;
-        if (!this.block(x, z)) continue; const name = pick(R()), round = name.startsWith('barrel') || name === 'keg', px = x + 0.5 + (R() - 0.5) * 0.1, pz = z + 0.5 + (R() - 0.5) * 0.1;
+        if (!this.block(x, z)) continue; const name = pick(R()), round = /barrel|urn|keg/.test(name), px = x + 0.5 + (R() - 0.5) * 0.1, pz = z + 0.5 + (R() - 0.5) * 0.1;
         const rot = round ? R() * 6.28 : Math.floor(R() * 4) * Math.PI / 2 + (R() - 0.5) * 0.3;
-        // (loot.js: a chest opens and stays — its lid apart, now and then a gold one; the rest break, freeing their cell)
-        if (name === 'chest') { placeChest(this, B, R() < GOLD_CHEST ? 'chest_gold' : 'chest', px, pz, rot); continue; }
-        const it = B.add(name, px, 0, pz, rot, 0.5); if (BOX_KIND[name]) addBox(this, name, px, pz, it, [x, z]); } }
+        // a stand faces into the room (a rack only along the far walls, its hooks toward the camera); the rest break, freeing their cell
+        if (name === 'stand') { const far = x === r.x || z === r.y; placeStand(this, B, x + 0.5, z + 0.5, x === r.x ? Math.PI / 2 : z === r.y ? 0 : x === r.x + r.w - 1 ? -Math.PI / 2 : Math.PI, far); continue; }
+        const it = B.add(name, px, 0, pz, rot, name.startsWith('brk_') ? propScale(name) * (0.92 + R() * 0.16) : 0.5); if (BOX_KIND[name]) addBox(this, name, px, pz, it, [x, z]); }
+      // and now and then one more stand in the middle of a bigger room
+      if (r !== this.start && r.w >= 5 && r.h >= 5 && R() < 0.25) { const x = r.x + (r.w >> 1), z = r.y + (r.h >> 1); if (Math.hypot(x + 0.5 - st.x, z + 0.5 - st.z) > 3 && this.block(x, z)) placeStand(this, B, x + 0.5, z + 0.5, Math.PI / 4, false); } }
     // floor tiles
     const FT = ['floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small_broken_A', 'floor_tile_small_broken_B', 'floor_tile_small_weeds_A', 'floor_dirt_small_A'];
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (!isF(x, z) || isStair(x, z)) continue;
