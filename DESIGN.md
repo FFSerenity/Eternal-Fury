@@ -222,7 +222,8 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   red's the tallest). A new pact starts with a plain sword and shield; an older save gets plain gear of the style it had.
   The equipment panel opens from the Pact panel, from the portrait on the Sentinel's HUD card (a close-up of its head: the crest in its
   战魂 colour and the skull face, remade when the crest or soul light changes) or from the bag (⚔ 装备卫士 / 🔥 熔炉 switch); in the bag
-  the greatsword icon shows the broad face of the blade leaning one way, the sword turned and leaning the other way, smaller; crypt-mode items in an old bag can only be
+  the greatsword icon shows the broad face of the blade leaning one way, the sword turned and leaning the other way, smaller, and the spear (Zhao Yun's) as a close-up of its ornate head
+  and blue tassel, point up and right, the shaft running out of the corner; crypt-mode items in an old bag can only be
   smelted. The equipment panel also shows its 战魂 in brief (stack, kills to the next, crest, soul light step, the bonus).
   On touch screens a tap highlights an item (it stays put) and a tap on an empty cell, a frame or the forge moves it; the info box has
   the one-tap move (穿上 / 卸下 / 放进熔炉 / 拿回背包) and 取消. The mouse still picks items up and puts them down.

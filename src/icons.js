@@ -24,16 +24,19 @@ export function lit(fn) {
 function shot(obj, size) { initR(); R.setPixelRatio(1); R.setSize(size, size, false); iconScene.clear(); iconScene.add(obj); lit(() => R.render(iconScene, iconCam)); const url = R.domElement.toDataURL(); iconScene.clear(); return url; }
 // the Sentinel's two blades would read alike: the greatsword shown flat (its broad face to the camera) leaning one way, the sword turned
 // and leaning the other way, a little smaller. [rot x, y, z, frame size ÷ length]
-const ICON_ROT = { hw_greatsword: [0.15, 0, -0.78, 0.92], hw_sword: [0.15, 0.9, 0.78, 1.18], hw_mace: [0.2, 0.6, -0.6, 1.05] };
+// The spear (赵云's): too long and thin to read whole at icon size — its head and tassel big across the corner, point up and right, the
+// shaft running out of the frame below (the 5th number: the frame's centre moved toward the point, a fraction of its length)
+const ICON_ROT = { hw_greatsword: [0.15, 0, -0.78, 0.92], hw_sword: [0.15, 0.9, 0.78, 1.18], hw_mace: [0.2, 0.6, -0.6, 1.05], hw_spear: [0.12, 0, -0.72, 0.42, 0.31] };
 // all icons are made once, right after the models are loaded
 export function makeIcons() {
   initR(); const models = new Set();
   for (const t in WEAPONS) for (const b of WEAPONS[t].bases) models.add(b.model);
   for (const m of ['sk_shield_large', 'shield_round', 'shield_square']) models.add(m);
-  if (A.heroWeap.sword) for (const m of ['hw_greatsword', 'hw_sword', 'hw_mace', 'hw_shield']) models.add(m); // 魂契: the Sentinel's gear
+  if (A.heroWeap.sword) for (const m of ['hw_greatsword', 'hw_sword', 'hw_mace', 'hw_shield', 'hw_spear']) models.add(m); // 魂契: the Sentinel's gear (and Zhao Yun's spear)
   for (const m of models) { const pg = propGeo(m); if (!pg) continue;
     const g = new THREE.Group(), mesh = new THREE.Mesh(pg.geo, propMat(pg.map)), c = pg.box.getCenter(new THREE.Vector3()), sz = pg.box.getSize(new THREE.Vector3());
-    mesh.position.copy(c).negate(); g.add(mesh); const shield = sz.y < sz.x * 1.4 && sz.z < sz.x, R = (globalThis.__iconRot || {})[m] || ICON_ROT[m];
+    const shield = sz.y < sz.x * 1.4 && sz.z < sz.x, R = (globalThis.__iconRot || {})[m] || ICON_ROT[m];
+    mesh.position.copy(c).negate(); if (R && R[4]) mesh.position.y -= R[4] * sz.y; g.add(mesh);
     if (R) g.rotation.set(R[0], R[1], R[2]); else g.rotation.set(shield ? 0.25 : 0.2, shield ? 0.5 : 0.9, shield ? 0 : -0.78);
     const span = Math.max(sz.x, sz.y, sz.z) * (R ? R[3] : shield ? 1.05 : 0.95); iconCam.position.set(0, 0, span / (2 * Math.tan(13 * Math.PI / 180))); iconCam.lookAt(0, 0, 0);
     ICON[m] = shot(g, 112); }
@@ -45,6 +48,7 @@ export function makeIcons() {
     iconCam.position.set(0, fy + h * 0.06, h * 1.38); iconCam.lookAt(0, fy, 0); POR[k] = shot(m.root, 128); }
 }
 export const itemIconURL = it => ICON[itemBase(it).model] || '';
+globalThis.__icons = ICON; // (tests: the icons as made)
 // 魂契: a close-up of the Bone Sentinel's head (the portrait on its HUD card): the helmet with its crest in the 战魂 colour and the whole
 // skull face, eyes lit; remade only when the crest or the soul light changes
 const HPV = { k: '', url: '' }, HEAD_CAM = [0.12, 0.06, 1.12, 0.42]; // look-at above the head bone, camera above that, distance, its turn
