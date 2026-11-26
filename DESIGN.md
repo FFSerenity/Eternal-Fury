@@ -269,7 +269,7 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   the length cut out of the picture — a straight navy shaft. The bow's string was too thin for the remesh: a new one, a thin rod from
   nock to nock. The three share one material: their textures packed into one atlas (a quarter each). The quiver rides across the small of
   his back just above the seat (on the Hips, centred off the lower spine; nearly level, its mouth on his right tipped up ~24°, the
-  feathers out past his right hip, its dragon facing back) — on his right hip, arrows up, the armoured skirt and the arm went through it. His spear wins over the weapon sheet's "spear" whichever file loads first (assets.js ZY_WEAP).
+  feathers out past his right hip, its dragon facing back; snug against the back: 0.25 m behind the spine left a gap you could see from the side) — on his right hip, arrows up, the armoured skirt and the arm went through it. His spear wins over the weapon sheet's "spear" whichever file loads first (assets.js ZY_WEAP).
 - How he holds the spear (assets.js zySpear, eased between over ~0.1 s): at ease (ZY_IDLE, his calm stand while no fight is near —
   units.js zyFighting: a roused foe within 12 m, or a blow struck or taken in the last 4 s) upright, its butt on the floor by his foot,
   his right fist round it; walking, held forehand at the balance point, the point forward and up (CARRY_UP, 0.62 rad), the butt a hand's

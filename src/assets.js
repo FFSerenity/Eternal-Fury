@@ -195,7 +195,7 @@ function zyBack(model, name, u, outline) {
 // his quiver across the small of his back, just above the seat, hung from the belt (it rides with the hips): lying nearly level, the
 // mouth on his right and tipped up (Q_TILT), the arrows' feathers out past his right hip for the right hand; its dragon facing back.
 // (First it hung on his right hip, arrows up: the armoured skirt and the swinging arm went through it.)
-const Q_AT = [0, -0.09, -0.25], Q_TILT = 0.42; // (centre, from his lower spine, in his model's metres: across, up, forward; tilt, radians)
+const Q_AT = [0, -0.09, -0.11], Q_TILT = 0.42; // (centre, from his lower spine, in his model's metres: across, up, forward; tilt, radians)
 function zyHip(model, name, u, outline) {
   const src = A.heroWeap[name], hips = findBone(model, 'mixamorig:Hips'), sp = findBone(model, 'mixamorig:Spine'); if (!src || !hips || !sp) return null; model.updateMatrixWorld(true);
   const V = THREE.Vector3, Q = THREE.Quaternion, s = model.getWorldScale(new V()).x, c = sp.getWorldPosition(new V()), at = globalThis.__qAt || Q_AT, tl = globalThis.__qTilt ?? Q_TILT;
