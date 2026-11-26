@@ -132,8 +132,9 @@ export function leapBurst(u, mv) { // down with the mace raised: a burst of ligh
 export const AURA = { share: 0.1, cap: 0.2, rest: 2.5, fill: 4 };
 export const auraOn = u => !!(u && !u.dead && u.mesh && u.mesh.holy && (u.fury || 0) >= 25 && !(u.spawnT > 0));
 const inAura = (u, f) => Math.hypot(f.x - u.x, f.z - u.z) <= HOLY_AURA_R;
+let auraWas = false;
 export function auraTick(u, dt) {
-  const on = auraOn(u);
+  const on = auraOn(u); if (on && !auraWas) S.holyOn(); auraWas = on;
   for (const f of G.friends) { if (f.dead) { f.barrier = 0; f.hdome = null; continue; }
     const cap = f.maxHp * AURA.cap, inside = on && inAura(u, f); f.barrierCap = cap;
     if (inside) { if (G.t - (f.barrierHit || -9) > AURA.rest) f.barrier = Math.min(cap, (f.barrier || 0) + cap / AURA.fill * dt); }

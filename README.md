@@ -166,5 +166,5 @@ The wilds' bats and ghosts are from **Quaternius**' Ultimate Monsters pack (quat
 The Soul Pact skeleton ("Boneforged Sentinel") and its weapons ("Runebound Armory") were generated with **Meshy** (meshy.ai), licensed
 CC BY 4.0. Its animations are from **Mixamo** (Adobe): Pro Sword and Shield Pack, Great Sword Pack, Zombie Stand Up, Dodging.
 Its blade sounds — a metal slice and the ring of the blade, no wooden knock — are mixed from **Kenney**'s Impact Sounds and RPG Audio (www.kenney.nl, CC0; tools/mix-blades.py).
-Its swishes, armour hits, blocks, fire, slams, Judgement and Blessed Hammers, and the champions' poison and thunder, were generated with
+Its swishes, armour hits, blocks, fire, slams, war cries, charges, holy light, Judgement and Blessed Hammers, and the champions' poison and thunder, were generated with
 **Stable Audio 3 Medium** (Stability AI) in ComfyUI and picked by ear.

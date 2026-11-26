@@ -11,15 +11,21 @@ export function unlock() {
 // recorded sounds (assets/sfx): fetched when asked for, decoded once the audio context exists. The blade bites (blade_*) are Kenney's (CC0);
 // the rest were made with Stable Audio 3 Medium in ComfyUI and picked by ear (tools: the sound-test page). PK: where each is loudest (s), to line it up
 const RAW = {}, BUF = {};
-const PK = { swing_l0: 0.055, swing_l1: 0.055, swing_l2: 0.035, swing_h0: 0.045, swing_h1: 0.045, swing_h2: 0.065, swing_h3: 0.065, fire_sw0: 0.245, fire_sw1: 0.325 };
+const PK = { swing_l0: 0.055, swing_l1: 0.055, swing_l2: 0.035, swing_h0: 0.045, swing_h1: 0.045, swing_h2: 0.065, swing_h3: 0.065, fire_sw0: 0.245, fire_sw1: 0.325, charge: 0.355 };
 export const SAMPLES = ['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_h0', 'swing_h1', 'swing_h2', 'swing_h3',
-  'clang0', 'clang1', 'heavy0', 'heavy1', 'mace_m0', 'mace_m1', 'mace_f0', 'block_b', 'block_h', 'fire_sw0', 'fire_sw1', 'ignite0', 'ignite1', 'slam0', 'burst_f', 'burst_e',
-  'hammers', 'poison0', 'poison1', 'thunder0', 'shadow0', 'shadow1'];
+  'clang0', 'clang1', 'heavy0', 'heavy1', 'mace_m0', 'mace_m1', 'mace_f0', 'block_b', 'block_h', 'fire_sw0', 'fire_sw1', 'fireburst', 'fcharge', 'fireloop.wav', 'slam0', 'burst_f', 'burst_e',
+  'hammers', 'poison0', 'poison1', 'thunder0', 'shadow0', 'shadow1', 'charge', 'warcry', 'warcry_pal', 'holy'];
 const any = (pre, n) => pre + Math.floor(Math.random() * n);
-export function loadSamples(names) { for (const n of names) if (!RAW[n]) RAW[n] = fetch(`assets/sfx/${n}.mp3`).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null); if (ac) decodeAll(); }
+export function loadSamples(names) { for (const n of names) if (!RAW[n]) RAW[n] = fetch(`assets/sfx/${n.includes('.') ? n : n + '.mp3'}`).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null); if (ac) decodeAll(); }
 function decodeAll() { for (const n in RAW) if (!(n in BUF)) { BUF[n] = null; RAW[n].then(ab => ab && ac.decodeAudioData(ab)).then(b => { BUF[n] = b || null; }).catch(() => {}); } }
 function sample(n, v = 1, rate = 1, t = 0) { const b = BUF[n]; if (!b) return false; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = b; s.playbackRate.value = rate; g.gain.value = v;
   s.connect(g); g.connect(out); s.start(ac.currentTime + t); return true; }
+// a sound held as long as something lasts (a blade burning): fades in; stop(f) fades it out. A loop is a .wav — an mp3 pads its ends with silence
+// (max: it dies away by itself after that long, should nothing stop it)
+function loopSample(n, v = 1, fin = 0.25, max = 4) { const b = BUF[n]; if (!b) return null; const s = ac.createBufferSource(), g = ac.createGain(), t0 = ac.currentTime; s.buffer = b; s.loop = true;
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(v, t0 + fin); g.gain.setValueAtTime(v, t0 + max - 0.4); g.gain.linearRampToValueAtTime(0, t0 + max);
+  s.connect(g); g.connect(out); s.start(t0); s.stop(t0 + max + 0.05); let on = true;
+  return { stop(f = 0.3) { if (!on) return; on = false; const t = ac.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + f); s.stop(t + f + 0.05); } }; }
 // band-passed noise swept from f0 to f1, swelling then dying away (a blade through the air)
 function sweep(f0, f1, q, dur, v, t = 0) { const t0 = ac.currentTime + t, s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noise; fl.type = 'bandpass'; fl.Q.value = q;
   fl.frequency.setValueAtTime(f0, t0); fl.frequency.exponentialRampToValueAtTime(f1, t0 + dur); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v, t0 + dur * 0.6);
@@ -41,8 +47,13 @@ export const S = {
     const pre = Math.min(Math.max(0, tPeak), lead); if (pre > 0.05) sweep(heavy ? 170 : 340, heavy ? 950 : 1800, 0.9, pre + 0.06, heavy ? 0.17 : 0.13, tPeak - pre);
     if (!sample(n, heavy ? 1 : 0.95, r, Math.max(0, tPeak - (PK[n] ?? 0.03) / r))) { if (heavy) sweep(260, 1300, 1.1, 0.34, 0.2, Math.max(0, tPeak - 0.2)); else sweep(520, 2500, 1.3, 0.24, 0.16, Math.max(0, tPeak - 0.14)); } },
   // the shield charge: a long rush of air that swells as it closes, ending in a heavy swish
-  rush(dur = 0.5) { if (!ok()) return; sweep(110, 520, 0.7, dur + 0.25, 0.34); sweep(500, 1900, 1.0, dur + 0.15, 0.2, 0.05); tone('sawtooth', 70, 48, dur + 0.2, 0.07);
+  rush(dur = 0.5) { if (!ok()) return; if (sample('charge', 0.95, 1, Math.max(0, dur - 0.1 - PK.charge))) return; sweep(110, 520, 0.7, dur + 0.25, 0.34); sweep(500, 1900, 1.0, dur + 0.15, 0.2, 0.05); tone('sawtooth', 70, 48, dur + 0.2, 0.07);
     sample(any('swing_h', 4), 1, 0.78, Math.max(0, dur - 0.1)); },
+  // the Sentinel's war cry, and the burst of power that throws back what stands close: fire — or, the paladin's roar, holy light
+  warcry(pal) { if (!ok()) return; if (pal) { if (!sample('warcry_pal', 0.9)) this.roar(); if (!sample('holy', 0.6, 1, 0.05)) this.holy(0.8); }
+    else { if (!sample('warcry', 0.95)) this.roar(); sample('fireburst', 0.75, 1, 0.04); } },
+  // the Aura of Light lighting up (25 Fury)
+  holyOn() { if (!ok()) return; if (!sample('holy', 0.75)) this.holy(1); },
   roar() { if (!ok()) return; tone('sawtooth', 120, 62, 0.75, 0.16); tone('sawtooth', 181, 90, 0.7, 0.07, 0.02); hiss(380, 0.7, 0.7, 0.3, 0, 'lowpass'); hiss(1400, 0.8, 0.45, 0.12, 0.05); },
   // plate: the target is in armour (a knight, a stone-skinned champion) — the blade rings on it, the mace clangs; on cloth and flesh the old bite and a blunt thud
   blade(heavy, crit, plate) { if (!ok() || !gate('bl', 50)) return; const r = 0.96 + Math.random() * 0.08;
@@ -57,7 +68,8 @@ export const S = {
   // a blow caught on a shield or a blade: heavy — a mace, a club, a brute's swing (a dull clang); else a blade on steel
   block(heavy) { if (!ok() || !gate('bk2', 60)) return; if (!sample(heavy ? 'block_h' : 'block_b', 0.85, 0.96 + Math.random() * 0.08)) clank(); },
   // the greatsword's fire: the blade catching light, its burning swing (tPeak as in swoosh), the blast where it lands
-  ignite() { if (!ok()) return; if (!sample(any('ignite', 2), 0.8)) { hiss(500, 0.6, 0.35, 0.2); tone('sawtooth', 120, 60, 0.3, 0.05); } },
+  ignite() { if (!ok()) return; if (!sample('fcharge', 0.85)) { hiss(500, 0.6, 0.35, 0.2); tone('sawtooth', 120, 60, 0.3, 0.05); } },
+  fireLoop(v = 0.55) { return ok() ? loopSample('fireloop.wav', v) : null; },
   fireSwing(tPeak = 0) { if (!ok()) return; const n = any('fire_sw', 2); sample(n, 0.75, 1, Math.max(0, tPeak - PK[n])); },
   burst(fire) { if (!ok()) return; if (!sample(fire ? 'burst_f' : 'burst_e', 0.9)) { tone('sine', 90, 30, 0.5, 0.5); hiss(200, 0.5, 0.5, 0.5, 0, 'lowpass'); } },
   // a body landing hard from a leap: the ground takes it

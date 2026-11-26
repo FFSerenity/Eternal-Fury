@@ -97,6 +97,7 @@ function start(u, id, t) {
 }
 function end(u) { const sk = u.sk, m = u.mesh; if (sk && sk.upA && m.curU === sk.upA) { sk.upA.fadeOut(0.15); m.curU = null; m.curUName = ''; }
   if (sk && sk.ham) { if (!sk.caught) sk.ham.drop(); if (m.weap && m.weap.r) m.weap.r.visible = true; } // (the mace is back in its hand, whatever happened)
+  if (sk && sk.fl) { sk.fl.stop(0.2); sk.fl = null; }
   if (sk && sk.fire) { sk.fire.stop(); if (m.blade && sk.col0 != null) m.blade.col = sk.col0; }
   u.state = 'idle'; u.sk = null; u.y = 0; u.cdT = Math.max(u.cdT, 0.25); }
 
@@ -170,15 +171,15 @@ PH.skillTick = (u, dt) => {
     while (sk.hits < mv.hits.length && sk.t >= mv.hits[sk.hits] * L / mv.sp) { whirlHit(u, mv); sk.hits++; }
     if (sk.t >= len * 0.88) end(u);
   } else if (sk.id === 'sunder') {
-    if (mv.roarAt && !sk.roared && sk.t >= mv.roarAt) { sk.roared = true; if (mv.holy) { holyBurst(u); S.holy(0.8); } else { roarBurst(u); S.roar(); } // the burst throws back whatever stands close
+    if (mv.roarAt && !sk.roared && sk.t >= mv.roarAt) { sk.roared = true; if (mv.holy) { holyBurst(u); S.warcry(true); } else { roarBurst(u); S.warcry(false); } // the burst throws back whatever stands close
       for (const h of hostilesOf(u)) { const d = dist(h, u); if (h.dead || d > 3.6 + h.r) continue; const l = d || 1; h.kx += (h.x - u.x) / l * 3; h.kz += (h.z - u.z) / l * 3; stunHit(h, 0.45); } }
-    if (!sk.fire && sk.t >= mv.ignite) { sk.fire = bladeFire(u, mv.holy ? HOLY_FIRE : undefined); if (!mv.holy) S.ignite(); if (u.mesh.blade) u.mesh.blade.col = mv.holy ? 0xfff0b0 : 0xff6a1a; }
+    if (!sk.fire && sk.t >= mv.ignite) { sk.fire = bladeFire(u, mv.holy ? HOLY_FIRE : undefined); if (!mv.holy) { if (sk.st === 'GS') S.ignite(); sk.fl = S.fireLoop(); } if (u.mesh.blade) u.mesh.blade.col = mv.holy ? 0xfff0b0 : 0xff6a1a; }
     if (sk.fire && !sk.strike) { const r = Math.min(1, Math.max(0, (sk.t - mv.ignite) / (mv.full - mv.ignite))); sk.fire.reach = 0.08 + 0.92 * r; sk.fire.power = 0.6 + 0.6 * r;
       if (r >= 1 && !sk.flared) { sk.flared = true; const e = u.mesh.weap.r.userData.edge; if (e) { const P = e[1].getWorldPosition(new THREE.Vector3()); burst(P.x, P.y, P.z, mv.holy ? 0xfff0b0 : 0xffb050, 1.4); } } }
     if (!sk.strike) { if (t) faceAt(u, t);
       if (sk.t >= mv.preT) { sk.strike = true; sk.st0 = sk.t; const L = clipDur(mv.clip), sp = Math.max(0.6, Math.min(2.5, L * (mv.hit - mv.at) / 0.42)); sk.tHit = L * (mv.hit - mv.at) / sp; sk.len = L * (1 - mv.at) / sp;
         play(u.mesh, mv.clip, { once: true, restart: true, speed: sp, fade: 0.06, at: mv.at }); trail(u, sk.len); S.swoosh(sk.st === 'GS', sk.tHit - 0.02); if (sk.fire) { sk.fire.reach = 1; sk.fire.power = 1.4; if (!mv.holy) S.fireSwing(sk.tHit - 0.02); } } }
-    else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; if (mv.holy) judgement(u, mv); else sunderHit(u, mv); } if (sk.fire && s >= sk.tHit + 0.3) sk.fire.power = Math.max(0, sk.fire.power - dt * 3);
+    else { const s = sk.t - sk.st0; if (!sk.hits && s >= sk.tHit) { sk.hits = 1; if (mv.holy) judgement(u, mv); else sunderHit(u, mv); } if (sk.fire && s >= sk.tHit + 0.3) { sk.fire.power = Math.max(0, sk.fire.power - dt * 3); if (sk.fl) { sk.fl.stop(0.45); sk.fl = null; } }
       if (s >= Math.min(sk.len * 0.8, sk.tHit + 0.6)) end(u); }
   }
 };
