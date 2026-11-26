@@ -276,8 +276,11 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   shaft), the right fist 18% of the way up from the butt (TWO_AT; the parry holds it by the middle); on the Sentinel's clips, the line
   fitted on them.
 - His rise and calm stand (Nov 26): Meshy's "Axe Stance" preset — kneeling, he rises, sweeps the arm and stands with it raised at his
-  side — stands in for the Sentinel's Rise (ZY_ALIAS.Rise, 6.1 s, at its own pace); the spear stands on its butt beside him through it,
-  his right fist round it. It is downloaded on its own (Meshy's "Current" animation: past the 20 the "All Added" download allows) and
+  side — stands in for the Sentinel's Rise (ZY_ALIAS.Rise, 6.1 s, at its own pace). The spear goes with his right hand as in Meshy's
+  preview of the motion: lying flat on the floor beside him while he kneels, lifted high as he rises, swung upright and planted butt-down
+  (zyAxe: its line in the hand measured at the clip's end, where it stands straight up; the fist's height there sets the grip, so the butt
+  lands on the floor). From the plant (0.74 of the clip) it stands on its butt beside him, his right fist round it. (First version: it
+  stood upright on the floor through the whole rise.) It is downloaded on its own (Meshy's "Current" animation: past the 20 the "All Added" download allows) and
   merged in by bone name (tools/zy-fix-rig.mjs extra.glb), keeps its travel (he steps forward as he rises) and is stood on his spot by
   its last frame. Its last 1.2 s, played there and back, is his calm stand (ZY_Stand_Ease, ZY_IDLE): while no fight is near he stands at
   ease with the spear grounded; near one, the spear guard (ZY_SP_Idle, below). (Fixed on the way: a rise's animation lock only

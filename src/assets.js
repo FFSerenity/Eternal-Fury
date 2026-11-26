@@ -157,6 +157,17 @@ export const zyOwn = name => !!name && (name.startsWith('ZY_') || !!ZY_ALIAS[nam
 // the bow stands upright in his left fist while he shoots (the archer's aim, his own clip: world up, in the left hand's frame)
 export const ZY_BOW_CLIP = ['ZY_Archery_Shot_2', 0.5];
 let ZY_BOW = null;
+// his rise (Meshy's Axe Stance): Meshy's preview has the spear in the figure's right hand all through it — lying flat on the floor while
+// he kneels, lifted high with the arm as he rises, swung upright and planted butt-down. Its line in the right hand: straight up at the
+// clip's end (planted), measured there; the fist's height then (model units) sets how far up the shaft he holds it, so the butt lands
+// on the floor. Held so till the plant (ZY_AXE_PLANT of the clip), then the grounded stand's way (the fist closed round it)
+const ZY_AXE_PLANT = 0.74;
+let ZY_AXE = null;
+function zyAxe() {
+  if (ZY_AXE) return ZY_AXE; const m = skClone(A.zy.scene), mixer = new THREE.AnimationMixer(m), R = findBone(m, 'mixamorig:RightHand'), c = zyClips.ZY_Axe_Stance, Q = THREE.Quaternion;
+  if (c) { const a = mixer.clipAction(c); a.play(); a.time = c.duration * 0.999; mixer.update(0); m.updateMatrixWorld(true); }
+  ZY_AXE = { u: new THREE.Vector3(0, 1, 0).applyQuaternion(R.getWorldQuaternion(new Q()).invert()), fy: fistAt(m, 'Right').y }; mixer.uncacheRoot(m); return ZY_AXE;
+}
 function zyBowAxis() {
   if (ZY_BOW) return ZY_BOW; const m = skClone(A.zy.scene), mixer = new THREE.AnimationMixer(m), L = findBone(m, 'mixamorig:LeftHand'), c = zyClips[ZY_BOW_CLIP[0]], Q = THREE.Quaternion;
   if (c) { const a = mixer.clipAction(c); a.play(); a.time = c.duration * ZY_BOW_CLIP[1]; mixer.update(0); m.updateMatrixWorld(true); }
@@ -753,7 +764,8 @@ export function heroWeaponPose(u, dt, emit) {
     emit(x, floor + 0.02, z, Math.random() < 0.6 ? { col: 0xffb35a, spd: 1.4, up: 1.2, grav: 6, life: 0.3, size: 0.09 } : { col: 0x9a8f86, spd: 0.4, up: 0.4, grav: 0, life: 0.6, size: 0.22 }); }
 }
 // Zhao Yun's spear, by what he is doing (each a way it points and where along the shaft his right fist is; eased between over ~0.1 s):
-//  - ground (his calm stand ZY_IDLE, and his rise): upright, the butt on the floor beside his foot, his right fist round it
+//  - his rise till the plant: fixed in the right hand as Meshy's preview holds it (zyAxe): flat on the floor, lifted, planted
+//  - ground (his calm stand ZY_IDLE, and his rise from the plant): upright, the butt on the floor beside his foot, his right fist round it
 //  - carry (walking): held forehand at the balance point, the point forward and up (CARRY_UP), the butt clear of the floor
 //  - two (his own fighting clips: the stance, the parry): along the line from his right fist through his left — both hands on the
 //    shaft whatever the clip does — the right fist near the butt (TWO_AT of the way up); the fitted line if the hands part
@@ -810,8 +822,10 @@ export const ZY_IDLE = 'ZY_Stand_Ease', ZY_GROUND = new Set([ZY_IDLE, 'ZY_Axe_St
 function zySpear(u, m, g, dt, floor) {
   const n0 = m.curU && m.curUName ? m.curUName.replace(/@upper$/, '') : (m.curName || '').replace(/@lower$/, ''), n = ZY_ALIAS[n0] || n0, fit = WEAP_FIT.spear, Lw = fit.len, tip = g.userData.tip, butt = Lw - tip, f = u.face ?? m.root.rotation.y; // (n: his own clip's name, for the Sentinel's names it stands in for) // (walking into a fight: the stance above is what holds it)
   fistW(m.fists.R, _fr); fistW(m.fists.L, _fl);
-  const ground = ZY_GROUND.has(n), walk = /^Walk_/.test(n0) || n === 'ZY_Spear_Walk', own = zyOwn(n), ue = /^ZY_SP_/.test(n), fwdX = Math.sin(f), fwdZ = Math.cos(f); _d.copy(_ax); // (_ax: where the hand's own grip points it)
-  if (ground) _d.set(fwdX * 0.04, 1, fwdZ * 0.04).normalize();
+  const axe = n === 'ZY_Axe_Stance' && m.cur && m.cur.time < m.cur.getClip().duration * ZY_AXE_PLANT; // (rising, the spear not yet planted)
+  const ground = ZY_GROUND.has(n) && !axe, walk = /^Walk_/.test(n0) || n === 'ZY_Spear_Walk', own = zyOwn(n), ue = /^ZY_SP_/.test(n), fwdX = Math.sin(f), fwdZ = Math.cos(f); _d.copy(_ax); // (_ax: where the hand's own grip points it)
+  if (axe) _d.copy(zyAxe().u).applyQuaternion(m.grip.R.hand.getWorldQuaternion(_gT2)); // (in his hand as Meshy's preview has it: the hand's turn is the clip's)
+  else if (ground) _d.set(fwdX * 0.04, 1, fwdZ * 0.04).normalize();
   else if (walk) { const c = Math.cos(globalThis.__carryUp ?? CARRY_UP), sn = Math.sin(globalThis.__carryUp ?? CARRY_UP); _d.set(fwdX * c, sn, fwdZ * c).normalize(); }
   else if (ue) _d.copy(ZY_UE_AXIS).applyQuaternion(m.grip.R.hand.getWorldQuaternion(_gT2)); // (fixed in the hand, as Unreal held it: the hand's turn is the clip's)
   else if (own) { _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); }
@@ -819,7 +833,8 @@ function zySpear(u, m, g, dt, floor) {
   // his hands round the shaft, the thumbs toward the point: one hand (at ease, rising, walking) with the palm in toward his body, the back
   // of the hand out; both (his own fighting clips) the rear hand's palm in and up, the front hand cradling it palm up (the parry: as they
   // were). Not on the Sentinel's clips moved over (their own line, fitted on the hands)
-  const one = ground || walk, gw = one || (own && !ue) ? 1 : 0; m.zyGW = (m.zyGW ?? gw) + (gw - (m.zyGW ?? gw)) * k; // (the Unreal clips' hands already close round the shaft: left as they are)
+  const one = ground || walk, gw = !axe && (one || (own && !ue)) ? 1 : 0; m.zyGW = (m.zyGW ?? gw) + (gw - (m.zyGW ?? gw)) * k; // (the Unreal clips' hands already close round the shaft: left as they are)
+  if (axe) m.zyGW = 0; // (at once: the kneel holds still, and a still clip does not rewrite the hand — a fading turn would stay on it)
   if (m.zyGW > 0.01 && !globalThis.__noGrip) { _hg.set(Math.cos(f), 0, -Math.sin(f)); // (his left: in, for the right hand)
     const parry = n === 'ZY_Two_Handed_Parry'; if (!one && !parry) _hg.add(_gUp.set(0, 0.6, 0)).normalize(); // (both hands: the rear one in and up, the front one cradling, palm up)
     for (let it = 0; it < (one ? 1 : 2); it++) { // (both hands: turned, then the shaft laid again through the fists where they now are, and once more)
@@ -829,7 +844,8 @@ function zySpear(u, m, g, dt, floor) {
   // where along the shaft his fist is (s: from the grip point), from where the fist now is: grounded, the butt on the floor; walking, the
   // butt a hand's breadth off it; both hands, the rear fist TWO_AT of the way up
   let s = 0;
-  if (ground) s = floor + butt / Math.max(0.5, _d.y) * _d.y - _fr.y;
+  if (axe) s = 0.04 + butt - (m.model.position.y + zyAxe().fy * m.model.scale.y); // (fixed: the butt on the floor at the plant)
+  else if (ground) s = floor + butt / Math.max(0.5, _d.y) * _d.y - _fr.y;
   else if (walk) { const low = _fr.y - butt * _d.y - (floor + 0.12); if (low < 0) s = -low / Math.max(0.2, _d.y); }
   else if (ue) s = (GRIP_AT - (globalThis.__ueAt ?? UE_AT)) * Lw;
   else if (own) s = (GRIP_AT - (TWO_AT_CLIP[n] ?? TWO_AT)) * Lw;
