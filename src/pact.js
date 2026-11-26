@@ -85,7 +85,7 @@ PH.stats = u => {
   // what its gear gives: % damage / life / attack speed / move speed, flat armour, chances
   b.dmg *= 1 + V('dmg') / 100; b.maxHp *= 1 + V('hp') / 100; b.armor += V('arm'); b.cd /= 1 + V('spd') / 100; b.speed *= 1 + V('move') / 100; b.evade = Math.min(0.6, b.evade + V('eva') / 100);
   u.crit = 0.1 + V('crit') / 100; u.leechB = V('leech') / 100; u.blockB = V('blk') / 100; u.shield = !!g.a; u.blunt = !!W.blunt; // (blunt: damage() in units.js, foeGuard in foes.js)
-  Object.assign(u, b); u.range = W.range; u.r = 0.42; u.windup = W.wind; u.noStun = true; u.taunt = true; u.tauntR = 6; u.pact = true; u.fury = P8.stacks; // (crest and skills go by it)
+  Object.assign(u, b); u.cd0 = W.cd; u.range = W.range; u.r = 0.42; u.windup = W.wind; u.noStun = true; u.taunt = true; u.tauntR = 6; u.pact = true; u.fury = P8.stacks; // (crest and skills go by it)
 };
 PH.name = () => heroName();
 // a swing: the target and whatever else stands in the arc in front (narrow for the sword, wide for the greatsword)

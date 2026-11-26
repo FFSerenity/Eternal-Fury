@@ -36,10 +36,13 @@ Picked on the start screen (its own save). One summoned skeleton — the realist
   wears a shield of light worth 20% of their life).
 - **Spear — Zhao Yun 赵云** (Nov 2026): equip a spear and the skeleton becomes Zhao Yun — his own model in silver armour
   with a dragon pauldron, a silver dragon spear, a bow slung across his back. At ease he stands with the spear grounded; near a
-  fight he takes a low spear guard and stalks forward in it, and draws the bow side-on. Quick on his feet, a long reach, and every thrust runs on
-  through the line behind the target. At enemies still 6–13 m off he takes the bow and looses three arrows first. His skills: Changban
-  Charge (a lunge spear-first straight through the line), Parry (and a thrust back whose qi flies down the line), Spear Flower (the spin)
-  and Hundred Birds (dragon light gathered on the point, then five bolts of it fanned ahead).
+  fight he takes a low spear guard and stalks forward in it, and draws the bow side-on. His blows are big dashing sweeps and thrusts that
+  cut through a crowd (the Unreal pack's spear moves, carried by their own travel). At enemies still 6–13 m off he takes the bow and
+  looses three arrows first. His skills: Changban Charge (three dashing thrusts, each turned to run through the most of them), Parry
+  (and an arrow back down the line), Spear Flower (whirling into a crowd, a dash at the next, a sweep at the last), Hundred Birds (a
+  tornado kick gathering dragon light, a dash and five bolts of it fanned ahead) and, at 25 Fury, To the Rescue (when the summoner falls
+  under 40% his life is held, and Zhao Yun dashes or flashes to stand before him, turns every blow aside and sends a wide fan of dragon
+  light; his life steal stays).
 - Gear drops for the Sentinel: greatswords (two-handed, no shield), swords, maces and shields, in white / blue / yellow / purple / red; equip from the Pact panel or the bag.
 - As Fury grows its soul light (cyan, like its eyes; gold for the Paladin) shines out of it from inside, a step every 10 stacks up to 100.
 - Monsters move at 60% speed in this mode, so fights stand still around the Sentinel while the summoner moves, heals and harvests.
@@ -173,9 +176,12 @@ motions ZY_*, takes the hips' drift out, turns the archery clips to face forward
 `python3 tools/bl_zy_weapons.py -- spear.glb bow.glb quiver.glb out.glb` (Meshy's remeshed weapons) straightens the spear's shaft to its
 full length, gives the bow a string and packs the three onto one texture atlas → `node tools/build-hero.mjs` → `hero_zyweap.glb`.
 His fighting guard and walk come from Unreal Engine 5 (exported from UE as FBX on the Manny skeleton):
-`python3 tools/bl_zy_ue.py -- <meshy.glb> zy_ue.glb SP_Idle=Spear_Idle_Seq.FBX SP_Walk=Spear_Walk_Seq.FBX@68-100` moves them onto his rig
-(world space, through Manny's reference pose); pass `zy_ue.glb` to zy-fix-rig.mjs as an extra clip file (with the Axe Stance and
-Archery Shot 3 downloads), measure the feet on that output without a feet file, then run it again with it.
+`ROOT_JS=src/zyroot.js python3 tools/bl_zy_ue.py -- <meshy.glb> zy_ue.glb SP_Idle=Spear_Idle_Seq.FBX SP_Walk=Spear_Walk_Seq.FBX@68-100 SP_Thrust=Spear_1TimeThrust_Seq.FBX
+SP_Atk2A=Spear_ATK_2Times_A_Seq.FBX SP_Atk2B=Spear_ATK_2Times_B_Seq.FBX SP_Triple=Spear_TripleThurst_Seq.FBX SP_Spin=Spear_Horizontal_Spin_Attack_Seq.FBX
+SP_Tornado=Spear_TornadoKick_and_Thurst_Seq.FBX SP_Parry=Spear_Parry_Seq.FBX SP_DodgeL=Spear_DodgeLeft_Seq.FBX SP_DodgeR=Spear_Dodge_Right_Seq.FBX`
+moves them onto his rig (world space, through Manny's reference pose) and writes their root motion (left out of the poses) to
+`src/zyroot.js`; pass `zy_ue.glb` to zy-fix-rig.mjs as an extra clip file (with the Axe Stance and Archery Shot 3 downloads), measure
+the feet on that output without a feet file, then run it again with it.
 Clips he has none of are the Sentinel's, moved onto his rig in the game (assets.js zyClips).
 
 ## Credits

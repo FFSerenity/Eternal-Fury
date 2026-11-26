@@ -327,14 +327,39 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - His bow (not a Fury skill: the spear's own way): at a target 6–13 m off, in sight, with nothing close, every 5 s — the spear set
   aside, the bow off his back, three arrows 0.28 s apart (0.55× damage each, a silver gleam, led onto a moving target), then back
   to the spear. He draws side-on, the bow arm out at the target (his own ZY_Archery_Shot_2).
-- His skills (pactskills.js MOVES.SPR, names and words in each skill's spr): 长坂冲阵 Changban Charge — a lunge spear-first along a path
-  through the target and 1.6 m past it (stopped short by walls); everything near the path is run through (1.6×, the target 2×), thrown
-  aside to whichever side it stood and stunned 0.7 s. 招架 Parry — 30% of blows from the front (−60%; the spear raised across, his own
-  ZY_Two_Handed_Parry), then a thrust back whose qi flies
-  down the line. 枪花 Spear Flower — the greatsword's spin. 百鸟朝凤 Hundred Birds — dragon light (pale blue) gathers on the point,
-  then five bolts of it fan out ahead about 9 m, each running through what it meets (2.6×; non-elites under 25% cut down).
-- Still borrowed: the blows (SNS_Lunge's thrust, the greatsword's swings), the charge and the skills' clips. Meshy's ZY_Thrust_Slash
-  lunges a metre forward and back (it would run into the target), the combos travel too — worth a try with the unit moved along.
+- His blows and skills (Nov 26, third version): the Unreal pack's, each a move of its own (pactskills.js MOVES.SPR, spMove: spStart /
+  spTick), carried by the clip's own root motion. tools/bl_zy_ue.py now leaves UE's root motion (the root bone, which comes into Blender
+  as the armature object: its move and its turn) out of the poses and writes it to src/zyroot.js (per frame at 30 fps: forward, his left,
+  his turn). Each frame the root's step since the last, in the root's own frame, is walked where he now faces, times k (a part's travel
+  stretched or cut to where it should take him; a wall stops it), and its turn turns him — so turning him between a move's parts turns
+  the rest of its path with him. Blows land at set clip times, from his body (the hips) where it is then: a ring (all round), an arc
+  (radius, half-angle) or a line (a thrust: length, half-width), each foe once, its qi flying on past the point (qiWaves, qiFan, qiBolt).
+  The times come from the clips (tools: the spear tip's reach, its angle about him, the root's travel and turn — the root jumps 3.5 m in
+  0.15 s in each of the triple thrust's dashes, turns twice about itself in the spin).
+- His swings (in place of the windup-and-strike: units.js startWindup asks PH.heroAtk), in turn: 1 Time Thrust (a twirl overhead — an
+  arc, 2.8 m, ±100° — then a lunge two metres in, the point four and a half out: a line 3.6 m, 1.35×; no root motion, the lunge is in the
+  pose), Attack 2 Times A (an overhead sweep, then a dash of 2.5 m and a thrust) and B (a dash and a thrust, then a great sweep left to
+  right, 3 m, ±110°). The dashes are cut to stop short of the target. 1.45× speed; attack speed (Fury, gear) plays them faster by up to
+  1.6× and the rest goes into the blows (the damage per second keeps all of it). The next starts as soon as one is done.
+- 长坂冲阵 Changban Charge: Triple Thrust — three dashes, each ending in a thrust. The first runs through the target and 1.6 m on (3–9 m,
+  as the old lunge), the second and third 72% and 56% of it (at least 2.5 m); before each of those he turns (over 0.3 s of the clip) to
+  the line through the most of them from where he stands, preferring the target (back through it at worst). What a dash passes is run
+  through (1.3×, the target more), thrown aside to its side and stunned 0.6 s.
+- 枪花 Spear Flower: Horizontal Spin Attack — two turns about himself as he goes (the clip's root turns 720°): a ring of qi each (0.8×),
+  then a dash and a thrust (1.2×), a step and a sweep (0.9×). Each part aimed anew: the spins at the crowd before him; the dash at the
+  next crowd (crowd(): the foe with the most others within 2.5 m, away from the way already taken where it can) — its extra turn spread
+  through the spin, where it does not show; the dash stretched to it; the last sweep at whatever crowd is left.
+- 百鸟朝凤 Hundred Birds: Tornado Kick and Thrust — from as far as 9 m, at a crowd (2+ within 3 m of the target) or a hard foe: dragon
+  light gathers on the spear as he whirls and kicks, a ring of cuts each half turn (six, 0.55× each), then a dash (cut to end 2.4 m short
+  of the target) and the thrust: a line (1.6×) and the five bolts fanned ahead about 9 m (now 3×; non-elites under 25% cut down).
+- 招架 Parry: the pose is the pack's Spear Parry (0.17 into it, the spear raised high); the answer is still the bow.
+- 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
+  PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
+  sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else
+  at once in a flash of dragon light, to stand 1.3 m before the summoner facing the nearest foe, spear raised (Spear Parry). Meanwhile
+  every blow on himself is turned aside. Then a great sweep (Attack 2 Times B's) and nine bolts of dragon light in a fan of 150° (1.6×,
+  9.5 m). While it lasts, 10% of the damage he deals heals the summoner too (at most 60% of the summoner's life a rescue — his blows are
+  big beside it). 40 s cooldown.
 
 ## 野外的敌人 / The wilds' foes (Nov 2026)
 The wilds hold no skeletons: the living (KayKit Adventurers — Knight, Barbarian, Rogue, Rogue Hooded, and the Mage *with* its hat;

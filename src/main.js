@@ -235,7 +235,7 @@ let last = performance.now();
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); last = performance.now(); PM.cool = 2000; });
 function loop(now) {
   requestAnimationFrame(loop);
-  const ms = now - last; last = now; perf(ms); let dt = Math.min(0.05, ms / 1000); if (dt <= 0) return;
+  const ms = now - last; last = now; perf(ms); let dt = Math.min(0.05, ms / 1000) * (globalThis.__ts ?? 1); if (dt <= 0) return; // (__ts: tests' slow motion)
   if (G.slowT > 0) { G.slowT -= dt; dt *= 0.4; } // a champion falling: a moment of slow motion
   AURA_T.value += dt;
   if (started) { G.t += dt; setNavTime(G.t);

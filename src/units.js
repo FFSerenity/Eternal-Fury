@@ -106,6 +106,7 @@ export function damage(src, dst, amt, o = {}) {
   let d = Math.max(1, amt * (1 - arm / (arm + 60)) * (1 - 0.08 * rk(dst, 'taunt')) * (1 + 0.006 * sh) * (dst.deployT > 0 ? 0.65 : 1)); if (o.crit) d *= o.critX || 2;
   let soaked = false; if (dst.shieldHP > 0) { const ab = Math.min(d, dst.shieldHP); dst.shieldHP -= ab; d -= ab; soaked = true; domeHit(dst.dome); if (dst.shieldHP <= 0) endShield(dst); }
   if (dst.barrier > 0 && d > 0) { const ab = Math.min(d, dst.barrier); dst.barrier -= ab; d -= ab; soaked = 'holy'; dst.barrierHit = G.t; domeHit(dst.hdome); } // 魂契: the paladin's aura (holy.js)
+  if (dst.kind === 'player' && PH.rescue) { const r = PH.rescue(dst, d); if (r === 1) return 0; if (r === 2) d = Math.min(d, Math.max(0, dst.hp - 1)); } // (赵云's 奔袭救主: the summoner's life held)
   const hp0 = dst.hp; dst.hp -= d; if (dst.immortal && dst.hp < 1) dst.hp = 1; const dealt = Math.min(d, Math.max(0, hp0)); if (PH.dmg) PH.dmg(src, dst, dealt, o); if (src && src.pact && PH.leech) PH.leech(src, dealt); // (the test arena: no-death toggles, its damage meter)
   dst.flash = Math.max(dst.flash || 0, o.heavy || o.crit ? 1 : o.sum ? 0.5 : 0.75); dst.barT = 3; dst.lastHit = G.t;
   if (o.knock && !(dst.deployT > 0) && !dst.pact) { const dx = dst.x - (o.fx ?? src.x), dz = dst.z - (o.fz ?? src.z), l = Math.hypot(dx, dz) || 1; dst.kx += dx / l * o.knock; dst.kz += dz / l * o.knock; }
@@ -457,6 +458,7 @@ function startWindup(u, t) {
   if (u.gun) { // still firing: no new windup, the next belt follows straight on (sustained fire); the arms are animated in gunnerAnim
     if (u.lastShot && G.t - u.lastShot < 0.45) { u.tgt = t; faceTo(u, t); u.burst = 6; u.cdT = u.cd * (u.deployT > 0 ? 0.62 : 1); return; }
     u.state = 'windup'; u.st = 0; u.wind = 0.3 / PACE.act; u.tgt = t; faceTo(u, t); return; }
+  if (u.pact && PH.heroAtk && PH.heroAtk(u, t)) return; // (赵云: his swings are moves of their own, with their travel: pactskills.js)
   u.lastAtk = G.t; u.state = 'windup'; u.st = 0; u.wind = (u.windup ?? u.T.windup) * (u.mods.includes('fast') ? 0.75 - 0.05 * mlv(u, 'fast') : 1) / PACE.act; u.tgt = t; faceTo(u, t); attackAnim(u, u.wind); if (MELEE(u.kind)) trail(u, u.wind + (u.pact ? 0.55 : 0.3));
   if (u.kind === 'brute') { const R = u.range + u.r + 0.3, en = u.side === 'enemy', col = en ? 0xff3a2a : 0x3fe0d0, rg = ring(en ? 0.2 : R - 0.1, R, col, 0.0);
     if (en) { const edge = ring(R - 0.09, R, 0xff8a6a, 0); edge.position.y = 0.002; rg.add(edge); rg.userData.edge = edge; } rg.userData.en = en; rg.position.set(u.x, 0.04, u.z); C.scene.add(rg); u.tele = rg; } }
