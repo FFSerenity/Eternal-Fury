@@ -81,7 +81,7 @@ const findBone = (root, name) => root.getObjectByName(name) || root.getObjectByN
 // Any other clip is moved over the first time it is asked for (zyClips): each body bone's world turn away from the Sentinel's bind pose is
 // given to the same bone of Zhao Yun's from his own (both stand in an A-pose; the Sentinel's clips already carry its posture fixes, so he
 // gets the poses as they look, not its rig's quirks); the hips travel as the Sentinel's do, scaled by hip height.
-export const ZY_ALIAS = { Stand: 'ZY_Combat_Stance', Walk_GS: 'ZY_Spear_Walk' };
+export const ZY_ALIAS = { Stand: 'ZY_Combat_Stance', Walk_GS: 'ZY_Spear_Walk', Rise: 'ZY_Axe_Stance' }; // (Rise: his own, kneeling to standing with the spear grounded)
 export const ZY_WALK_REF = 1.53; // his walk's stride speed at time scale 1, in his model's metres a second (the planted foot's travel)
 let ZYR = null;
 function zyRig() {
@@ -742,7 +742,7 @@ export function heroWeaponPose(u, dt, emit) {
     emit(x, floor + 0.02, z, Math.random() < 0.6 ? { col: 0xffb35a, spd: 1.4, up: 1.2, grav: 6, life: 0.3, size: 0.09 } : { col: 0x9a8f86, spd: 0.4, up: 0.4, grav: 0, life: 0.6, size: 0.22 }); }
 }
 // Zhao Yun's spear, by what he is doing (each a way it points and where along the shaft his right fist is; eased between over ~0.1 s):
-//  - ground (his calm stand, ZY_IDLE): upright, the butt on the floor beside his foot, his right fist round it
+//  - ground (his calm stand ZY_IDLE, and his rise): upright, the butt on the floor beside his foot, his right fist round it
 //  - carry (walking): held forehand at the balance point, the point forward and up (CARRY_UP), the butt clear of the floor
 //  - two (his own fighting clips: the stance, the parry): along the line from his right fist through his left — both hands on the
 //    shaft whatever the clip does — the right fist near the butt (TWO_AT of the way up); the fitted line if the hands part
@@ -769,27 +769,32 @@ function gripHand(G, R, Nw, w) {
   G.hand.parent.getWorldQuaternion(_gP); G.hand.getWorldQuaternion(_gH); G.hand.quaternion.copy(_gP.invert().multiply(_gQ.multiply(_gH))); G.hand.updateMatrixWorld(true);
   return ang;
 }
-export const ZY_IDLE = 'ZY_Idle_Spear_Upright', CARRY_UP = 0.62, TWO_AT = 0.18, GRIP_AT = 0.4, TWO_AT_CLIP = { ZY_Two_Handed_Parry: 0.4 }; // (the parry holds it across, by its middle) // (CARRY_UP: radians above level; TWO_AT, GRIP_AT: of the length from the butt)
+export const ZY_IDLE = 'ZY_Stand_Ease', ZY_GROUND = new Set([ZY_IDLE, 'ZY_Axe_Stance']), CARRY_UP = 0.62, TWO_AT = 0.18, GRIP_AT = 0.4, TWO_AT_CLIP = { ZY_Two_Handed_Parry: 0.4 }; // (the parry holds it across, by its middle) // (CARRY_UP: radians above level; TWO_AT, GRIP_AT: of the length from the butt)
 function zySpear(u, m, g, dt, floor) {
-  const n = m.curName || '', fit = WEAP_FIT.spear, Lw = fit.len, tip = g.userData.tip, butt = Lw - tip, f = u.face ?? m.root.rotation.y;
+  const n0 = m.curName || '', n = ZY_ALIAS[n0] || n0, fit = WEAP_FIT.spear, Lw = fit.len, tip = g.userData.tip, butt = Lw - tip, f = u.face ?? m.root.rotation.y; // (n: his own clip's name, for the Sentinel's names it stands in for)
   fistW(m.fists.R, _fr); fistW(m.fists.L, _fl);
-  const fwdX = Math.sin(f), fwdZ = Math.cos(f); let s = 0; _d.copy(_ax); // (_ax: where the hand's own grip points it)
-  if (n === ZY_IDLE) { _d.set(fwdX * 0.04, 1, fwdZ * 0.04).normalize(); s = floor + butt - _fr.y; } // (s: the fist's place along the shaft, from the grip point)
-  else if (/^Walk_/.test(n)) { const c = Math.cos(globalThis.__carryUp ?? CARRY_UP), sn = Math.sin(globalThis.__carryUp ?? CARRY_UP); _d.set(fwdX * c, sn, fwdZ * c).normalize();
-    const low = _fr.y - butt * _d.y - (floor + 0.12); if (low < 0) s = -low / Math.max(0.2, _d.y); } // (the butt kept a hand's breadth off the floor)
-  else if (zyOwn(n)) { _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); s = (GRIP_AT - (TWO_AT_CLIP[n] ?? TWO_AT)) * Lw; }
-  const k = Math.min(1, dt * 12); m.zyD = m.zyD ? m.zyD.lerp(_d, k).normalize() : _d.clone(); m.zyS = (m.zyS ?? s) + (s - (m.zyS ?? s)) * k;
-  _d.copy(m.zyD); s = m.zyS;
-  // his hands round the shaft, the thumbs toward the point: one hand (at ease, walking) with the palm in toward his body, the back of
-  // the hand out; both (his own fighting clips) the rear hand's palm in and up, the front hand cradling it palm up (the parry: as they
+  const ground = ZY_GROUND.has(n), walk = /^Walk_/.test(n0) || n === 'ZY_Spear_Walk', own = zyOwn(n), fwdX = Math.sin(f), fwdZ = Math.cos(f); _d.copy(_ax); // (_ax: where the hand's own grip points it)
+  if (ground) _d.set(fwdX * 0.04, 1, fwdZ * 0.04).normalize();
+  else if (walk) { const c = Math.cos(globalThis.__carryUp ?? CARRY_UP), sn = Math.sin(globalThis.__carryUp ?? CARRY_UP); _d.set(fwdX * c, sn, fwdZ * c).normalize(); }
+  else if (own) { _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); }
+  const k = Math.min(1, dt * 12); m.zyD = m.zyD ? m.zyD.lerp(_d, k).normalize() : _d.clone(); _d.copy(m.zyD);
+  // his hands round the shaft, the thumbs toward the point: one hand (at ease, rising, walking) with the palm in toward his body, the back
+  // of the hand out; both (his own fighting clips) the rear hand's palm in and up, the front hand cradling it palm up (the parry: as they
   // were). Not on the Sentinel's clips moved over (their own line, fitted on the hands)
-  const one = n === ZY_IDLE || /^Walk_/.test(n), gw = one || zyOwn(n) ? 1 : 0; m.zyGW = (m.zyGW ?? gw) + (gw - (m.zyGW ?? gw)) * k;
+  const one = ground || walk, gw = one || own ? 1 : 0; m.zyGW = (m.zyGW ?? gw) + (gw - (m.zyGW ?? gw)) * k;
   if (m.zyGW > 0.01 && !globalThis.__noGrip) { _hg.set(Math.cos(f), 0, -Math.sin(f)); // (his left: in, for the right hand)
-    const parry = n === 'ZY_Two_Handed_Parry'; if (!one && !parry) _hg.multiplyScalar(1).add(_gUp.set(0, 0.6, 0)).normalize(); // (both hands: the rear one in and up, the front one cradling, palm up)
+    const parry = n === 'ZY_Two_Handed_Parry'; if (!one && !parry) _hg.add(_gUp.set(0, 0.6, 0)).normalize(); // (both hands: the rear one in and up, the front one cradling, palm up)
     for (let it = 0; it < (one ? 1 : 2); it++) { // (both hands: turned, then the shaft laid again through the fists where they now are, and once more)
       if (it) { fistW(m.fists.R, _fr); fistW(m.fists.L, _fl); _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); }
       m.zyGA = gripHand(m.grip.R, _d, parry ? null : _hg, m.zyGW); if (!one) gripHand(m.grip.L, _d, parry ? null : _gUp.set(0, 1, 0), m.zyGW); }
     fistW(m.fists.R, _fr); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.quaternion); _ax.copy(_up).applyQuaternion(_qw); }
+  // where along the shaft his fist is (s: from the grip point), from where the fist now is: grounded, the butt on the floor; walking, the
+  // butt a hand's breadth off it; both hands, the rear fist TWO_AT of the way up
+  let s = 0;
+  if (ground) s = floor + butt / Math.max(0.5, _d.y) * _d.y - _fr.y;
+  else if (walk) { const low = _fr.y - butt * _d.y - (floor + 0.12); if (low < 0) s = -low / Math.max(0.2, _d.y); }
+  else if (own) s = (GRIP_AT - (TWO_AT_CLIP[n] ?? TWO_AT)) * Lw;
+  m.zyS = (m.zyS ?? s) + (s - (m.zyS ?? s)) * k; s = ground ? (Math.abs(m.zyS - s) < 0.25 ? s : m.zyS) : m.zyS; // (grounded: the butt stays on the floor, no lag)
   // the floor stops the point and the butt (not the grounded butt: it stands on it)
   const tipY = _fr.y + _d.y * (s + tip); if (tipY < floor) { const y = Math.max(-1, (floor - _fr.y) / (s + tip)), hl = Math.hypot(_d.x, _d.z) || 1, kk = Math.sqrt(Math.max(0, 1 - y * y)) / hl; _d.set(_d.x * kk, y, _d.z * kk); }
   if (_d.distanceToSquared(_ax) > 1e-6) { _qr.setFromUnitVectors(_ax, _d); g.quaternion.copy(_qh.invert().multiply(_qr.multiply(_qw))); }

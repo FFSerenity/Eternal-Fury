@@ -185,7 +185,7 @@ function spot(P) { const F = C.floor; for (const d of [1.8, 1.2, 0.6]) { const x
 // put the skeleton on the field; quick: on a new floor (no circle, a fast rise)
 export function spawnHero(x, z, quick) {
   const en = makeEntry(), u = spawnAlly(en, x, z, null), P = G.player; u.face = u.faceT = P ? P.face : 0;
-  const clip = A.heroClips.Rise, sp = SUMMON.riseSp; // the Mixamo stand-up at its own pace (also on a new floor)
+  const clip = (u.mesh.clips || A.heroClips).Rise, sp = SUMMON.riseSp; // the Mixamo stand-up at its own pace (also on a new floor); Zhao Yun's his own
   if (clip) { play(u.mesh, 'Rise', { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clip.duration / sp * 0.9; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
   P8.alive = true; save(); return u;
 }

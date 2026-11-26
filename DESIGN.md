@@ -274,6 +274,13 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   breadth off the floor; on his own fighting clips, along the line from his right fist through his left (both hands always on the
   shaft), the right fist 18% of the way up from the butt (TWO_AT; the parry holds it by the middle); on the Sentinel's clips, the line
   fitted on them.
+- His rise and calm stand (Nov 26): Meshy's "Axe Stance" preset — kneeling, he rises, sweeps the arm and stands with it raised at his
+  side — stands in for the Sentinel's Rise (ZY_ALIAS.Rise, 6.1 s, at its own pace); the spear stands on its butt beside him through it,
+  his right fist round it. It is downloaded on its own (Meshy's "Current" animation: past the 20 the "All Added" download allows) and
+  merged in by bone name (tools/zy-fix-rig.mjs extra.glb), keeps its travel (he steps forward as he rises) and is stood on his spot by
+  its last frame. Its last 1.2 s, played there and back, is his calm stand (ZY_Stand_Ease, ZY_IDLE): while no fight is near he stands at
+  ease with the spear grounded; near one, the two-handed spear stance (Combat_Stance). (Fixed on the way: a rise's animation lock only
+  began to run out after the rise, so every risen unit stood frozen in its last frame as long again.)
 - His hands on the shaft (assets.js gripHand): Meshy's clips hold the fist the wrong way round for a spear — walking, the thumb toward
   the butt (as if to throw it). Each frame, after the clip is posed, the hand is turned about its wrist so the shaft runs in at the little
   finger and out past the thumb toward the point, the palm toward his body (one hand: at ease, walking) or in-and-up / cradling palm up

@@ -1005,7 +1005,7 @@ function animate(u, dt, sp) {
   if (m.fly != null && !u.dead) m.model.position.y = m.fly + Math.sin(G.t * 3.1 + u.id) * 0.09; // hovering, bobbing
   if (m.gun) { m.gun.barrel.rotation.z += m.gun.spin * dt; m.gun.spin = Math.max(0, m.gun.spin - dt * 22); }
   if (m.drill) { m.drill.bit.rotation.y += m.drill.spin * dt; m.drill.spin = Math.max(0, m.drill.spin - dt * 30); }
-  if (u.spawnT > 0) return;
+  if (u.spawnT > 0) { if (u.animLock > 0) u.animLock -= dt; return; } // (the rise's lock runs out with it: it used to start only after, holding the last frame as long again)
   if ((m.gun || u.mortar) && u.state !== 'leap') { gunnerAnim(u, sp); return; }
   if (u.animLock > 0) { u.animLock -= dt; if (sp < 0.6 || u.state === 'windup' || u.state === 'recover' || u.state === 'leap' || u.state === 'lunge' || u.state === 'rocket') return; }
   if (u.state === 'leap' || u.state === 'rocket' || u.state === 'overload' || u.state === 'call' || u.state === 'pskill' || u.state === 'fskill') return;
