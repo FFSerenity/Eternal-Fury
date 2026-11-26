@@ -9,12 +9,13 @@ import { ELEM, WEAPONS, ARMORS, QUAL } from './data.js';
 import { PACT } from './state.js';
 
 export const A = { chars: {}, clips: {}, props: {}, crits: {}, hero: null, heroClips: {}, heroWeap: {}, zy: null, ready: false };
+const ZY_WEAP = new Set();
 const CHAR_FILES = ['mage', 'sk_minion', 'sk_warrior', 'sk_rogue', 'sk_mage', 'hu_knight', 'hu_barbarian', 'hu_rogue', 'hu_rogue_hood'], PROP_FILES = ['weapons', 'dungeon', 'graveyard', 'forest', 'gen_props']; // (gen_props: the generated display stands, barrels, crates and urns — tools/pack-props.mjs)
 const CRIT_FILES = ['fly_bat', 'fly_ghost', 'fly_wraith']; // the wilds' flying vermin: own rig, own clips (Quaternius)
 export async function loadAll(onProgress = () => {}) {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
   const jobs = [...CHAR_FILES.map(f => ['char', f]), ...CRIT_FILES.map(f => ['crit', f]), ['anims', 'anims'], ...PROP_FILES.map(f => ['props', f]),
-    ...(PACT ? [['hero', 'hero'], ['heropack', 'hero_sns'], ['heropack', 'hero_gs'], ['heroweap', 'hero_weapons'], ['zy', 'hero_zy'], ['heroweap', 'hero_zyweap'], ...(globalThis.__extraPacks || []).map(n => ['heropack', n])] : [])]; // the realistic skeleton: 魂契 only (tests: more clip packs)
+    ...(PACT ? [['hero', 'hero'], ['heropack', 'hero_sns'], ['heropack', 'hero_gs'], ['heroweap', 'hero_weapons'], ['zy', 'hero_zy'], ['zyweap', 'hero_zyweap'], ...(globalThis.__extraPacks || []).map(n => ['heropack', n])] : [])]; // the realistic skeleton: 魂契 only (tests: more clip packs)
   let done = 0;
   await Promise.all(jobs.map(async ([kind, name]) => {
     const g = await loader.loadAsync(`assets/${name}.glb`);
@@ -28,7 +29,8 @@ export async function loadAll(onProgress = () => {}) {
       A.heroPlume = plumeMask(g.scene);
       A.hero = { scene: g.scene, clips: A.heroClips }; }
     else if (kind === 'heropack') for (const c of g.animations) A.heroClips[c.name] = c; // weapon-style clip packs: rig + clips only, same bone names
-    else if (kind === 'heroweap') for (const n of g.scene.children) A.heroWeap[n.name] = n;
+    else if (kind === 'heroweap') { for (const n of g.scene.children) if (!ZY_WEAP.has(n.name)) A.heroWeap[n.name] = n; }
+    else if (kind === 'zyweap') for (const n of g.scene.children) { ZY_WEAP.add(n.name); A.heroWeap[n.name] = n; } // (Zhao Yun's spear, bow and quiver: his spear wins over the weapon sheet's, whichever file comes in first)
     else if (kind === 'zy') { heroFists(g.scene); A.zy = { scene: g.scene, own: Object.fromEntries(g.animations.map(c => [c.name, c])) }; } // 赵云: the spear style's own model and motions
     else for (const n of g.scene.children) A.props[n.name] = n;
     onProgress(++done / jobs.length);
@@ -161,6 +163,32 @@ function zyBack(model, name, u, outline) {
   const V = THREE.Vector3, Q = THREE.Quaternion, c = sp.getWorldPosition(new V()), s = model.getWorldScale(new V()).x;
   const F = new V(0.55, 1, 0).normalize(), X = new V(0, 0, 1), Zv = new V().crossVectors(X, F).normalize(), W = new Q().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new V().crossVectors(F, Zv), F, Zv));
   return mountWeapon(sp, src, name, c.add(new V(0, 0, -0.17 * s)), W, u, outline, null);
+}
+
+// his quiver on his right hip, hung from the belt: arrows up, leaning back and a little out, its dragon facing outward
+function zyHip(model, name, u, outline) {
+  const src = A.heroWeap[name], hips = findBone(model, 'mixamorig:Hips'); if (!src || !hips) return null; model.updateMatrixWorld(true);
+  const V = THREE.Vector3, Q = THREE.Quaternion, s = model.getWorldScale(new V()).x, c = hips.getWorldPosition(new V());
+  const F = new V(-0.2, 1, -0.32).normalize(), Zr = new V(-1, 0, -0.35); Zr.sub(F.clone().multiplyScalar(Zr.dot(F))).normalize();
+  const W = new Q().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new V().crossVectors(F, Zr), F, Zr));
+  return mountWeapon(hips, src, name, c.add(new V(-0.2 * s, -0.12 * s, -0.1 * s)), W, u, outline, null);
+}
+// the bones whose middle is the fist (the fingers, not the thumb): where a hand holds what it holds, every frame
+function fistBones(model, S) { const hand = findBone(model, `mixamorig:${S}Hand`); if (!hand) return [];
+  const ch = heroChains(hand, null), top = Math.max(...ch.map(c => c[0].getWorldPosition(new THREE.Vector3()).y));
+  const thumb = ch.find(c => /Thumb/.test(c[0].name)) || ch.find(c => c[0].getWorldPosition(new THREE.Vector3()).y >= top - 1e-4);
+  return ch.filter(c => c !== thumb).flat(); }
+const fistW = (bs, out) => { out.set(0, 0, 0); for (const b of bs) out.add(b.getWorldPosition(_fb)); return out.divideScalar(bs.length || 1); };
+
+// Zhao Yun made ready while the game loads: one of him built (his spear's and bow's lines fitted, the clips they need moved over), his
+// shaders compiled and his textures sent to the GPU — the first time he appeared it took the best part of a second (a new shader, seven
+// textures to decode and upload), the game stood still
+export function prewarmHero(renderer, scene, camera) {
+  if (!A.zy || !A.hero) return; const m = makeHeroMesh({ hero: true, wset: 'SPR' }); if (m.weap.bowL) m.weap.bowL.visible = true;
+  m.root.position.set(0, -50, 0); scene.add(m.root); m.root.updateMatrixWorld(true);
+  try { renderer.compile(scene, camera); const seen = new Set();
+    m.root.traverse(o => { if (!o.material) return; for (const v of Object.values(o.material.uniforms || {})) if (v && v.value && v.value.isTexture && !seen.has(v.value)) { seen.add(v.value); renderer.initTexture(v.value); } });
+  } finally { scene.remove(m.root); m.mixer.uncacheRoot(m.model); }
 }
 
 // ---------- props: a model's meshes baked into one float geometry (for instancing / static placement) ----------
@@ -360,7 +388,7 @@ export const HERO_SETS = {
   PAL: { r: 'mace', l: 'shield', atk: ['SNS_Atk2', 'SNS_Atk3'], clips: 'SNS', walk: 'Walk_GS', holy: true }, // (walk: the calm, upright one — the mace hangs at its side)
   // the spear (长枪): the skeleton becomes 赵云 — his own model (model: 'zy') on the two-handed clips, the calm walk with the spear carried
   // upright; his bow slung across his back (back)
-  SPR: { r: 'spear', atk: ['SNS_Lunge', 'GS_Atk2', 'SNS_Lunge', 'GS_Atk3'], clips: 'GS', walk: 'Walk_GS', model: 'zy', back: 'bow' }, // (a thrust every other blow)
+  SPR: { r: 'spear', atk: ['SNS_Lunge', 'GS_Atk2', 'SNS_Lunge', 'GS_Atk3'], clips: 'GS', walk: 'Walk_GS', model: 'zy', back: 'bow', hip: 'quiver' }, // (a thrust every other blow)
 };
 // the holy light (圣骑士): its colour, the white-hot of it, and the gold of a swing's trail
 export const HOLY_C = 0xffcf66, HOLY_HOT = 0xfff4d6, HOLY_TRAIL = 0xffe08a, HOLY_AURA_R = 7; // (the reach of its Aura of Light at 25 Fury: holy.js)
@@ -427,6 +455,8 @@ function makeHeroMesh(o) {
   const gear = o.gear; // (its own gear: no shield in the slot, none on the arm; the weapon glows in its quality colour)
   if (set) for (const side of ['r', 'l']) if (set[side] && !(side === 'l' && gear && !gear.a)) weap[side] = (zy ? zyGrip : heroGrip)(model, side, set[side], u, o.outline, gear && gear[side === 'r' ? 'w' : 'a']);
   if (zy && set.back) { weap.back = zyBack(model, set.back, u, o.outline); weap.bowL = zyGrip(model, 'l', set.back, u, o.outline, null); if (weap.bowL) weap.bowL.visible = false; } // (the bow: on his back, in his left hand only to shoot)
+  if (zy && set.hip) weap.hip = zyHip(model, set.hip, u, o.outline); // (his quiver on his right hip)
+  const fists = zy ? { R: fistBones(model, 'Right'), L: fistBones(model, 'Left') } : null;
   // sparks rise from points along the crest's rim (hung on the head bone)
   const plumePts = []; let plumeGlow = null;
   if (head && plume) { for (const p of A.heroPlume.pts) { const d = new THREE.Object3D(); d.position.copy(p); head.add(d); plumePts.push(d); }
@@ -436,7 +466,7 @@ function makeHeroMesh(o) {
   const root = new THREE.Group(); root.add(model);
   const sg = soulGlow(model, root, head, holy ? HOLY_C : SOUL_C), hl = holy ? holyLight(model, root, head) : null;
   return { root, model, pivot: model, mixer: new THREE.AnimationMixer(model), actions: {}, cur: null, curName: '', mat: { uniforms: u }, out: { material: { uniforms: { uFade: u.uFade } } }, u,
-    tips: [], glows, plumeGlow, soul: null, gun: null, muz: null, drill: null, rod: null, blade, aura: null, elem: null, elems: [], hero: true, zy, clips: zy ? zyClips : A.heroClips, wset: set ? set.clips || o.wset : null, style: set ? o.wset : null, walk: set ? set.walk || 'Walk_' + (set.clips || o.wset) : 'Walk_SNS', holy, atk: set ? set.atk : ['Attack'], atkI: 0, weap, plumePts, sg, hl };
+    tips: [], glows, plumeGlow, soul: null, gun: null, muz: null, drill: null, rod: null, blade, aura: null, elem: null, elems: [], hero: true, zy, fists, clips: zy ? zyClips : A.heroClips, wset: set ? set.clips || o.wset : null, style: set ? o.wset : null, walk: set ? set.walk || 'Walk_' + (set.clips || o.wset) : 'Walk_SNS', holy, atk: set ? set.atk : ['Attack'], atkI: 0, weap, plumePts, sg, hl };
 }
 // the dazed stand (Mixamo Idle) holds the arms close against the body: a sturdier stance, elbows out and forearms leaning slightly back
 // in (upper arm ~26 deg off vertical, forearm leaning a few degrees out). Turns about the facing axis, in world space so every key gets the same
@@ -462,7 +492,7 @@ function spreadArms(scene, clip, armDeg, foreDeg) {
 // put a weapon in a fist. Worked out on the rest pose (A-pose, palms forward, fingers already curled): the grip runs across the
 // knuckles through the middle of the curled fingers, the blade comes out on the thumb side, its edges line up with the fingers.
 // The shield is strapped to the forearm instead (see below). Lengths are world sizes.
-const WEAP_FIT = { sword: { len: 1.15, back: 0 }, greatsword: { len: 1.75, back: 0 }, shield: { len: 0.95, back: 0.12, at: 0.55 }, axe: { len: 1.05, back: 0 }, spear: { len: 2.6, back: 0 }, mace: { len: 1.0, back: 0 }, bow: { len: 1.35, back: 0 } };
+const WEAP_FIT = { sword: { len: 1.15, back: 0 }, greatsword: { len: 1.75, back: 0 }, shield: { len: 0.95, back: 0.12, at: 0.55 }, axe: { len: 1.05, back: 0 }, spear: { len: 2.6, back: 0 }, mace: { len: 1.0, back: 0 }, bow: { len: 1.35, back: 0 }, quiver: { len: 0.8, back: 0 } };
 const MAT_W = new Map();
 const GRIP_F = [0.565, 0.82, -0.092]; // blade direction in the grip frame (fingers, thumb side, palm); fitted on the two-handed clips (tests: globalThis.__gripF)
 function heroGrip(model, side, name, u, outline, it) {
@@ -521,8 +551,7 @@ function mountWeapon(bone, src, name, at, W, u, outline, it) {
 // after the skeleton is posed each frame: a blade never sinks into the floor, and out of a swing the greatsword is dragged along the
 // ground behind it (tip on the floor, a little to its right; sparks while it walks) instead of hanging straight down through it
 const HANG = [1, 0.2, 0.18]; // the carried mace's direction: forward, up, out to its right — held out nearly level, head a little up (tests: globalThis.__hang)
-const CARRY = [0.16, 1, 0.12]; // Zhao Yun's spear while he stands or walks: upright, leaning a little forward and out (tests: globalThis.__carry)
-const _V = THREE.Vector3, _hg = new _V(), _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
+const _V = THREE.Vector3, _fb = new _V(), _fr = new _V(), _fl = new _V(), _zd = new _V(), _hg = new _V(), _p = new _V(), _ax = new _V(), _d = new _V(), _qh = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _up = new _V(0, 1, 0);
 // ---------- the helmet crest (鬃毛): its colour and fire show the skeleton's level ----------
 // Found once on load: head-weighted vertices near the head's middle plane that stand outside the helmet itself (worked in the head
 // bone's bind frame, axes from the world, sizes relative to the helmet's half width). aPlume = (membership, 0 at the helmet .. 1 at
@@ -687,21 +716,44 @@ export function heroWeaponPose(u, dt, emit) {
   // the greatsword drags only while it stands or walks (any other clip — swings, skills, dodges, death, the rise — carries it)
   const loco = /^(Stand|Walk_|Run_)/.test(m.curName || '') || !(m.cur && m.cur.isRunning()), drag = m.style === 'GS' && loco && !(u.spawnT > 0) ? 1 : 0;
   m.dragW = (m.dragW ?? drag) + (drag - (m.dragW ?? drag)) * Math.min(1, dt * 8);
-  const hang = (m.holy ? loco : m.zy && /^Walk_/.test(m.curName || '')) && !(u.spawnT > 0) ? 1 : 0; m.hangW = (m.hangW ?? hang) + (hang - (m.hangW ?? hang)) * Math.min(1, dt * 8); // the mace carried head up (the calm walk would hold it out straight ahead); Zhao Yun's spear upright as he walks (he stands with both hands on it)
+  const hang = m.holy && loco && !(u.spawnT > 0) ? 1 : 0; m.hangW = (m.hangW ?? hang) + (hang - (m.hangW ?? hang)) * Math.min(1, dt * 8); // the mace carried head up (the calm walk would hold it out straight ahead)
   if (g.userData.qOwn) { const w = zyOwn(m.curName) ? 1 : 0; g.userData.ownW += (w - g.userData.ownW) * Math.min(1, dt * 10); g.userData.q0.slerpQuaternions(g.userData.qGS, g.userData.qOwn, g.userData.ownW); } // (Zhao Yun's spear: his own way of holding it, or the moved-over clips')
   g.quaternion.copy(g.userData.q0); g.updateMatrixWorld(true); g.getWorldPosition(_p); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.userData.q0);
   _ax.copy(_up).applyQuaternion(_qw); _d.copy(_ax);
   const L = g.userData.tip, floor = m.root.position.y + 0.04;
+  if (m.zy && g.userData.qOwn) { zySpear(u, m, g, dt, floor); return; }
   if (m.dragW > 0.002) { const f = u.face, h = Math.max(0.05, _p.y - floor), hor = Math.sqrt(Math.max(0.0025, L * L - h * h)), bx = -Math.sin(f) * 0.85 - Math.cos(f) * 0.45, bz = -Math.cos(f) * 0.85 + Math.sin(f) * 0.45, bl = Math.hypot(bx, bz);
     const tx = bx / bl * hor, tz = bz / bl * hor, ty = L > h ? -h : -L * 0.97, tl = Math.hypot(tx, ty, tz);
     _d.lerp(new _V(tx / tl, ty / tl, tz / tl), m.dragW).normalize(); }
   // (the equipment panel's doll has no facing of its own: its root's turn)
-  if (m.hangW > 0.002) { const f = u.face ?? m.root.rotation.y, H = m.zy ? (globalThis.__carry || CARRY) : globalThis.__hang || HANG; _d.lerp(_hg.set(Math.sin(f) * H[0] - Math.cos(f) * H[2], H[1], Math.cos(f) * H[0] + Math.sin(f) * H[2]).normalize(), m.hangW).normalize(); }
+  if (m.hangW > 0.002) { const f = u.face ?? m.root.rotation.y, H = globalThis.__hang || HANG; _d.lerp(_hg.set(Math.sin(f) * H[0] - Math.cos(f) * H[2], H[1], Math.cos(f) * H[0] + Math.sin(f) * H[2]).normalize(), m.hangW).normalize(); }
   const tipY = _p.y + _d.y * L; // the floor stops the blade
   if (tipY < floor) { const y = Math.max(-1, (floor - _p.y) / L), hl = Math.hypot(_d.x, _d.z) || 1, k = Math.sqrt(1 - y * y) / hl; _d.set(_d.x * k, y, _d.z * k); }
   if (_d.distanceToSquared(_ax) > 1e-6) { _qr.setFromUnitVectors(_ax, _d); g.quaternion.copy(_qh.invert().multiply(_qr.multiply(_qw))); }
   if (emit && m.dragW > 0.7 && Math.hypot(u.vx, u.vz) > 0.6 && Math.random() < dt * 14) { const x = _p.x + _d.x * L, z = _p.z + _d.z * L;
     emit(x, floor + 0.02, z, Math.random() < 0.6 ? { col: 0xffb35a, spd: 1.4, up: 1.2, grav: 6, life: 0.3, size: 0.09 } : { col: 0x9a8f86, spd: 0.4, up: 0.4, grav: 0, life: 0.6, size: 0.22 }); }
+}
+// Zhao Yun's spear, by what he is doing (each a way it points and where along the shaft his right fist is; eased between over ~0.1 s):
+//  - ground (his calm stand, ZY_IDLE): upright, the butt on the floor beside his foot, his right fist round it
+//  - carry (walking): held forehand at the balance point, the point forward and up (CARRY_UP), the butt clear of the floor
+//  - two (his own fighting clips: the stance, the parry): along the line from his right fist through his left — both hands on the
+//    shaft whatever the clip does — the right fist near the butt (TWO_AT of the way up); the fitted line if the hands part
+//  - the Sentinel's clips moved over to him: the line fitted on them (heroWeaponPose's slerp), the fist at the grip
+export const ZY_IDLE = 'ZY_Idle_Spear_Upright', CARRY_UP = 0.62, TWO_AT = 0.18, GRIP_AT = 0.4, TWO_AT_CLIP = { ZY_Two_Handed_Parry: 0.4 }; // (the parry holds it across, by its middle) // (CARRY_UP: radians above level; TWO_AT, GRIP_AT: of the length from the butt)
+function zySpear(u, m, g, dt, floor) {
+  const n = m.curName || '', fit = WEAP_FIT.spear, Lw = fit.len, tip = g.userData.tip, butt = Lw - tip, f = u.face ?? m.root.rotation.y;
+  fistW(m.fists.R, _fr); fistW(m.fists.L, _fl);
+  const fwdX = Math.sin(f), fwdZ = Math.cos(f); let s = 0; _d.copy(_ax); // (_ax: where the hand's own grip points it)
+  if (n === ZY_IDLE) { _d.set(fwdX * 0.04, 1, fwdZ * 0.04).normalize(); s = floor + butt - _fr.y; } // (s: the fist's place along the shaft, from the grip point)
+  else if (/^Walk_/.test(n)) { const c = Math.cos(globalThis.__carryUp ?? CARRY_UP), sn = Math.sin(globalThis.__carryUp ?? CARRY_UP); _d.set(fwdX * c, sn, fwdZ * c).normalize();
+    const low = _fr.y - butt * _d.y - (floor + 0.12); if (low < 0) s = -low / Math.max(0.2, _d.y); } // (the butt kept a hand's breadth off the floor)
+  else if (zyOwn(n)) { _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); s = (GRIP_AT - (TWO_AT_CLIP[n] ?? TWO_AT)) * Lw; }
+  const k = Math.min(1, dt * 12); m.zyD = m.zyD ? m.zyD.lerp(_d, k).normalize() : _d.clone(); m.zyS = (m.zyS ?? s) + (s - (m.zyS ?? s)) * k;
+  _d.copy(m.zyD); s = m.zyS;
+  // the floor stops the point and the butt (not the grounded butt: it stands on it)
+  const tipY = _fr.y + _d.y * (s + tip); if (tipY < floor) { const y = Math.max(-1, (floor - _fr.y) / (s + tip)), hl = Math.hypot(_d.x, _d.z) || 1, kk = Math.sqrt(Math.max(0, 1 - y * y)) / hl; _d.set(_d.x * kk, y, _d.z * kk); }
+  if (_d.distanceToSquared(_ax) > 1e-6) { _qr.setFromUnitVectors(_ax, _d); g.quaternion.copy(_qh.invert().multiply(_qr.multiply(_qw))); }
+  g.position.copy(g.parent.worldToLocal(_hg.copy(_fr).addScaledVector(_d, s)));
 }
 export function clipLen(name, m) { const c = (m && m.clips && m.clips[name]) || A.clips[name]; return c ? c.duration : 1; }
 // play a clip (cross-fade). o.once: play one time; o.hold: keep the last frame; o.speed: time scale; o.restart: replay even if current

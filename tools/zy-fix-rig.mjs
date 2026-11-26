@@ -13,9 +13,13 @@
 // turned so the bow arm points where he faces. Then: node tools/build-hero.mjs (textures, resampling, compression).
 // Each clip stood on his spot: the hips moved by where the feet stand (feet.json, from tools/bl_zy_feet.py on this tool's own output:
 // the loops by their mean over the cycle, the rest by the first frame) — his spear stance stood ~0.4 m to his left.
+// Last, the mesh simplified to 70% (24.8k -> 17.4k triangles, as many as the Sentinel's): side by side up close nothing is lost, and he is
+// drawn twice (the outline) — the frame cost went down with it.
 // Usage: node tools/zy-fix-rig.mjs <in.glb> <out.glb> [feet.json]
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { simplify, weld } from '@gltf-transform/functions';
+import { MeshoptSimplifier } from 'meshoptimizer';
 const [src, dst, feetFile] = process.argv.slice(2);
 const FEET = feetFile ? JSON.parse((await import('node:fs')).readFileSync(feetFile, 'utf8')) : {};
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
@@ -59,5 +63,7 @@ for (const a of root.listAnimations()) {
   ch.getSampler().getOutput().setArray(o);
   console.log(name.padEnd(28), LOOP.has(name) ? 'loop ' : 'clip ', 'drift', dx.toFixed(2), dz.toFixed(2));
 }
+await MeshoptSimplifier.ready;
+await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.7, error: 0.002, lockBorder: false }));
 await io.write(dst, doc);
 console.log(dst, 'vertices moved', moved);

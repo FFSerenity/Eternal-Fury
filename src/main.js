@@ -5,7 +5,7 @@ import { initJar, jarTick, jarDraw, jarReset } from './soulvessel.js';
 import { openBox, boxTick, hitBoxes } from './loot.js';
 import { PACKS, WILD_PACKS, SKILLS, xpNeed, partySize, MODS, TYPES, rollItem, rollHeroItem, PACE, affixName, TECH, makeTech } from './data.js';
 import { SH, Shadows, Particles, ring, TORCH_N, AURA_T, auraMat } from './gfx.js';
-import { A, loadAll, loadGLB, propGeo, PropBatch, heroWeaponPose, heroPart, play as playClip } from './assets.js';
+import { A, loadAll, loadGLB, propGeo, PropBatch, heroWeaponPose, heroPart, play as playClip, prewarmHero } from './assets.js';
 import * as PFX from './pactfx.js';
 import './gun.js';
 import './tech.js';
@@ -218,7 +218,7 @@ function enterArena() { G.noSave = true; if (PACT) G.pact.alive = true; makeFloo
 $('#bArena').addEventListener('click', () => { if (!A.ready) return; unlock(); if (touchUI) goFull(); if (!G.arena) enterArena(); $('#start').classList.add('hide'); started = true; });
 $('#bNew').addEventListener('click', () => { if (!confirm(tr('清除存档重新开始？', 'Delete the save and start over?'))) return; wipe(); location.reload(); });
 const bS = $('#bStart'), label = bS.textContent; bS.disabled = true; $('#bArena').disabled = true;
-loadAll(k => { bS.textContent = tr(`载入中 ${Math.round(k * 100)}%`, `Loading ${Math.round(k * 100)}%`); }).then(() => { makeIcons(); bS.disabled = false; $('#bArena').disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); if (QS.has('arena')) enterArena(); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
+loadAll(k => { bS.textContent = tr(`载入中 ${Math.round(k * 100)}%`, `Loading ${Math.round(k * 100)}%`); }).then(() => { makeIcons(); if (PACT) prewarmHero(renderer, scene, camera); bS.disabled = false; $('#bArena').disabled = false; bS.textContent = label; makeFloor(QS.has('floor') ? +QS.get('floor') : 0); if (QS.has('arena')) enterArena(); requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); }); })
   .catch(e => { console.error(e); bS.textContent = tr('资源载入失败，请刷新', 'Loading failed — please refresh'); });
 
 // the shader takes a handful of torch lights: upload the ones nearest the summoner

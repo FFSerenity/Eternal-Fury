@@ -169,8 +169,9 @@ world space, through both T-poses (`tools/bl_ybot.py`; Mixamo's own retarget ben
 Zhao Yun (the spear): made, remeshed, rigged and animated in Meshy and downloaded as one GLB (Mixamo skeleton, all motions);
 `node tools/zy-fix-rig.mjs <meshy.glb> <out.glb> tools/zy-feet.json` moves the skin weights off Meshy's stray helper bones, renames the
 motions ZY_*, takes the hips' drift out, turns the archery clips to face forward and stands each clip on his spot (the feet measured by
-`tools/bl_zy_feet.py` on the tool's own output) → `node tools/build-hero.mjs` → `hero_zy.glb`. `tools/bl_zy_weapons.py` builds the spear
-(the generated spearhead, its socket stretched into a 1.4 m shaft) and the bow (the arrow it was drawn with cut away) → `hero_zyweap.glb`.
+`tools/bl_zy_feet.py` on the tool's own output) and simplifies the mesh to 70% → `node tools/build-hero.mjs` → `hero_zy.glb`.
+`python3 tools/bl_zy_weapons.py -- spear.glb bow.glb quiver.glb out.glb` (Meshy's remeshed weapons) straightens the spear's shaft to its
+full length, gives the bow a string and packs the three onto one texture atlas → `node tools/build-hero.mjs` → `hero_zyweap.glb`.
 Clips he has none of are the Sentinel's, moved onto his rig in the game (assets.js zyClips).
 
 ## Credits
@@ -183,4 +184,4 @@ Its blade sounds — a metal slice and the ring of the blade, no wooden knock �
 Its swishes, armour hits, blocks, fire, slams, war cries, charges, holy light, Judgement and Blessed Hammers, the champions' poison and thunder, the monsters' cries and shots, and the summoner's Raise, souls, loot and forge sounds, were generated with
 **Stable Audio 3 Medium** (Stability AI) in ComfyUI and picked by ear.
 Zhao Yun was drawn with GPT image generation and made 3D, rigged and animated with **Meshy** (meshy.ai: Meshy 7.5, its auto-rig and
-preset motions; private licence); his spearhead and bow were drawn with **Qwen Image** and made 3D with **Pixal3D / TRELLIS.2** in ComfyUI. The display stands, barrels, crates and urns too.
+preset motions and text-to-motion; private licence); his spear, bow and quiver were drawn with GPT image generation and made 3D with Meshy. The display stands, barrels, crates and urns too.

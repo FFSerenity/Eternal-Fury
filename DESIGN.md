@@ -261,6 +261,22 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   the point away from it); heroWeaponPose turns it to the one for what is playing (zyOwn), over 0.1 s. 2.6 m, the grip 40% of the way
   up. While he walks it is carried upright (CARRY); standing, both his hands are on it. The bow hangs across his back (Spine2) and comes
   into his left fist, upright in the archer's aim, only while he shoots.
+- His weapons (Nov 26, second version): the GPT weapon sheet (spear, bow, quiver) → Meshy 7.5, one generation each (35 credits each:
+  given the whole sheet it made only the bow) → Meshy's free remesh to ~4–5k triangles each → tools/bl_zy_weapons.py → build-hero.mjs
+  (hero_zyweap.glb, 13k triangles, 0.9 MB). The spear was made from a "short spear" picture (the middle of the shaft cut out, so the
+  long thin shaft could not bend or lean); the script stands it on its axis and moves everything below a cut in the shaft back down by
+  the length cut out of the picture — a straight navy shaft. The bow's string was too thin for the remesh: a new one, a thin rod from
+  nock to nock. The three share one material: their textures packed into one atlas (a quarter each). The quiver hangs on his right hip
+  (Hips; arrows up, leaning back). His spear wins over the weapon sheet's "spear" whichever file loads first (assets.js ZY_WEAP).
+- How he holds the spear (assets.js zySpear, eased between over ~0.1 s): at ease (ZY_IDLE, his calm stand while no fight is near —
+  units.js zyFighting: a roused foe within 12 m, or a blow struck or taken in the last 4 s) upright, its butt on the floor by his foot,
+  his right fist round it; walking, held forehand at the balance point, the point forward and up (CARRY_UP, 0.62 rad), the butt a hand's
+  breadth off the floor; on his own fighting clips, along the line from his right fist through his left (both hands always on the
+  shaft), the right fist 18% of the way up from the butt (TWO_AT; the parry holds it by the middle); on the Sentinel's clips, the line
+  fitted on them.
+- His frame cost: he appeared with a stall of most of a second (a new shader, seven textures to decode and upload, the spear's lines
+  fitted): now done while the game loads (prewarmHero: one of him built, compiled, his textures uploaded). His body simplified to 70%
+  (17.4k triangles, as the Sentinel's; drawn twice with the outline) and his three weapons on one atlas.
 - His look (shader uLook): his own albedo ×0.9 (Meshy's texture is lit already), no eye glow (the eye test would light his blue cloth),
   and polished metal: the map's metal mirrors a floor below, a dark band and a bright sky, the lights caught sharp, its own colour kept.
 - The style (pact.js SETS.SPR): quick (move 2.4), life ×1.1, damage ×1.25, armour +8, a long reach (2.0) and a thin arc — and pierce:
