@@ -73,13 +73,13 @@ MOVES.PAL = { holy: true, guard: { ...MOVES.SNS.guard, holy: true },
 // five bolts of it fanned ahead. bow: his bow, at enemies still far off (not a Fury skill: the spear's own way), three arrows and back
 export const DRAGON = [0xe8f8ff, 0x9fe4ff, 0x5fb8ff, 0xffffff];
 MOVES.SPR = { charge: { lunge: true, clip: 'SNS_Lunge', sp: 1.2, at: 0.12, go: 0.28, stop: 0.5, end: 0.72, mult: 1.6, side: 0.9, stun: 0.7, past: 1.6, max: 9 },
-  guard: { chance: 0.3, keep: 0.4, word: tr('招架', 'Parry'), pose: 'ZY_Two_Handed_Parry', poseT: 0.18, bow: true, aimT: 0.16, mult: 1.8, pierce: 6, speed: 26, col: 0x9fe4ff }, // (the answer: an arrow, not a thrust)
+  guard: { chance: 0.3, keep: 0.4, word: tr('招架', 'Parry'), pose: 'ZY_Two_Handed_Parry', poseT: 0.12, bow: true, aimT: 0.08, sp: 1.8, mult: 1.8, pierce: 6, speed: 26, col: 0x9fe4ff }, // (the answer: an arrow, not a thrust — parry, draw and loose in half a second)
   whirl: { ...MOVES.GS.whirl, mult: 1.1 },
   sunder: { ...MOVES.GS.sunder, sweep: 0, dragon: true, pal: DRAGON, col: 0x9fe4ff, mult: 2.6 },
   bow: { aim: 'ZY_Archery_Shot_2', clip: 'ZY_Archery_Shot_3', rel: 0.22, sp: 1.15, stop: 0.75, min: 6, max: 13, cd: 5, n: 3, draw: 0.45, gap: 0.3, mult: 0.55, speed: 20 } };
 // (bow: the aim held, then Archery Shot 3 once per arrow — it opens at full draw and lets go at rel of its length, the string hand
 // snapping back; the last one plays on to stop, before its arms fall)
-const relT = mv => mv.rel * clipDur(MOVES.SPR.bow.clip) / MOVES.SPR.bow.sp, bowOut = (m, on) => { if (!m.weap) return; if (m.weap.r) m.weap.r.visible = !on; if (m.weap.back) m.weap.back.visible = !on; if (m.weap.bowL) m.weap.bowL.visible = on; };
+const relT = (mv, sp) => mv.rel * clipDur(MOVES.SPR.bow.clip) / (sp || MOVES.SPR.bow.sp), bowOut = (m, on) => { if (!m.weap) return; if (m.weap.r) m.weap.r.visible = !on; if (m.weap.back) m.weap.back.visible = !on; if (m.weap.bowL) m.weap.bowL.visible = on; };
 const WAVES = [{ at: 0.16, R: 7.6, life: 0.6, mult: 0.6 }, { at: 0.32, R: 9.8, life: 0.66, mult: 0.4 }]; // the greatsword's sunder: the 2nd and 3rd waves
 const CONE = { range: 5.5, half: 0.66 }, BOLT = { range: 10, speed: 16 }, FAN = 4.5;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -183,7 +183,7 @@ PH.skillTick = (u, dt) => {
     if (a) faceAt(u, a);
     while (a && sk.k < mv.n && sk.t >= mv.draw + sk.k * mv.gap - relT(mv)) { sk.k++; play(u.mesh, mv.clip, { once: true, restart: true, speed: mv.sp, fade: 0.05 }); } // (each arrow: the release, from full draw)
     while (a && sk.n < mv.n && sk.t >= mv.draw + sk.n * mv.gap) { sk.n++; const g = u.mesh.weap && u.mesh.weap.bowL, P = new THREE.Vector3(u.x, 1.4, u.z); if (g) g.getWorldPosition(P);
-      const lead = dist(u, a) / mv.speed; shoot(u, 'arrow', a.x + (a.vx || 0) * lead, a.z + (a.vz || 0) * lead, { dmg: u.dmg * mv.mult, sp: mv.speed, life: (mv.max + 2) / mv.speed, glow: 0xcfeeff });
+      const lead = dist(u, a) / mv.speed; shoot(u, 'arrow', a.x + (a.vx || 0) * lead, a.z + (a.vz || 0) * lead, { dmg: u.dmg * mv.mult, sp: mv.speed, life: (mv.max + 2) / mv.speed, glow: 0xcfeeff, from: P, yTo: 0.9, dTo: dist(u, a) }); // (from the bow, down to the chest by the target)
       S.shot('bow', 0.8); C.parts.emit(P.x, P.y, P.z, 4, { col: 0xcfeeff, spd: 1, up: 0.4, grav: 0, life: 0.2, size: 0.12 }); }
     if (sk.t >= mv.draw + (mv.n - 1) * mv.gap + (mv.stop - mv.rel) * clipDur(mv.clip) / mv.sp || (!a && sk.n)) end(u);
   } else if (sk.id === 'charge' && mv.shield) { // shield charge: brace, then drive in, barging aside whatever is in the way
@@ -209,11 +209,11 @@ PH.skillTick = (u, dt) => {
   } else if (sk.id === 'counter' && mv.bow) { // Zhao Yun: the spear's parry, then the bow — drawn, and one arrow loosed back down the line, through all it meets
     const B = MOVES.SPR.bow, aim = sk.src && !sk.src.dead && dist(sk.src, u) < 16 ? sk.src : t; if (aim) faceAt(u, aim);
     if (!sk.bowOut && sk.t >= mv.poseT) { sk.bowOut = true; bowOut(u.mesh, true); play(u.mesh, B.aim, { restart: true, fade: 0.08 }); S.swoosh(false, 0.02, 0.1); }
-    if (sk.bowOut && !sk.loose && sk.t >= mv.poseT + mv.aimT) { sk.loose = sk.t; play(u.mesh, B.clip, { once: true, restart: true, speed: B.sp, fade: 0.05 }); }
-    if (sk.loose && !sk.hits && sk.t >= sk.loose + relT(B)) { sk.hits = 1; const ang = aim ? Math.atan2(aim.x - u.x, aim.z - u.z) : u.face, g = u.mesh.weap && u.mesh.weap.bowL, P = new THREE.Vector3(u.x, 1.4, u.z); if (g) g.getWorldPosition(P);
-      shoot(u, 'arrow', u.x + Math.sin(ang) * 10, u.z + Math.cos(ang) * 10, { dmg: u.dmg * mv.mult, sp: mv.speed, life: 16 / mv.speed, glow: mv.col, pierce: mv.pierce });
+    if (sk.bowOut && !sk.loose && sk.t >= mv.poseT + mv.aimT) { sk.loose = sk.t; play(u.mesh, B.clip, { once: true, restart: true, speed: mv.sp, fade: 0.04 }); }
+    if (sk.loose && !sk.hits && sk.t >= sk.loose + relT(B, mv.sp)) { sk.hits = 1; const ang = aim ? Math.atan2(aim.x - u.x, aim.z - u.z) : u.face, g = u.mesh.weap && u.mesh.weap.bowL, P = new THREE.Vector3(u.x, 1.4, u.z); if (g) g.getWorldPosition(P);
+      shoot(u, 'arrow', P.x + Math.sin(ang) * 10, P.z + Math.cos(ang) * 10, { dmg: u.dmg * mv.mult, sp: mv.speed, life: 16 / mv.speed, glow: mv.col, pierce: mv.pierce, from: P, yTo: 0.9, dTo: aim ? Math.max(1, dist(aim, u)) : 4 });
       S.shot('bow', 1); S.qi(0); C.parts.emit(P.x, P.y, P.z, 10, { col: mv.col, spd: 1.6, up: 0.4, grav: 0, life: 0.3, size: 0.16 }); burst(P.x, P.y, P.z, mv.col, 0.8); }
-    if (sk.loose && sk.t >= sk.loose + (B.stop) * clipDur(B.clip) / B.sp) end(u);
+    if (sk.loose && sk.t >= sk.loose + B.stop * clipDur(B.clip) / mv.sp) end(u);
   } else if (sk.id === 'counter') { // the guard pose for a beat, then the counter and its sword qi (the paladin: no swing — it stays behind its shield and the light rebounds)
     if (!sk.swung) { if (t) faceAt(u, t);
       if (sk.t >= mv.poseT && mv.holy) { sk.swung = true; sk.s0 = sk.t; sk.tHit = 0.06; }

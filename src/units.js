@@ -396,10 +396,12 @@ export function addXP(xp) {
 const SPEAR_G = merge([part(new THREE.ConeGeometry(0.07, 0.7, 6), 0xf6f0e0, [0, 0, 0], [Math.PI / 2, 0, 0])]);
 const ARROW_G = merge([part(new THREE.CylinderGeometry(0.018, 0.018, 0.6, 5), 0x8a6a40, [0, 0, 0], [Math.PI / 2, 0, 0]), part(new THREE.ConeGeometry(0.04, 0.1, 5), 0xdddddd, [0, 0, 0.33], [Math.PI / 2, 0, 0])]);
 export function shoot(src, kind, tx, tz, o = {}) {
-  let dx = tx - src.x, dz = tz - src.z; if (o.ang) { const c = Math.cos(o.ang), sn = Math.sin(o.ang); [dx, dz] = [dx * c - dz * sn, dx * sn + dz * c]; }
+  let dx = tx - (o.from ? o.from.x : src.x), dz = tz - (o.from ? o.from.z : src.z); if (o.ang) { const c = Math.cos(o.ang), sn = Math.sin(o.ang); [dx, dz] = [dx * c - dz * sn, dx * sn + dz * c]; }
   const d = Math.hypot(dx, dz) || 1, sp = (o.sp ?? (kind === 'spear' ? 16 : kind === 'arrow' || kind === 'bolt' ? 12 : 8.5)) * PACE.act;
   const s = { kind, src, side: src.side === 'enemy' ? 'enemy' : 'friend', x: src.x + dx / d * 0.4, z: src.z + dz / d * 0.4, y: kind === 'fire' ? 0.9 : kind === 'wisp' ? (src.mesh.fly || 0) + 0.7 : 0.85, vx: dx / d * sp, vz: dz / d * sp,
     dmg: o.dmg ?? src.dmg, life: (o.life ?? 1.1) / PACE.act, hit: new Set(), root: new THREE.Group(), pierce: o.pierce || 0, splash: o.splash || 1.4, home: o.home || null, chill: o.chill || 0, sp };
+  // (o.from: loosed from a point — Zhao Yun's bow — dropping to o.yTo by the target's distance o.dTo, then flying level)
+  if (o.from) { s.x = o.from.x + dx / d * 0.1; s.z = o.from.z + dz / d * 0.1; s.y = o.from.y; if (o.yTo != null) { s.yTo = o.yTo; s.vy = (o.yTo - s.y) / Math.max(0.15, (o.dTo ?? d) / sp); } }
   if (kind === 'spear') { const m = new THREE.Mesh(SPEAR_G, toonMat({ emis: 0x2a3a3a })); s.root.add(m, glowSprite(0x9ff7ff, 0.9, 0.6)); }
   else if (kind === 'arrow') { s.root.add(new THREE.Mesh(ARROW_G, toonMat(o.glow ? { emis: 0x334455 } : {}))); if (o.glow) s.root.add(glowSprite(o.glow, 0.8, 0.7)); } // (Zhao Yun's: a silver gleam)
   else if (kind === 'bolt') { const m = new THREE.Mesh(ARROW_G, toonMat({ emis: 0x3a0a00 })); m.scale.set(1.5, 1.5, 1.8); s.root.add(m, glowSprite(0xff5a3a, 1.0, 0.7)); } // the crossbowman's aimed shot
@@ -407,7 +409,7 @@ export function shoot(src, kind, tx, tz, o = {}) {
     m.scale.setScalar(0.5); m.position.y = -(pg.box.max.y + pg.box.min.y) * 0.25; piv.add(m); s.root.add(piv); s.spin = piv; }
   else if (kind === 'wisp') { const col = (src.mesh && src.mesh.ghost) || 0xb070ff; s.col = col; s.root.add(glowSprite(col, 1.2, 0.9), glowSprite(0xffffff, 0.42, 0.95)); } // a ghost's soul-fire
   const el = src.champ && src.mods.length && ELEM[src.mods[Math.floor(Math.random() * src.mods.length)]]; if (el) { s.el = el; s.root.add(glowSprite(el.col, kind === 'fire' ? 2.0 : 0.8, 0.85)); }
-  s.root.position.set(s.x, s.y, s.z); s.root.rotation.y = Math.atan2(dx, dz); C.scene.add(s.root); G.shots.push(s);
+  s.root.position.set(s.x, s.y, s.z); s.root.rotation.order = 'YXZ'; s.root.rotation.y = Math.atan2(dx, dz); if (s.vy) s.root.rotation.x = -Math.atan2(s.vy, sp); C.scene.add(s.root); G.shots.push(s);
   if (kind === 'spear') S.spear(); else S.shot(kind === 'arrow' ? 'bow' : kind === 'bolt' ? 'xbow' : kind === 'axe' ? 'axe' : kind === 'wisp' ? 'soul' : src.foe === 'exorcist' ? 'hfire' : 'fball', hearAt(src));
   return s;
 }
@@ -419,7 +421,7 @@ export function updateShots(dt) {
       const a = Math.atan2(s.vx, s.vz), want = Math.atan2(s.home.x - s.x, s.home.z - s.z); let da = ((want - a + Math.PI * 3) % TAU) - Math.PI; da = Math.max(-1.7 * dt, Math.min(1.7 * dt, da));
       s.vx = Math.sin(a + da) * s.sp; s.vz = Math.cos(a + da) * s.sp; s.y += ((s.home.mesh.fly ? 0.9 : 0.85) - s.y) * Math.min(1, dt * 2); }
     if (s.spin) s.spin.rotation.x += dt * 17;
-    s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z); if (dead && s.kind === 'spear' && PH.shotBox) PH.shotBox(s);
+    s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt; if (s.vy) { s.y += s.vy * dt; if ((s.vy < 0 && s.y <= s.yTo) || (s.vy > 0 && s.y >= s.yTo)) { s.y = s.yTo; s.vy = 0; s.root.rotation.x = 0; } } s.root.position.set(s.x, s.y, s.z); let dead = s.life <= 0 || !F.walk(s.x, s.z); if (dead && s.kind === 'spear' && PH.shotBox) PH.shotBox(s);
     if (s.kind === 'fire' && Math.random() < 0.6) C.parts.emit(s.x, s.y, s.z, 1, { col: 0xff8a2a, spd: 0.4, up: 0.5, life: 0.35, size: 0.3, grav: 0 });
     if (s.kind === 'wisp' && Math.random() < 0.7) C.parts.emit(s.x, s.y, s.z, 1, { col: s.col, spd: 0.25, up: 0.3, life: 0.45, size: 0.26, grav: -0.3 });
     if (s.el && Math.random() < 0.8) C.parts.emit(s.x, s.y, s.z, 1, s.el.part);

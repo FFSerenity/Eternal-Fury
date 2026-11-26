@@ -289,7 +289,10 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   toward the drawing hand, the grip in his left fist, the left hand turned round it thumb-up. (Fitted once on one frame it stood askew.)
   The volley: the aim held (Archery_Shot_2), then Meshy's Archery Shot 3 once per arrow — it opens at full draw and lets go at 0.22 of
   its length; the last plays on to 0.75, before its arms fall. The Parry's answer is the bow too: after the parry, the bow drawn and one
-  dragon-lit arrow loosed back down the line at the attacker, through everything in it (1.8×, pierces 6).
+  dragon-lit arrow loosed back down the line at the attacker, through everything in it (1.8×, pierces 6) — the whole answer in ~0.45 s
+  (parry 0.12, aim 0.08, the release clip at 1.8×). His arrows leave from the bow (shoot's from: bow height, ~1.7 m) and drop to chest
+  height (0.9) by the target's distance, tilted as they drop. The two shooting clips are turned 95° (not the bow arm's 77°) so the
+  arrow's own line — string hand through bow hand — points where the arrows fly: it ran 18° to his left (tools/bl_zy_aim.py).
 - His hands on the shaft (assets.js gripHand): Meshy's clips hold the fist the wrong way round for a spear — walking, the thumb toward
   the butt (as if to throw it). Each frame, after the clip is posed, the hand is turned about its wrist so the shaft runs in at the little
   finger and out past the thumb toward the point, the palm toward his body (one hand: at ease, walking) or in-and-up / cradling palm up

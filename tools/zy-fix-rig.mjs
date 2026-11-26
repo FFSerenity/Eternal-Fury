@@ -10,7 +10,7 @@
 // Also the clips (Meshy's preset motions, retargeted to him there): renamed ZY_<name>; the hips' travel taken out — the loops run in
 // place (the game moves him), the attacks end where they began (the lunge forward stays, the drift is spread over the clip); one
 // duplicate dropped. The archery clips aim off to his left (an archer's side-on stance, the bow arm ~77 deg from where his hips face):
-// turned so the bow arm points where he faces. Then: node tools/build-hero.mjs (textures, resampling, compression).
+// turned so the bow arm points where he faces (the two he shoots with: so the arrow's line does, ARCH_TURN). Then: node tools/build-hero.mjs (textures, resampling, compression).
 // Each clip stood on his spot: the hips moved by where the feet stand (feet.json, from tools/bl_zy_feet.py on this tool's own output:
 // the loops by their mean over the cycle, the rest by the first frame) — his spear stance stood ~0.4 m to his left.
 // Last, the mesh simplified to 70% (24.8k -> 17.4k triangles, as many as the Sentinel's): side by side up close nothing is lost, and he is
@@ -54,6 +54,9 @@ for (const f of extra) { const ed = await io.read(f);
       a.addSampler(sm).addChannel(doc.createAnimationChannel().setTargetNode(node).setTargetPath(ec.getTargetPath()).setSampler(sm)); }
     console.log('merged', ea.getName(), 'from', f.split('/').pop()); } }
 // ---- the clips ----
+// the archery clips' turn, degrees: the bow arm forward (77), or — the ones he shoots with — the arrow's own line (string hand through bow
+// hand) forward, 18 more (tools/bl_zy_aim.py: it ran 18 deg to his left of the way the arrows fly)
+const ARCH_TURN = { Archery_Shot_2: 95, Archery_Shot_3: 95 };
 const LOOP = new Set(['Running', 'Walking', 'Spear_Walk', 'Standard_Forward_Charge']), DROP = new Set(['Draw_and_Shoot_from_Back_1']), BYEND = new Set(['Axe_Stance']);
 const hips = root.listNodes().find(n => n.getName() === 'mixamorig:Hips');
 for (const a of root.listAnimations()) {
@@ -66,7 +69,7 @@ for (const a of root.listAnimations()) {
   for (let i = 0; i < n; i++) { const f = (t[i] - t[0]) / T; o[i * 3] -= dx * f; o[i * 3 + 2] -= dz * f; }
   ch.getSampler().getOutput().setArray(o);
   if (/^Archery/.test(name)) { // the whole clip turned about the vertical: the hips' turn and place (the hips hang straight off the armature root)
-    const th = -77 * Math.PI / 180, qy = [0, Math.sin(th / 2), 0, Math.cos(th / 2)], c = Math.cos(th), s = Math.sin(th);
+    const th = -(ARCH_TURN[name] ?? 77) * Math.PI / 180, qy = [0, Math.sin(th / 2), 0, Math.cos(th / 2)], c = Math.cos(th), s = Math.sin(th);
     for (let i = 0; i < n; i++) { const x = o[i * 3], z = o[i * 3 + 2]; o[i * 3] = x * c + z * s; o[i * 3 + 2] = -x * s + z * c; }
     ch.getSampler().getOutput().setArray(o);
     const rc = a.listChannels().find(c => c.getTargetNode() === hips && c.getTargetPath() === 'rotation'), r = rc.getSampler().getOutput().getArray().slice();
