@@ -152,6 +152,7 @@ PH.skillTick = (u, dt) => {
     else { u.vx *= 0.6; u.vz *= 0.6; if (t && sk.t < sk.tbHit) faceAt(u, t); fanW(sk, (sk.t - sk.tb) / mv.upT);
       if (sk.hits === 1 && sk.t >= sk.tbHit) { sk.hits = 2; shieldBash(u, t || sk.tgt, mv); } if (sk.t >= sk.tbEnd) { play(u.mesh, 'Stand', { fade: 0.14 }); end(u); } }
   } else if (sk.id === 'charge') { // leap
+    if (!sk.whoosh && sk.t >= sk.tUp - 0.3) { sk.whoosh = true; S.leap(Math.max(0, sk.tUp - sk.t)); } // the air it tears through, from the spring off
     if (sk.t < sk.tUp && t) { faceAt(u, t); const d = dist(u, t), k = Math.max(0, d - (u.r + t.r + 0.3)) / (d || 1); sk.x1 = u.x + (t.x - u.x) * k; sk.z1 = u.z + (t.z - u.z) * k; sk.x0 = u.x; sk.z0 = u.z; sk.lh = 0.3 + d * 0.08; }
     if (sk.t >= sk.tUp && sk.t < sk.tLand) { const k = (sk.t - sk.tUp) / (sk.tLand - sk.tUp), e = k * k * (3 - 2 * k);
       u.x = sk.x0 + (sk.x1 - sk.x0) * e; u.z = sk.z0 + (sk.z1 - sk.z0) * e; u.y = Math.sin(Math.PI * k) * sk.lh; u.vx = u.vz = u.kx = u.kz = 0; }

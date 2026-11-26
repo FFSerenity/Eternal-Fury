@@ -57,6 +57,8 @@ export const S = {
     const pre = Math.min(Math.max(0, tPeak), lead); if (pre > 0.05) sweep(heavy ? 170 : 340, heavy ? 950 : 1800, 0.9, pre + 0.06, (heavy ? 0.17 : 0.13) * v, tPeak - pre);
     if (!sample(n, (heavy ? 1 : 0.95) * v, r, Math.max(0, tPeak - (PK[n] ?? 0.03) / r))) { if (heavy) sweep(260, 1300, 1.1, 0.34, 0.2 * v, Math.max(0, tPeak - 0.2)); else sweep(520, 2500, 1.3, 0.24, 0.16 * v, Math.max(0, tPeak - 0.14)); } },
   // the shield charge: a long rush of air that swells as it closes, ending in a heavy swish
+  // a leap: the air torn as it springs off (the charge's whoosh, loudest just after take-off, at tUp from now) and dying away over the flight
+  leap(tUp = 0.24) { if (!ok()) return; if (!sample('charge', 0.9, 0.95 + Math.random() * 0.1, Math.max(0, tUp + 0.11 - PK.charge))) this.rush(0.4); },
   rush(dur = 0.5) { if (!ok()) return; if (sample('charge', 0.95, 1, Math.max(0, dur - 0.1 - PK.charge))) return; sweep(110, 520, 0.7, dur + 0.25, 0.34); sweep(500, 1900, 1.0, dur + 0.15, 0.2, 0.05); tone('sawtooth', 70, 48, dur + 0.2, 0.07);
     sample(any('swing_h', 4), 1, 0.78, Math.max(0, dur - 0.1)); },
   // the Sentinel's war cry, and the burst of power that throws back what stands close (fire); the paladin's: its own roar alone
