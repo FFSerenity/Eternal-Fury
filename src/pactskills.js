@@ -458,8 +458,10 @@ function rescueTick(u, dt) {
   const g = sk.t - sk.g0, th = sk.tgt && !sk.tgt.dead ? sk.tgt : null, W = RESCUE.sweep; if (th && !sk.swept) u.faceT = angTo(u, th); u.vx = u.vz = 0;
   if (!sk.sweeping && g >= 0.3) { sk.sweeping = true; play(u.mesh, 'ZY_SP_Atk2B', { once: true, restart: true, speed: W[2], fade: 0.06, at: W[0] / clipDur('ZY_SP_Atk2B') }); S.swoosh(true, (W[1] - W[0]) / W[2] - 0.03, 0.12); }
   if (sk.sweeping && !sk.swept && g >= 0.3 + (W[1] - W[0]) / W[2]) { sk.swept = true; rescueFan(u, sk); }
-  if (sk.swept && !sk.settled && g >= 0.3 + (W[1] - W[0]) / W[2] + 0.35) { sk.settled = true; play(u.mesh, 'Stand', { fade: 0.2 }); }
-  if (g >= RESCUE.guard) end(u);
+  // the fan loosed: straight back to fighting (Nov 27, the person: he stood there a good while after it, only taking blows) — his guard
+  // (every blow parried) and the summoner's held life and heal from his blows last on to the end of the rescue (RESCUE.lock) as he does
+  if (sk.swept && g >= 0.3 + (W[1] - W[0]) / W[2] + 0.3) end(u);
+  else if (g >= RESCUE.guard) end(u);
 }
 
 // ---------- the blows ----------

@@ -393,11 +393,14 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   as To the Rescue begins (zy_rescue). S.voice waits (up to 2 s) for the sound to wake and the line to decode: on entering the game it
   is asked for in the same click that starts the sound.
 - The graveyard camp keeps a spear for him (so friends trying 赵云 need not find one first): an epic one on a relic stand at (21.5, 22.5),
-  just up the path from where the summoner starts, at the deepest floor's item level (loot.js placeGift) — not there while a spear is
-  owned (worn, in the bag or furnace, or on the ground), so the camp does not hand out another each time.
+  just up the path from where the summoner starts, at the deepest floor's item level (loot.js placeGift). There each time the game is
+  loaded until it is picked up (G.gifts, not saved: not again that session). (First it was left out whenever a spear was owned anywhere —
+  so the person, who had one, never saw it.)
 - 奔袭救主's heal for the summoner (the person: "the summoner can't get his life back at all"): a fifth of the summoner's life at once
   as he stands before it (on arrival — not as the rescue starts: the blow that calls him has yet to land), then 40% of the damage he
   deals while it lasts (was 10%), at most 70% of the summoner's life in all (was 60%); his fan of light takes his attack-speed factor.
+  The fan loosed, he goes straight back to fighting (he had stood still in front of the summoner till 2.3 s, only taking blows); his
+  guard (every blow parried) and the summoner's held life and heal from his blows run on to the end of the rescue as he fights.
 - 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
   PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
   sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else

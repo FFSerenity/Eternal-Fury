@@ -202,7 +202,8 @@ export function updateLoot(dt) {
       if (on > 0.5 && L.it.q >= 3 && Math.random() < dt * (L.it.q >= 4 ? 4 : 2.2)) C.parts.emit(x, L.base + 0.25, z, 1, { col: QUAL[L.it.q].hex, spd: 0.15, up: 2.2, grav: -0.6, life: 1.3, size: 0.11, spread: 0.08 }); }
     if (k >= 1 && P && !P.dead && Math.hypot(P.x - L.x, P.z - L.z) < (L.base ? 1.65 : 1.5)) {
       if (G.bag.length >= BAG_MAX) { if (!L.full) { L.full = true; C.say(tr('背包满了，打开背包（I）把多余的丢进熔炉吧', 'Bag is full — open the bag (I) and feed the spares to the forge')); } }
-      else { bagPut(L.it); C.scene.remove(L.root); if (L.box) L.box.open = true; S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0);
+      else { bagPut(L.it); C.scene.remove(L.root); if (L.box) { L.box.open = true; if (L.box.gift) (G.gifts || (G.gifts = {}))[L.box.gift] = true; } // (the camp's spear: taken — not set out again this session)
+        S.pick(); C.say(tr(`拾取：${itemName(L.it)}`, `Picked up: ${itemName(L.it)}`)); say(L.x, L.z, itemName(L.it), QUAL[L.it.q].col, 14, 1.0);
         if (L.it.hero && !G.gearTip) { G.gearTip = 1; C.say(tr('骸骨卫士的装备！打开背包（I）或魂契面板，点「装备卫士」换上', 'Gear for the Bone Sentinel! Open the bag (I) or the Pact panel and tap "Equip"'), true, 5000); }
         if (L.it.uniq && TECH[L.it.uniq]) { const tn = TYPES[TECH[L.it.uniq].type].name; C.say(tr(`史诗武器！点左上角的${tn}卡片，把它装上试试`, `An epic weapon! Tap a ${tn} card (top left) and equip it`), true, 6000); } save(); continue; } }
     G.loot[j++] = L; }
