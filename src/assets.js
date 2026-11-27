@@ -7,6 +7,7 @@ import { toonMat, outlineMat, charUniforms, glowSprite, auraMat, realMat, ring, 
 import { runeCircle } from './vfx.js';
 import { ELEM, WEAPONS, ARMORS, QUAL } from './data.js';
 import { PACT } from './state.js';
+import { ZY_SPEAR } from './zyroot.js';
 
 export const A = { chars: {}, clips: {}, props: {}, crits: {}, hero: null, heroClips: {}, heroWeap: {}, zy: null, ready: false };
 const ZY_WEAP = new Set();
@@ -772,8 +773,9 @@ export function heroWeaponPose(u, dt, emit) {
 //  - carry (walking): held forehand at the balance point, the point forward and up (CARRY_UP), the butt clear of the floor
 //  - two (his own fighting clips: the stance, the parry): along the line from his right fist through his left — both hands on the
 //    shaft whatever the clip does — the right fist near the butt (TWO_AT of the way up); the fitted line if the hands part
-//  - the Unreal pack's clips (ZY_SP_*: his fighting guard and walk): fixed in the right hand along ZY_UE_AXIS, the fist at the middle,
-//    the hands as the clip has them
+//  - the Unreal pack's clips (ZY_SP_*): where Unreal had it, frame by frame (ZY_SPEAR: off the socket ik_hand_r — mostly in the right
+//    fist, 0.4 of the shaft from the butt, but handed to the left hand and stood on its point in the spin), the hands as the clip has
+//    them; a clip without a track: fixed in the right hand along ZY_UE_AXIS, the fist at the middle
 //  - the Sentinel's clips moved over to him: the line fitted on them (heroWeaponPose's slerp), the fist at the grip
 // a hand turned about its wrist so a shaft along R runs through its fist the right way: in at the little finger, out past the thumb (the
 // point beyond the thumb, as a spear is held — Meshy's clips held the fist as if to throw it), the palm toward Nw (or kept as near as it
@@ -820,7 +822,21 @@ function zyChest(u, m) {
   [0.4, 0.3, 0.3, -1].forEach((k, i) => { const b = B[i]; if (!b) return; _cq.setFromAxisAngle(_cY, dlt * k); b.parent.getWorldQuaternion(_cp); b.getWorldQuaternion(_cw);
     b.quaternion.copy(_cp.invert().multiply(_cq.multiply(_cw))); b.updateMatrixWorld(true); });
 }
-const UE_AT = 0.5, _gT2 = new THREE.Quaternion(); // (the Unreal clips: his right fist at the shaft's middle)
+const UE_AT = 0.5, _gT2 = new THREE.Quaternion(); // (the Unreal clips without a spear track: his right fist at the shaft's middle)
+// the spear where Unreal had it at this moment of the clip (ZY_SPEAR, baked by tools/bl_zy_ue.py off the socket the pack hangs it on,
+// ik_hand_r): its grip point and the way its point goes, kept in a frame of his right hand made from three points (wrist, middle and
+// little-finger knuckles) — so it rides his hand as the clip turns it, and where Unreal lets go of it (the spin's middle: left planted
+// while he turns) it stays where it was put. False if the clip has no track
+const _sx = new _V(), _sy = new _V(), _sz = new _V(), _sw = new _V(), _sm = new _V(), _sk = new _V(), _ug = new _V();
+function zyUESpear(m, n, gp, dir) {
+  const a = ZY_SPEAR[n], G = m.grip && m.grip.R, act = m.curU && m.curUName ? m.curU : m.cur; if (!a || !G || !G.mid || !G.pky || !act) return false;
+  const N = a.length / 6, f = Math.max(0, Math.min(N - 1, act.time * 30)), i = Math.min(N - 2, Math.floor(f)), k = f - i, v = j => a[i * 6 + j] + (a[i * 6 + 6 + j] - a[i * 6 + j]) * k;
+  G.hand.getWorldPosition(_sw); G.mid.getWorldPosition(_sm); G.pky.getWorldPosition(_sk);
+  _sx.subVectors(_sm, _sw); const L = _sx.length(); if (L < 1e-5) return false; _sx.divideScalar(L);
+  _sy.subVectors(_sm, _sk); _sy.addScaledVector(_sx, -_sy.dot(_sx)).normalize(); _sz.crossVectors(_sx, _sy);
+  gp.copy(_sw).addScaledVector(_sx, v(0) * L).addScaledVector(_sy, v(1) * L).addScaledVector(_sz, v(2) * L);
+  dir.set(0, 0, 0).addScaledVector(_sx, v(3)).addScaledVector(_sy, v(4)).addScaledVector(_sz, v(5)).normalize(); return true;
+}
 export const ZY_IDLE = 'ZY_Stand_Ease', ZY_GROUND = new Set([ZY_IDLE, 'ZY_Axe_Stance']), CARRY_UP = 0.62, TWO_AT = 0.18, GRIP_AT = 0.4, TWO_AT_CLIP = { ZY_Two_Handed_Parry: 0.4 }; // (the parry holds it across, by its middle) // (CARRY_UP: radians above level; TWO_AT, GRIP_AT: of the length from the butt)
 function zySpear(u, m, g, dt, floor) {
   const n0 = m.curU && m.curUName ? m.curUName.replace(/@upper$/, '') : (m.curName || '').replace(/@lower$/, ''), n = ZY_ALIAS[n0] || n0, fit = WEAP_FIT.spear, Lw = fit.len, tip = g.userData.tip, butt = Lw - tip, f = u.face ?? m.root.rotation.y; // (n: his own clip's name, for the Sentinel's names it stands in for) // (walking into a fight: the stance above is what holds it)
@@ -830,11 +846,13 @@ function zySpear(u, m, g, dt, floor) {
   if (axe) _d.copy(zyAxe().u).applyQuaternion(m.grip.R.hand.getWorldQuaternion(_gT2)); // (in his hand as Meshy's preview has it: the hand's turn is the clip's)
   else if (ground) _d.set(fwdX * 0.04, 1, fwdZ * 0.04).normalize();
   else if (walk) { const c = Math.cos(globalThis.__carryUp ?? CARRY_UP), sn = Math.sin(globalThis.__carryUp ?? CARRY_UP); _d.set(fwdX * c, sn, fwdZ * c).normalize(); }
+  const ueT = ue && !axe && !ground && !walk && zyUESpear(m, n, _ug, _zd); // (the clip's own spear track)
+  if (ueT) _d.copy(_zd);
   else if (ue) _d.copy(ZY_UE_AXIS).applyQuaternion(m.grip.R.hand.getWorldQuaternion(_gT2)); // (fixed in the hand, as Unreal held it: the hand's turn is the clip's)
   else if (own) { _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); }
   // eased toward its new line — except where it is fixed in the hand (the Unreal clips, the rise): there it follows the hand exactly, so
   // fast swings do not trail behind; only for a moment after the way of holding it changes is it eased over (in time with the cross-fade)
-  const mode = axe ? 'axe' : ground ? 'g' : walk ? 'w' : ue ? 'ue' : own ? 'own' : 'gs', rigid = axe || ue;
+  const mode = axe ? 'axe' : ground ? 'g' : walk ? 'w' : ue ? 'ue' + (ueT ? n : '') : own ? 'own' : 'gs', rigid = axe || ue; // (one Unreal clip to the next: eased over too)
   if (m.zyMode !== mode) { m.zyMode = mode; m.zyBl = 0.15; } m.zyBl = Math.max(0, (m.zyBl || 0) - dt);
   const k = Math.min(1, dt * 12), kd = rigid ? Math.min(1, dt / (m.zyBl + dt)) : k;
   if (!m.zyD) m.zyD = _d.clone(); else if (kd >= 1) m.zyD.copy(_d); else m.zyD.lerp(_d, kd).normalize(); _d.copy(m.zyD);
@@ -851,11 +869,12 @@ function zySpear(u, m, g, dt, floor) {
     fistW(m.fists.R, _fr); g.parent.getWorldQuaternion(_qh); _qw.copy(_qh).multiply(g.quaternion); _ax.copy(_up).applyQuaternion(_qw); }
   // where along the shaft his fist is (s: from the grip point), from where the fist now is: grounded, the butt on the floor; walking, the
   // butt a hand's breadth off it; both hands, the rear fist TWO_AT of the way up
+  if (ueT) _fr.copy(_ug); // (the track's grip point: where the shaft's grip is, 0.4 of it from the butt — as Unreal's)
   let s = 0;
   if (axe) s = 0.04 + butt - (m.model.position.y + zyAxe().fy * m.model.scale.y); // (fixed: the butt on the floor at the plant)
   else if (ground) s = floor + butt / Math.max(0.5, _d.y) * _d.y - _fr.y;
   else if (walk) { const low = _fr.y - butt * _d.y - (floor + 0.12); if (low < 0) s = -low / Math.max(0.2, _d.y); }
-  else if (ue) s = (GRIP_AT - (globalThis.__ueAt ?? UE_AT)) * Lw;
+  else if (ue) s = ueT ? 0 : (GRIP_AT - (globalThis.__ueAt ?? UE_AT)) * Lw;
   else if (own) s = (GRIP_AT - (TWO_AT_CLIP[n] ?? TWO_AT)) * Lw;
   m.zyS = (m.zyS ?? s) + (s - (m.zyS ?? s)) * k; s = ground ? (Math.abs(m.zyS - s) < 0.25 ? s : m.zyS) : m.zyS; // (grounded: the butt stays on the floor, no lag)
   // the floor stops the point and the butt (not the grounded butt: it stands on it)

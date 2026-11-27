@@ -365,6 +365,15 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   own run (k > 1) keeps the clip's own steps as they are and puts the extra in from 0.25 s before its thrust (the part's first line blow)
   to just after (spGo/spPart); cut short (k < 1), its steps still shrink evenly. The pace of these is meant to be slower than the other
   weapons' — big, open moves.
+- Nov 27, the spear as Unreal holds it (looked up in the pack's Overview_Spear map: SM_Spear, 273 cm, pivot at its middle, point on +Z,
+  hung on the socket ik_hand_r at Y −27.5 cm, roll −90° — so ik_hand_r is the grip, 0.4 of the shaft from the butt). ik_hand_r is keyed
+  on its own, not tied to hand_r: in the Horizontal Spin, frames 61–89, it sits in the LEFT hand (the spear trailed behind him, then
+  stood on its point on the floor at 85–87) and goes back to the right at 91 — why no fixed in-hand line ever fit the spin.
+  tools/bl_zy_ue.py now bakes, for every frame of every ZY_SP_* clip, the spear's grip point and the way its point goes into
+  src/zyroot.js (ZY_SPEAR), kept in a frame of his right hand made of three points (wrist, middle and little-finger knuckles — the
+  game makes the same frame from the same bones, whatever way each bone's axes lie). Near a hand it keeps Manny's offset from that hand
+  (scaled); more than 0.2–0.45 m off both, Manny's place on his scale. zySpear reads the track at the clip's time (the grip point
+  where the shaft's grip is); ZY_UE_AXIS stays only for a clip without one.
 - 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
   PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
   sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else

@@ -93,7 +93,7 @@ feet = min(head(M('LeftFoot')).z, head(M('RightFoot')).z); hipz_our = our_mid().
 OFF = our_mid() - head(M('Hips'))  # his hips bone -> his thighs' midpoint, in this pose
 rest_ankle = min(arm.data.bones[M('LeftFoot')].head_local.z, arm.data.bones[M('RightFoot')].head_local.z)
 SCALE = hipz_our / hipz_src
-print('hip height ours', round(hipz_our, 3), 'Manny', round(hipz_src, 3), 'scale', round(SCALE, 3))
+print('hip height ours', round(hipz_our, 3), 'Manny', round(hipz_src, 3), 'scale', round(SCALE, 3), 'his armature world identity:', mw == Matrix.Identity(4))
 for pb in arm.pose.bones: pb.matrix_basis = Matrix.Identity(4)
 bpy.context.view_layer.update()
 D = {n: SR[n].inverted() @ OR[n] for n in BODY}
@@ -108,14 +108,21 @@ for b in arm.data.bones:
 rest = {b.name: b.matrix_local.copy() for b in order}
 rel = {b.name: (rest[b.parent.name].inverted() @ rest[b.name]) if b.parent else rest[b.name] for b in order}
 KEEP = [M(n) for n in BODY]
+SPEAR = {}  # clip -> the spear per frame, in his right hand's frame (see below)
 ROOT = {}  # clip -> its root motion per frame (30 fps): forward, his left (his model's metres), turn to his left (radians), from its start
 for name, path, rng in clips:
     farm, fact, new = load_fbx(path)
     f0, f1 = rng or (int(round(fact.frame_range[0])), int(round(fact.frame_range[1]))); frames = list(range(f0, f1 + 1))
-    rots, hips, root = [], [], []
+    rots, hips, root, spr = [], [], [], []
     for fr in frames:
         sc.frame_set(fr); fm = fmw0  # (UE's root motion — the armature object's own move and turn — kept out of the pose: see ROOT)
         root.append((-farm.location.y * SCALE, farm.location.x * SCALE, farm.rotation_euler.z))  # (forward, his left, turn to his left)
+        # the spear as Unreal holds it: SM_Spear on the socket ik_hand_r, 27.5 cm out along the bone's +y (in Blender's frame of it),
+        # its point along that +y — so ik_hand_r is where the hand grips it (0.4 of its length from the butt). ik_hand_r is keyed on its
+        # own: mostly within ~10 cm of hand_r — or of hand_l, where the clip hands the spear over (the spin's middle)
+        ik = (fm @ farm.pose.bones['ik_hand_r'].matrix).decompose()
+        spr.append((ik[0].copy(), (ik[1] @ Vector((0, 1, 0))).normalized(), (fm @ farm.pose.bones['hand_r'].matrix).translation.copy(),
+                    (fm @ farm.pose.bones['hand_l'].matrix).translation.copy()))
         rots.append({M(n): (fm @ farm.pose.bones[MAP[n]].matrix).to_quaternion() @ D[n] for n in BODY})
         # his thighs' midpoint on Manny's (scaled; the ankles on his ankle height), his hips bone placed from it
         p = (fm @ farm.pose.bones['thigh_l'].head + fm @ farm.pose.bones['thigh_r'].head) / 2
@@ -126,7 +133,7 @@ for name, path, rng in clips:
     arm.animation_data.action = act
     curves = {bn: [act.fcurve_ensure_for_datablock(arm, f'pose.bones["{bn}"].rotation_quaternion', index=i) for i in range(4)] for bn in KEEP}
     hloc = [act.fcurve_ensure_for_datablock(arm, 'pose.bones["mixamorig:Hips"].location', index=i) for i in range(3)]
-    data = {bn: [[], [], [], []] for bn in KEEP}; hdata = [[], [], []]; prevq = {}
+    data = {bn: [[], [], [], []] for bn in KEEP}; hdata = [[], [], []]; prevq = {}; spear = []
     for i, fr in enumerate(frames):
         P = {}
         for b in order:
@@ -144,6 +151,18 @@ for name, path, rng in clips:
                     for k in range(3): hdata[k] += [float(fr - f0), basis.translation[k]]
                 P[b.name] = base @ (Matrix.Translation(basis.translation) @ bq.to_matrix().to_4x4())
             else: P[b.name] = base
+        # the spear on him this frame, in a frame of his right hand built from points only (wrist, middle and little finger knuckles: the
+        # game builds the same one from the same bones, whatever way each bone's own axes lie): the grip point (in hand lengths, wrist to
+        # middle knuckle) and the way the point goes. Held in the hand: kept where it is from his hand (Manny's offset, scaled); let go
+        # (more than 0.2-0.45 m off either hand): where Manny's is, on his scale. Unreal moves it from hand to hand: in the spin's middle
+        # (frames 61-89) it is in his LEFT hand, trailed behind him, then stood point-down on the floor, and given back to the right
+        g_s, d_s, hR, hL = spr[i]; lft = (g_s - hL).length < (g_s - hR).length; h_s = hL if lft else hR; off = g_s - h_s
+        w = min(1.0, max(0.0, (off.length - 0.2) / 0.25)); w = w * w * (3 - 2 * w)
+        wr, mid, pk = P[M('RightHand')].translation, P[M('RightHandMiddle1')].translation, P[M('RightHandPinky1')].translation
+        g_t = ((P[M('LeftHand')].translation if lft else wr) + off * SCALE).lerp(Vector((g_s.x * SCALE, g_s.y * SCALE, (g_s.z - ankle_src) * SCALE + rest_ankle)), w)
+        ax = mid - wr; L = ax.length; ax = ax / L; ky = mid - pk; ky = (ky - ax * ky.dot(ax)).normalized(); kz = ax.cross(ky); r = (g_t - wr) / L
+        spear.append((r.dot(ax), r.dot(ky), r.dot(kz), d_s.dot(ax), d_s.dot(ky), d_s.dot(kz)))
+    SPEAR[name] = spear
     n = len(frames)
     for bn in KEEP:
         for k in range(4):
@@ -166,7 +185,13 @@ if os.environ.get('ROOT_JS'):
         f.write('export const ZY_ROOT = {\n')
         for k, r in ROOT.items(): f.write(f"  ZY_{k}: [{', '.join(f'{v:.3f}' for row in r for v in row)}],\n")
         f.write('};\n')
-    print('WROTE', os.environ['ROOT_JS'], list(ROOT))
+        f.write('// the spear as Unreal held it, per frame at 30 fps, in a frame of his right hand made from three points — x: wrist to middle\n')
+        f.write('// knuckle, y: little-finger knuckle to middle knuckle (square to x), z = x × y: the grip point (in wrist-to-knuckle lengths from\n')
+        f.write('// the wrist; the grip 0.4 of the shaft from the butt) and the way the point goes. Six numbers a frame.\n')
+        f.write('export const ZY_SPEAR = {\n')
+        for k, r in SPEAR.items(): f.write(f"  ZY_{k}: [{', '.join(f'{v:.3f}' for row in r for v in row)}],\n")
+        f.write('};\n')
+    print('WROTE', os.environ['ROOT_JS'], list(ROOT), list(SPEAR))
 bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', export_animations=True, export_animation_mode='ACTIONS',
                           export_force_sampling=True, export_frame_step=1, export_apply=False, export_yup=True, export_skins=True)
 print('WROTE', out)
