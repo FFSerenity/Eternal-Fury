@@ -390,8 +390,11 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   赵子龙也！」 (zy_intro0/1, one at random) when he is summoned (the cast) or first comes up in a session (entering the game: 0.8 s into
   the rise), and whenever the skeleton takes up the spear (PH.gear / setStyle, against the style it was last armed as) — not as he rises
   again on each new floor; and 「休伤我主！」
-  as To the Rescue begins (zy_rescue). S.voice waits (up to 2 s) for the sound to wake and the line to decode: on entering the game it
-  is asked for in the same click that starts the sound.
+  as To the Rescue begins (zy_rescue). S.voice waits (up to 2 s) for the sound to wake and the line to decode; asked for before the
+  sound exists at all (entering the game: the camp and the Sentinel come up behind the start screen, before any click) it is kept and
+  spoken 0.6 s after the start click wakes the sound (unlock).
+- The equipment panel's doll of 赵云 stands in his calm stand (ZY_IDLE, the spear upright beside him): 'Stand' became his Unreal
+  fighting guard — crouched, head down — which looked wrong face-on in the panel.
 - The graveyard camp keeps a spear for him (so friends trying 赵云 need not find one first): an epic one on a relic stand at (21.5, 22.5),
   just up the path from where the summoner starts, at the deepest floor's item level (loot.js placeGift). There each time the game is
   loaded until it is picked up (G.gifts, not saved: not again that session). (First it was left out whenever a spear was owned anywhere —

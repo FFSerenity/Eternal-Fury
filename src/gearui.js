@@ -10,7 +10,7 @@ import { TYPES, MODS, QUAL, affixName, WEAPONS, BAG_MAX, itemName, itemLines, it
 import { heroEntry, heroName, SETS } from './pact.js';
 import { furyBrief } from './pactui.js';
 import { setGear, Unit, ANIM } from './units.js';
-import { makeUnitMesh, play, heroWeaponPose } from './assets.js';
+import { makeUnitMesh, play, heroWeaponPose, ZY_IDLE } from './assets.js';
 import { initR, lit, itemIconURL as iconOf, portrait } from './icons.js';
 import { S } from './audio.js';
 import { message, closeCrypt, touchUI } from './ui.js';
@@ -26,7 +26,8 @@ function setDoll() {
   const en = selEn, key = en && mode === 'doll' ? en.id + ':' + (en.gear?.w?.id || 0) + ':' + (en.gear?.a?.id || 0) + ':' + (en.wset || '') : ''; if (key === dollKey) return; dollKey = key;
   if (doll) { dollScene.remove(doll.root); doll = null; } if (!key) return;
   doll = makeUnitMesh(en.type, { gear: en.gear, elems: en.champ ? en.mods : null, tint: en.mods.includes('stone') ? 0xb8b4ac : 0xffffff, hero: en.hero, wset: en.wset });
-  dollScene.add(doll.root); play(doll, doll.gun || doll.muz ? '2H_Ranged_Aiming' : ANIM[en.type].idle, {}); doll.mixer.update(0); // two-handed tech weapons: held up, not dragged on the floor
+  dollScene.add(doll.root); play(doll, doll.gun || doll.muz ? '2H_Ranged_Aiming' : en.hero && en.wset === 'SPR' ? ZY_IDLE : ANIM[en.type].idle, {}); doll.mixer.update(0); // two-handed tech weapons: held up, not dragged on the floor
+  // (赵云: his calm stand, the spear upright beside him — 'Stand' is his Unreal fighting guard now, crouched, head down, for the field)
   const box = new THREE.Box3().setFromObject(doll.root), h = box.max.y - box.min.y || 1.2;
   dollCam.position.set(0, h * 0.62, h * 2.55); dollCam.lookAt(0, h * 0.48, 0); doll.root.rotation.y = 0.5;
 }

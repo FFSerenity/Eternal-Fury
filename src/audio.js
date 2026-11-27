@@ -1,5 +1,5 @@
 // The sounds: synthesized ones, and recorded ones (assets/sfx) where we have them — every recorded one falls back to its synth while it loads
-let ac = null, out = null, noise = null, on = true;
+let ac = null, out = null, noise = null, on = true, pendingVoice = null;
 try { on = localStorage.getItem('graveTamerSfx') !== '0'; } catch (e) {}
 export function unlock() {
   if (!ac) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; ac = new AC();
@@ -7,6 +7,7 @@ export function unlock() {
     noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
   if (ac.state !== 'running') ac.resume().catch(() => {});
   decodeAll();
+  if (pendingVoice) { const [n, v] = pendingVoice; pendingVoice = null; S.voice(n, v, 0.6); } // (赵云's line, asked for before the game was entered)
 }
 // recorded sounds (assets/sfx): fetched when asked for, decoded once the audio context exists. The blade bites (blade_*) are Kenney's (CC0);
 // swing_l3 is artisticdude's (Swishes, CC0: kept beside the new ones so the light swings repeat less); the rest were made with Stable Audio 3 Medium in ComfyUI and picked by ear. PK: where each is loudest (s), to line it up
@@ -64,7 +65,9 @@ export const S = {
     sample(any('swing_h', 4), 1, 0.78, Math.max(0, dur - 0.1)); },
   // a spoken line (赵云's): as recorded, t seconds from now. On entering the game it is asked for in the very click that wakes the sound
   // up — not yet running, the line not yet decoded: so it waits for both (a tenth of a second at a time, up to 2 s), its delay counting down
-  voice(n, v = 1, t = 0, k = 0) { if (!ac || !on) return; if (ac.state === 'running' && BUF[n]) { sample(n, v, 1, t); return; }
+  // Asked for before the sound exists at all (the camp and the Sentinel come up behind the start screen, before any click), it is kept
+  // and spoken once the start click wakes the sound (unlock)
+  voice(n, v = 1, t = 0, k = 0) { if (!on) return; if (!ac) { pendingVoice = [n, v]; return; } if (ac.state === 'running' && BUF[n]) { sample(n, v, 1, t); return; }
     if (k < 20) setTimeout(() => this.voice(n, v, Math.max(0, t - 0.1), k + 1), 100); },
   // the Sentinel's war cry, and the burst of power that throws back what stands close (fire); the paladin's: its own roar alone
   warcry(pal) { if (!ok()) return; if (pal) { if (!sample('warcry_pal', 1)) this.holy(0.8); }
