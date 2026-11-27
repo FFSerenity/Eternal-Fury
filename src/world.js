@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { glowSprite } from './gfx.js';
 import { PropBatch } from './assets.js';
-import { addBox, placeStand, BOX_KIND, propScale } from './loot.js';
+import { addBox, placeStand, placeGift, BOX_KIND, propScale } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
 
@@ -241,6 +241,9 @@ export class Floor {
     // the shrine by the spawn point
     B.add('shrine_candles', 26.5, 0, 26.5, -Math.PI * 0.75, 0.6); this.block(26, 26); this.glow(26.5, 0.8, 26.5, 0xffc060, 1.6, 0.8); this.torch(26.2, 1.0, 26.2, 5.0);
     B.add('bench', 21.0, 0, 28.3, 0, 0.5); this.block(20, 28); this.block(21, 28);
+    // a spear for 赵云 on a relic stand, an epic one at the deepest floor's item level, just up the path from where the summoner starts
+    // (turned toward the camera): taking it up makes the Sentinel him — no need to find one first (not there once a spear is owned)
+    if (placeGift(this, B, 21.5, 22.5, Math.PI / 4, 'spear', 3)) this.block(21, 22); // (its item shows its own light: the epic's beam)
     // graveyard plot
     const GR = ['grave_A', 'grave_B', 'gravestone', 'gravestone', 'gravemarker_A', 'gravemarker_B'];
     for (let z = 19; z <= 29; z += 3) for (let x = 9; x <= 17; x += 2) { if (R() < 0.15) continue; const cx = x, cz = z; if (pathCells.has(cz * W + cx) || pathCells.has((cz + 1) * W + cx)) continue;

@@ -50,6 +50,16 @@ export function placeStand(F, B, x, z, r, rack = true, cell = null) {
   const it = B.add(name, x, 0, z, r, s), b = addBox(F, name, x, z, it, cell), [top, fwd] = STAND_AT[name];
   b.item = item; b.r = r; b.top = PROP_H[name] * top; b.dz = PROP_H[name] * fwd; return b;
 }
+// a given item on a stand of the given kind (the camp's spear for 赵云: the person — friends trying him out should not have to find one
+// first): a hero weapon of kind at quality q, at the item level of the deepest floor reached — unless it is already owned (worn, in the
+// bag or the furnace, or lying on the ground), so walking back into the camp does not hand out another
+export function placeGift(F, B, x, z, r, kind, q, name = 'stand_relic', cell = null) {
+  if (!PACT || !G.pact) return null; const has = i => i && i.hero === kind;
+  if (has(G.pact.gear && G.pact.gear.w) || G.bag.some(has) || (G.furn || []).some(has) || (G.loot || []).some(l => has(l.it))) return null;
+  const item = rollHeroItem(G.uid++, Math.max(1, G.deep || 1), q, kind), s = propScale(name);
+  const it = B.add(name, x, 0, z, r, s), b = addBox(F, name, x, z, it, cell), [top, fwd] = STAND_AT[name];
+  b.item = item; b.r = r; b.top = PROP_H[name] * top; b.dz = PROP_H[name] * fwd; return b;
+}
 // what the Sentinel's blows and the bone spear break: the barrels, crates, urns, kegs and trunks within r of (x, z) — and, given a facing
 // (face, half: its half-width in radians), only those in front
 export function hitBoxes(x, z, r, face = null, half = Math.PI) { const F = G.floor; if (!F || !F.boxes) return 0; let n = 0;

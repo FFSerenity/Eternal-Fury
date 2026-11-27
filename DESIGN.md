@@ -387,10 +387,14 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   last thrust reached): now only with the target within 4.6 m (kick) and two or more within 3 m of the kicks' middle (1.8 m toward
   it) — or a champion / a hard one.
 - His voice (the person's lines, made in ComfyUI, trimmed and levelled to the war cry): 「末将赵云，字子龙，常山真定人也。」/「吾乃常山
-  赵子龙也！」 (zy_intro0/1, one at random) when he first comes up in a session (entering the game: 0.8 s into the rise) and whenever the
-  skeleton takes up the spear (PH.gear / setStyle, against the style it was last armed as) — not on every floor's rise; and 「休伤我主！」
+  赵子龙也！」 (zy_intro0/1, one at random) when he is summoned (the cast) or first comes up in a session (entering the game: 0.8 s into
+  the rise), and whenever the skeleton takes up the spear (PH.gear / setStyle, against the style it was last armed as) — not as he rises
+  again on each new floor; and 「休伤我主！」
   as To the Rescue begins (zy_rescue). S.voice waits (up to 2 s) for the sound to wake and the line to decode: on entering the game it
   is asked for in the same click that starts the sound.
+- The graveyard camp keeps a spear for him (so friends trying 赵云 need not find one first): an epic one on a relic stand at (21.5, 22.5),
+  just up the path from where the summoner starts, at the deepest floor's item level (loot.js placeGift) — not there while a spear is
+  owned (worn, in the bag or furnace, or on the ground), so the camp does not hand out another each time.
 - 奔袭救主's heal for the summoner (the person: "the summoner can't get his life back at all"): a fifth of the summoner's life at once
   as he stands before it (on arrival — not as the rescue starts: the blow that calls him has yet to land), then 40% of the damage he
   deals while it lasts (was 10%), at most 70% of the summoner's life in all (was 60%); his fan of light takes his attack-speed factor.

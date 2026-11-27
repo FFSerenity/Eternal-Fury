@@ -181,8 +181,8 @@ class SummonFx {
   cancel() { C.scene.remove(this.g); }
 }
 let fx = null;
-// 赵云's entrance line (one of two, at random): when he first comes up in a session (the game entered), and whenever the skeleton takes up
-// the spear and becomes him — not on every floor's rise (the person: only on entering the game and on changing weapon)
+// 赵云's entrance line (one of two, at random): when he is summoned (the cast), when he first comes up in a session (the game entered),
+// and whenever the skeleton takes up the spear and becomes him — not as he rises again on each new floor
 let hello = false, shown = null; // (shown: the style the skeleton out on the field was last armed as — the entry's own changes first)
 const zyHello = (t = 0.2) => S.voice(Math.random() < 0.5 ? 'zy_intro0' : 'zy_intro1', 1, t);
 function spot(P) { const F = C.floor; for (const d of [1.8, 1.2, 0.6]) { const x = P.x + Math.sin(P.face) * d, z = P.z + Math.cos(P.face) * d; if (F.fits ? F.fits(x, z, 0.45) : F.walk(x, z)) return { x, z }; } return { x: P.x, z: P.z }; }
@@ -191,7 +191,7 @@ export function spawnHero(x, z, quick) {
   const en = makeEntry(), u = spawnAlly(en, x, z, null), P = G.player; u.face = u.faceT = P ? P.face : 0;
   const clip = (u.mesh.clips || A.heroClips).Rise, sp = SUMMON.riseSp; // the Mixamo stand-up at its own pace (also on a new floor); Zhao Yun's his own
   if (clip) { play(u.mesh, 'Rise', { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clip.duration / sp * 0.9; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
-  const first = !hello; hello = true; shown = en.wset; if (first && en.wset === 'SPR') zyHello(0.8); // (赵云 names himself as he first gets up off the ground)
+  const first = !hello; hello = true; shown = en.wset; if (en.wset === 'SPR' && (first || !quick)) zyHello(0.8); // (赵云 names himself as he gets up: called up, or the game entered — not down the stairs)
   P8.alive = true; save(); return u;
 }
 // called first thing in updatePlayer: the summon cast (returns true while casting) and the E key / button
