@@ -62,8 +62,10 @@ export const S = {
   leap(tUp = 0.24) { if (!ok()) return; if (!sample('charge', 0.9, 0.95 + Math.random() * 0.1, Math.max(0, tUp + 0.11 - PK.charge))) this.rush(0.4); },
   rush(dur = 0.5) { if (!ok()) return; if (sample('charge', 0.95, 1, Math.max(0, dur - 0.1 - PK.charge))) return; sweep(110, 520, 0.7, dur + 0.25, 0.34); sweep(500, 1900, 1.0, dur + 0.15, 0.2, 0.05); tone('sawtooth', 70, 48, dur + 0.2, 0.07);
     sample(any('swing_h', 4), 1, 0.78, Math.max(0, dur - 0.1)); },
-  // a spoken line (赵云's): as recorded, t seconds from now; nothing in its place while it loads
-  voice(n, v = 1, t = 0) { if (!ok()) return; sample(n, v, 1, t); },
+  // a spoken line (赵云's): as recorded, t seconds from now. On entering the game it is asked for in the very click that wakes the sound
+  // up — not yet running, the line not yet decoded: so it waits for both (a tenth of a second at a time, up to 2 s), its delay counting down
+  voice(n, v = 1, t = 0, k = 0) { if (!ac || !on) return; if (ac.state === 'running' && BUF[n]) { sample(n, v, 1, t); return; }
+    if (k < 20) setTimeout(() => this.voice(n, v, Math.max(0, t - 0.1), k + 1), 100); },
   // the Sentinel's war cry, and the burst of power that throws back what stands close (fire); the paladin's: its own roar alone
   warcry(pal) { if (!ok()) return; if (pal) { if (!sample('warcry_pal', 1)) this.holy(0.8); }
     else { if (!sample('warcry', 0.95)) this.roar(); sample('fireburst', 0.75, 1, 0.04); } },

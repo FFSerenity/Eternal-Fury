@@ -386,8 +386,11 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - 百鸟朝凤 cast from as far as 9 m whirled its kicks at nothing (they cut all round him 1.5–2.5 m out from where he starts; only the
   last thrust reached): now only with the target within 4.6 m (kick) and two or more within 3 m of the kicks' middle (1.8 m toward
   it) — or a champion / a hard one.
-- His voice (the person's lines, made in ComfyUI, trimmed and levelled to the war cry): on every rise one of 「末将赵云，字子龙，常山真定
-  人也。」/「吾乃常山赵子龙也！」 (zy_intro0/1, 0.8 s in), and 「休伤我主！」 as To the Rescue begins (zy_rescue). S.voice.
+- His voice (the person's lines, made in ComfyUI, trimmed and levelled to the war cry): 「末将赵云，字子龙，常山真定人也。」/「吾乃常山
+  赵子龙也！」 (zy_intro0/1, one at random) when he first comes up in a session (entering the game: 0.8 s into the rise) and whenever the
+  skeleton takes up the spear (PH.gear / setStyle, against the style it was last armed as) — not on every floor's rise; and 「休伤我主！」
+  as To the Rescue begins (zy_rescue). S.voice waits (up to 2 s) for the sound to wake and the line to decode: on entering the game it
+  is asked for in the same click that starts the sound.
 - 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
   PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
   sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else
