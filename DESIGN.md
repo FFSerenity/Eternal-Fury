@@ -360,6 +360,11 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   (eased now only for 0.15 s after the way of holding it changes); held fast, it may touch the floor (lifted only 0.3 m deep). The
   test arena has his moves on buttons (at the nearest foe, no cooldown, any Fury), slow motion (1×, ½×, ¼×, ⅒×: main.js scales the
   frame's time by globalThis.__ts) and a toggle that freezes the foes where they stand.
+- Nov 27, after watching at half speed (the person: "most of them only thrust all the way out at the very end; added travel should go in
+  around that thrust, so the point is out ahead of him as he goes; it need not be exact"): a part of a move stretched past the clip's
+  own run (k > 1) keeps the clip's own steps as they are and puts the extra in from 0.25 s before its thrust (the part's first line blow)
+  to just after (spGo/spPart); cut short (k < 1), its steps still shrink evenly. The pace of these is meant to be slower than the other
+  weapons' — big, open moves.
 - 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
   PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
   sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else

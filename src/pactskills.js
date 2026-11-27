@@ -332,10 +332,22 @@ function spStart(u, sk) {
   if (mv.tornado) { sk.col0 = m.blade && m.blade.col; sk.fire = bladeFire(u, mv.pal); if (m.blade) m.blade.col = mv.col; sk.fire.reach = 0.1; sk.fire.power = 0.5; S.ignite(); }
 }
 // the travel stretch for the part of the move clip time c is in
-function spK(u, sk, c) { const mv = sk.mv;
-  if (mv.tri) { const i = mv.segs.findIndex(g => c < g.t1); return sk.kSeg[i < 0 ? mv.segs.length - 1 : i] ?? 1; }
-  if (!mv.go) return 1; const g = mv.go.find(g => c < g[1]) || mv.go[mv.go.length - 1];
-  return typeof g[2] === 'number' ? g[2] : g[2] === 'B' ? (sk.kB ?? 1) : g[2] === 'T' ? (sk.kT ?? 1) : (sk.kGo ?? 1); }
+// the part of the move clip time c is in: its travel stretch k, its span [t0, t1], and its thrust (the first line blow in it: when the
+// point goes all the way out — most of these thrust fully only at the very end of their dash)
+function spPart(u, sk, c) { const mv = sk.mv; let k = 1, t0 = 0, t1 = mv.end;
+  if (mv.tri) { let i = mv.segs.findIndex(g => c < g.t1); if (i < 0) i = mv.segs.length - 1; k = sk.kSeg[i] ?? 1; t0 = mv.segs[i].t0; t1 = mv.segs[i].t1; }
+  else if (mv.go) { const g = mv.go.find(g => c < g[1]) || mv.go[mv.go.length - 1]; t0 = g[0]; t1 = g[1];
+    k = typeof g[2] === 'number' ? g[2] : g[2] === 'B' ? (sk.kB ?? 1) : g[2] === 'T' ? (sk.kT ?? 1) : (sk.kGo ?? 1); }
+  const th = mv.hits.find(h => h.line && h.at >= t0 - 0.05 && h.at <= t1 + 0.15); return { k, t0, t1, peak: th ? th.at : t1 }; }
+// a part's travel: cut short, the clip's own steps shrunk evenly; stretched, the clip's own steps as they are and the extra run in
+// around its thrust (from a quarter second before the point goes out to just after), so the point leads him on (the person: "the
+// spear's point out ahead of him as he goes")
+function spGo(u, sk, c0, c1) { const P = spPart(u, sk, c1);
+  if (P.k <= 1) { spCarry(u, sk, c0, c1, P.k); return; }
+  spCarry(u, sk, c0, c1, 1);
+  const run = fwdAt(sk.mv.clip, P.t1) - fwdAt(sk.mv.clip, P.t0), a = P.peak - 0.25, b = P.peak + 0.06, w = smooth(a, b, c1) - smooth(a, b, c0);
+  if (w <= 0 || run <= 0.05 || sk.blocked) return; const d = (P.k - 1) * run * u.mesh.model.scale.x * w, dx = Math.sin(u.face) * d, dz = Math.cos(u.face) * d;
+  if (C.floor.clear(u.x, u.z, u.x + dx, u.z + dz, u.r)) { u.x += dx; u.z += dz; } else sk.blocked = true; }
 function spTick(u, dt) {
   const sk = u.sk, mv = sk.mv, m = u.mesh, c0 = sk.ct, c1 = (sk.ct = clipT(u, sk)), t = sk.tgt && !sk.tgt.dead ? sk.tgt : null, S1 = m.model.scale.x;
   // turned toward the target while it gathers (the swings: up to just before each blow; the tornado: till its dash)
@@ -352,7 +364,7 @@ function spTick(u, dt) {
   // the tornado's dash: stretched or cut so the thrust lands just short of the target
   if (mv.tornado && c0 < 1.4 && c1 >= 1.4) { const run = fwdAt(mv.clip, 2.6) - fwdAt(mv.clip, 1.4); sk.kT = t ? Math.max(0.03, Math.min(1.05, (dist(u, t) - 2.4) / (run * S1))) : 0.3; }
   for (const [a, b, d] of sk.turn) u.face += (smooth(a, b, c1) - smooth(a, b, c0)) * d;
-  spCarry(u, sk, c0, c1, spK(u, sk, c1));
+  spGo(u, sk, c0, c1);
   // the triple thrust's dashes run through what is in the way: struck once a dash, thrown aside, stunned a moment
   if (mv.tri) { const i = mv.segs.findIndex(g => c1 >= g.dash[0] && c1 < g.dash[1]);
     if (i >= 0) { if (sk.seg !== i) { sk.seg = i; sk.runHit = new Set(); S.rush(0.25); } const b = bodyAt(u), fx = Math.sin(u.face), fz = Math.cos(u.face);
