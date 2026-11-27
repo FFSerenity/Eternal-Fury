@@ -3,6 +3,7 @@ import { PropBatch } from './assets.js';
 import { placeStand } from './loot.js';
 import { toonMat } from './gfx.js';
 import { LEAF, tint } from './forest.js';
+import { PAINT } from './terrain.js';
 
 // ---------- the wilds: an open, generated stretch of haunted country around the graveyard camp ----------
 // genWilds lays it out (the grid, what stands where, where monsters wait); buildWilds turns that into props.
@@ -184,7 +185,7 @@ export function buildWilds(F, B, grp) {
       let c = G1.map((c1, k) => c1 + (G2[k] - c1) * a); c = c.map((c1, k) => c1 + (DRY[k] - c1) * d * 0.8);
       const X = Math.floor(x), Z = Math.floor(z), tr = X >= 0 && Z >= 0 && X < W && Z < H ? (g[Z * W + X] !== 1 && (kd[Z * W + X] === K.GROVE || !g[Z * W + X]) ? 1 : 0) : 1; c = c.map((c1, k) => c1 + (FLOOR[k] - c1) * tr * 0.55);
       c = c.map((c1, k) => c1 + (DIRT[k] - c1) * b); const jt = 1 + (R() - 0.5) * 0.09;
-      pos.set([x, 0.035, z], v * 3); nor.set([0, 1, 0], v * 3); col.set([c[0] * jt, c[1] * jt, c[2] * jt], v * 3);
+      pos.set([x, PAINT && x >= 8 && x <= 32 && z >= 8 && z <= 32 ? -0.05 : 0.035, z], v * 3); nor.set([0, 1, 0], v * 3); col.set([c[0] * jt, c[1] * jt, c[2] * jt], v * 3); // (?paint=1: sunk under the camp's painted ground)
       if (i < n - 1 && j < n - 1) idx.push(v, v + n, v + 1, v + 1, v + n, v + n + 1); }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setIndex(idx); geo.computeBoundingSphere(); const m = new THREE.Mesh(geo, toonMat({ vc: true })); m.frustumCulled = false; grp.add(m); }
