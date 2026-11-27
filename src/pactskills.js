@@ -406,8 +406,10 @@ PH.heroAtk = (u, t) => {
 // sidelong dash (the pack's dodges, stretched to the distance) when within RESCUE.near, else at once in a flash of dragon light — to
 // stand between the summoner and the nearest threat, spear up: every blow on himself turned aside meanwhile, then a great sweep, a wide
 // fan of dragon light (RESCUE.n bolts over RESCUE.span); the damage he deals while it lasts heals the summoner too (RESCUE.heal of it, as his
-// own life steal; at most RESCUE.healMax of the summoner's life in one rescue — his blows are big beside the summoner's life)
-const RESCUE = { at: 0.4, cd: 40, lock: 3.2, near: 6.5, guard: 2.3, heal: 0.1, healMax: 0.6, n: 9, span: 2.6, range: 9.5, mult: 1.6, dodgeSp: 2.2, dodgeEnd: 1.05, sweep: [1.15, 1.37, 1.6] };
+// own life steal; at most RESCUE.healMax of the summoner's life in one rescue — his blows are big beside the summoner's life). Nov 27 (the
+// person: "the summoner can't get his life back at all"): RESCUE.now of it at once as he arrives, the share of his blows 0.1 -> 0.4, the
+// cap 0.6 -> 0.7 (the first heal included), and his sweep and fan of light take his attack-speed factor like his other moves
+const RESCUE = { at: 0.4, cd: 40, lock: 3.2, near: 6.5, guard: 2.3, heal: 0.4, now: 0.2, healMax: 0.7, n: 9, span: 2.6, range: 9.5, mult: 1.6, dodgeSp: 2.2, dodgeEnd: 1.05, sweep: [1.15, 1.37, 1.6] };
 function rescueFlash(x, z) { burst(x, 1.0, z, 0x9fe4ff, 2.4); shock(x, z, 0x9fe4ff, 1.8, 0.45, 0.4); S.qi(0);
   C.parts.emit(x, 1.0, z, 26, { col: 0xcfeeff, spd: 3, up: 1.6, grav: 0.5, life: 0.5, size: 0.22, spread: 0.5 }); C.parts.emit(x, 0.2, z, 14, { col: 0x5fb8ff, spd: 1.6, up: 2.6, grav: -1, life: 0.7, size: 0.3 }); }
 PH.rescue = (P, d) => { // damage() asks before a blow on the summoner lands: 1 — held (it takes nothing), 2 — the rescue starts now (it cannot kill)
@@ -434,16 +436,20 @@ function startRescue(u, P) {
   else rescueGuard(u, sk);
 }
 function rescueGuard(u, sk) { // spear up before the summoner, facing the threat
-  sk.phase = 'guard'; sk.g0 = sk.t; const th = sk.tgt && !sk.tgt.dead ? sk.tgt : null; u.face = u.faceT = th ? angTo(u, th) : sk.a; u.vx = u.vz = u.kx = u.kz = 0;
+  sk.phase = 'guard'; sk.g0 = sk.t;
+  const P = sk.P, h0 = P && !P.dead ? Math.min(P.maxHp * RESCUE.now, P.maxHp - P.hp, u.rescueHeal) : 0; // (as he stands before the summoner: a fifth of its life at once —
+  if (h0 > 0) { P.hp += h0; u.rescueHeal -= h0; say(P.x, P.z, '+' + Math.round(h0), '#7dff9a', 15, 2.2); // not as the rescue starts: the blow that calls him has yet to land)
+    C.parts.emit(P.x, 1.0, P.z, 14, { col: 0x9fe4ff, spd: 0.8, up: 1.6, grav: -0.6, life: 0.7, size: 0.24, spread: 0.4 }); }
+  const th = sk.tgt && !sk.tgt.dead ? sk.tgt : null; u.face = u.faceT = th ? angTo(u, th) : sk.a; u.vx = u.vz = u.kx = u.kz = 0;
   play(u.mesh, 'ZY_SP_Parry', { restart: true, fade: 0.06, at: 0.17, speed: 0.4 }); burst(u.x, 1.6, u.z, 0x9fe4ff, 1.2); S.block(false);
 }
 function rescueFan(u, sk) { // the great sweep: a wide fan of dragon light out at the threat, each foe struck once
   const x = u.x, z = u.z, f0 = u.face, col = 0x9fe4ff, hit = new Set(); S.blade(true, true); S.burst(false); shake(0.2, x, z); hitBoxes(x, z, 3, f0, RESCUE.span / 2);
-  burst(x + Math.sin(f0) * 1.4, 1.0, z + Math.cos(f0) * 1.4, col, 2.4); arcHit(u, u.range + u.r + 1, RESCUE.span / 2, RESCUE.mult * 0.6, { knock: 2.6, silent: true }); qiFan(x, z, f0, col, 4);
+  burst(x + Math.sin(f0) * 1.4, 1.0, z + Math.cos(f0) * 1.4, col, 2.4); arcHit(u, u.range + u.r + 1, RESCUE.span / 2, RESCUE.mult * 0.6 * zyK(u), { knock: 2.6, silent: true }); qiFan(x, z, f0, col, 4);
   for (let i = 0; i < RESCUE.n; i++) { const da = -RESCUE.span / 2 + RESCUE.span * i / (RESCUE.n - 1);
     G.fx.push({ t: 0.01 + 0.025 * Math.abs(i - (RESCUE.n - 1) / 2), fn: () => { if (u.dead) return;
       qiBolt(x, z, f0 + da, col, RESCUE.range, 20, (px, pz) => { for (const h of hostilesOf(u)) { if (h.dead || hit.has(h) || Math.hypot(h.x - px, h.z - pz) > 0.75 + h.r) continue; hit.add(h);
-        damage(u, h, u.dmg * RESCUE.mult * (0.95 + Math.random() * 0.1), { knock: 2.8, fx: x, fz: z, heavy: true, quiet: true }); C.parts.emit(h.x, 1.0, h.z, 8, { col, spd: 2.4, up: 1, grav: 5, life: 0.3, size: 0.15 }); S.blade(false, false); } }); } }); }
+        damage(u, h, u.dmg * RESCUE.mult * zyK(u) * (0.95 + Math.random() * 0.1), { knock: 2.8, fx: x, fz: z, heavy: true, quiet: true }); C.parts.emit(h.x, 1.0, h.z, 8, { col, spd: 2.4, up: 1, grav: 5, life: 0.3, size: 0.15 }); S.blade(false, false); } }); } }); }
 }
 function rescueTick(u, dt) {
   const sk = u.sk;
