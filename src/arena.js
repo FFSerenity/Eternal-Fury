@@ -11,7 +11,7 @@ import { S } from './audio.js';
 import { clearDrones } from './drones.js';
 
 const KINDS = ['imp', 'brute', 'archer', 'shaman'], WILD = Object.keys(FOES);
-const O = { tab: 'mob', drop: false, gq: 0, type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false };
+const O = { tab: 'mob', drop: false, gq: 0, type: 'imp', count: 3, lvl: 1, dist: 7, hpMul: 1, elite: false, dummy: false, auto: false, pInv: true, hInv: false, ts: 1, frz: false };
 const ST = { dmg: 0, dmgP: 0, taken: 0, kills: 0, ttk: 0, fight: 0, lastHit: -9, log: [] };
 let el = null, refillT = 0, uiT = 0, pid = 900000;
 const $ = s => el.querySelector(s);
@@ -89,7 +89,10 @@ function html() {
   <div class="aR"><span class="aL">${tr('装备', 'Gear')}</span>${chips('wset', Object.keys(SETS).map(k => [k, SETS[k].name]))}</div>
   <div class="aR"><span class="aL">${tr('品质', 'Quality')}</span>${chips('gq', QUAL.map((q, i) => [i, `<i style="color:${q.col};font-style:normal">●</i>${q.name}`]))}</div>
   <div class="aSm">${tr('点流派或品质：按当前怪物等级换上一整套新装备（大剑一把，剑 + 盾，或锤 + 盾）', 'Tap a style or quality: equips a fresh set at the monster level (a greatsword, a sword and shield, or a mace and shield)')}</div>
-  <div class="aR">${tog('hInv', tr('卫士不死', 'Unkillable'))}<button data-act="summon">${tr('召唤', 'Summon')}</button><button data-act="heal">${tr('回满', 'Full heal')}</button></div>` : `<div class="aR"><button data-act="heal">${tr('回满', 'Full heal')}</button></div>`}
+  <div class="aR">${tog('hInv', tr('卫士不死', 'Unkillable'))}<button data-act="summon">${tr('召唤', 'Summon')}</button><button data-act="heal">${tr('回满', 'Full heal')}</button></div>
+  <div class="aR"><span class="aL">${tr('赵云', 'Zhao Yun')}</span>${[['atk1', tr('单刺', 'Thrust')], ['atk2', tr('二连A', '2× A')], ['atk3', tr('二连B', '2× B')], ['charge', tr('冲阵', 'Charge')], ['whirl', tr('枪花', 'Flower')], ['sunder', tr('百鸟', 'Birds')], ['counter', tr('招架', 'Parry')], ['rescue', tr('救主', 'Rescue')]].map(([k, t]) => `<button data-act="zy:${k}">${t}</button>`).join('')}</div>
+  <div class="aR"><span class="aL">${tr('慢放', 'Slow-mo')}</span>${chips('ts', [[1, '1×'], [0.5, '½×'], [0.25, '¼×'], [0.1, '⅒×']])}${tog('frz', tr('定住怪物', 'Freeze foes'))}</div>
+  <div class="aSm">${tr('装备长枪（赵云）时：点招式，他立刻对最近的敌人放出来（不看冷却和战魂）；慢放下看动作、枪和位移对不对得上', 'With the spear (Zhao Yun): tap a move and he does it at once at the nearest foe (no cooldown, any Fury); slow it down to see whether the motion, the spear and the travel keep together')}</div>` : `<div class="aR"><button data-act="heal">${tr('回满', 'Full heal')}</button></div>`}
   <div class="aR">${step('plvl', tr('召唤师等级', 'Summoner Lv'))}</div><div class="aR">${tog('pInv', tr('召唤师无敌 · 法力无限', 'Summoner invulnerable · endless mana'))}</div></div></div>`;
 }
 function sync() { // buttons that show a choice or a toggle
@@ -110,9 +113,10 @@ function onClick(e) {
     else if (k === 'fury') setFury(G.pact.stacks + n); }
   else { const a = b.dataset.act;
     if (a.startsWith('soul:')) { const n = +a.slice(5); G.soul = n ? G.soul + n : 0; } // (fills or empties the soul vessel)
+    else if (a.startsWith('zy:')) { if (PH.zyMove) PH.zyMove(a.slice(3)); }
     else if (a.startsWith('boss:')) spawnBossHere(a.slice(5)); else if (a === 'spawn') spawnPack(); else if (a === 'clear') clearField(); else if (a === 'reset') resetStats(); else if (a === 'summon') summonNow(); else if (a === 'heal') fullHeal();
     else if (a === 'leave') { const q = new URLSearchParams(location.search); q.delete('arena'); location.href = location.pathname + (q.toString() ? '?' + q : ''); } }
-  sync(); draw(true);
+  globalThis.__ts = O.ts; sync(); draw(true); // (slow motion: main.js scales the frame's time by it)
 }
 const minLabel = () => { $('#aMin').textContent = el.classList.contains('min') ? tr('展开 ▾', 'open ▾') : tr('收起 ▴', 'hide ▴'); };
 
@@ -140,6 +144,7 @@ export function arenaTick(dt) {
   if (!el) return; const P = G.player; G.noDrop = !O.drop;
   if (O.pInv) { P.immortal = true; P.hp = P.maxHp; P.mp = P.maxMp; } else P.immortal = false;
   for (const u of G.friends) if (u !== P) u.immortal = O.hInv;
+  if (O.frz) for (const u of G.units) if (u.side === 'enemy' && !u.dead) { u.stun = Math.max(u.stun || 0, 0.15); u.vx = u.vz = 0; } // (frozen where they stand: to watch a move against them)
   if (G.t - ST.lastHit < 2) ST.fight += dt; while (ST.log.length && ST.log[0][0] < G.t - 5) ST.log.shift();
   const live = G.units.filter(u => u.side === 'enemy' && !u.dead).length;
   if (O.auto && live < O.count) { refillT -= dt; if (refillT <= 0) { spawnPack(O.count - live); refillT = 1.5; } } else refillT = 1.2;

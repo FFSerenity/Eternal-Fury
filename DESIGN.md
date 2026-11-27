@@ -353,6 +353,13 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   light gathers on the spear as he whirls and kicks, a ring of cuts each half turn (six, 0.55× each), then a dash (cut to end 2.4 m short
   of the target) and the thrust: a line (1.6×) and the five bolts fanned ahead about 9 m (now 3×; non-elites under 25% cut down).
 - 招架 Parry: the pose is the pack's Spear Parry (0.17 into it, the spear raised high); the answer is still the bow.
+- Nov 27 (the person: "the spear does not keep up with the hand; the travel and the swing out of step; sped up, the rhythm is not
+  theirs"): all of them at the pack's own pace now (speed 1; attack speed goes into the blows instead), the clip's time read off the
+  action itself (the pose on screen: a chill or a skipped far-off frame slows both alike), and the spear, where it is fixed in the hand
+  (the Unreal clips, the rise), follows the hand exactly — it had been eased toward its line at dt×12, trailing far behind a fast swing
+  (eased now only for 0.15 s after the way of holding it changes); held fast, it may touch the floor (lifted only 0.3 m deep). The
+  test arena has his moves on buttons (at the nearest foe, no cooldown, any Fury), slow motion (1×, ½×, ¼×, ⅒×: main.js scales the
+  frame's time by globalThis.__ts) and a toggle that freezes the foes where they stand.
 - 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
   PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
   sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else

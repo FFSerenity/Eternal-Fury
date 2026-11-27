@@ -84,24 +84,24 @@ export const DRAGON = [0xe8f8ff, 0x9fe4ff, 0x5fb8ff, 0xffffff];
 MOVES.SPR = {
   // his swings, in turn: the single thrust (a twirl overhead, then a lunge two metres in, the point four and a half out); Attack 2 Times A
   // (an overhead sweep, then a dash and a thrust); Attack 2 Times B (a dash and a thrust, then a great sweep left to right)
-  atk: [{ clip: 'ZY_SP_Thrust', end: 2.05, hits: [{ at: 0.42, arc: 2.8, half: 1.75, mult: 0.7, knock: 1.6 }, { at: 1.22, line: 3.6, w: 0.75, mult: 1.35, knock: 2.6, stun: 0.25 }] },
-    { clip: 'ZY_SP_Atk2A', end: 1.95, go: [[0, 1.4]], hits: [{ at: 0.27, arc: 2.8, half: 1.75, mult: 0.7, knock: 1.6 }, { at: 0.87, line: 3.4, w: 0.75, mult: 1.35, knock: 2.6, stun: 0.25 }] },
-    { clip: 'ZY_SP_Atk2B', end: 2.1, go: [[0, 1.0]], hits: [{ at: 0.33, line: 3.2, w: 0.75, mult: 1.25, knock: 2.6, stun: 0.25 }, { at: 1.37, arc: 3.0, half: 1.9, mult: 0.9, knock: 2 }] }],
-  atkSp: 1.45,
+  atk: [{ clip: 'ZY_SP_Thrust', end: 2.45, hits: [{ at: 0.42, arc: 2.8, half: 1.75, mult: 0.98, knock: 1.6 }, { at: 1.22, line: 3.6, w: 0.75, mult: 1.89, knock: 2.6, stun: 0.25 }] },
+    { clip: 'ZY_SP_Atk2A', end: 2.25, go: [[0, 1.4]], hits: [{ at: 0.27, arc: 2.8, half: 1.75, mult: 0.98, knock: 1.6 }, { at: 0.87, line: 3.4, w: 0.75, mult: 1.89, knock: 2.6, stun: 0.25 }] },
+    { clip: 'ZY_SP_Atk2B', end: 2.55, go: [[0, 1.0]], hits: [{ at: 0.33, line: 3.2, w: 0.75, mult: 1.75, knock: 2.6, stun: 0.25 }, { at: 1.37, arc: 3.0, half: 1.9, mult: 1.26, knock: 2 }] }],
+  atkSp: 1, // (Nov 27: at the pack's own pace — sped up, the travel and the swings fell out of step with each other to the eye)
   // 长坂冲阵: Triple Thrust — three dashes, each ending in a thrust; the first runs through the target and on (as far as the old lunge),
   // the second and third shorter, each turned first toward the most it can run through (back through the target if nothing better)
-  charge: { tri: true, clip: 'ZY_SP_Triple', sp: 1.4, end: 3.5, max: 9, past: 1.6,
+  charge: { tri: true, clip: 'ZY_SP_Triple', sp: 1, end: 3.9, max: 9, past: 1.6,
     segs: [{ t0: 0, t1: 1.4, run: 4.4, dash: [0.5, 0.75] }, { t0: 1.4, t1: 2.6, run: 3.2, dash: [1.42, 1.64], turn: [1.1, 1.4], share: 0.72 }, { t0: 2.6, t1: 4.7, run: 3.3, dash: [2.64, 2.84], turn: [2.3, 2.6], share: 0.56 }],
     hits: [{ at: 0.72, line: 2.6, w: 0.7, mult: 1.0, knock: 2.6 }, { at: 1.62, line: 2.6, w: 0.7, mult: 1.0, knock: 2.6 }, { at: 2.82, line: 2.6, w: 0.7, mult: 1.2, knock: 3 }],
     mult: 1.3, side: 0.95, stun: 0.6 },
   guard: { chance: 0.3, keep: 0.4, word: tr('招架', 'Parry'), pose: 'ZY_SP_Parry', poseAt: 0.17, poseT: 0.12, bow: true, aimT: 0.08, sp: 1.8, mult: 1.8, pierce: 6, speed: 26, col: 0x9fe4ff }, // (the answer: an arrow, not a thrust — parry, draw and loose in half a second)
   // 枪花: Horizontal Spin Attack — two turns about himself as he goes, a dash and a thrust, a step and a sweep; each part aimed anew:
   // the spins at the crowd before him, the dash at the next crowd (the extra turn hidden in the spin), the sweep at whatever is left
-  whirl: { spin: true, clip: 'ZY_SP_Spin', sp: 1.3, end: 3.3, aims: [[0.45, 1.2], [2.2, 2.65]], go: [[0, 1.2, 0.7], [1.2, 1.95, 'B'], [1.95, 3.7, 1]],
+  whirl: { spin: true, clip: 'ZY_SP_Spin', sp: 1, end: 3.5, aims: [[0.45, 1.2], [2.2, 2.65]], go: [[0, 1.2, 0.7], [1.2, 1.95, 'B'], [1.95, 3.7, 1]],
     hits: [{ at: 0.8, ring: 3.0, mult: 0.8, knock: 1.8 }, { at: 1.2, ring: 3.0, mult: 0.8, knock: 1.8 }, { at: 1.92, line: 3.4, w: 0.75, mult: 1.2, knock: 2.6 }, { at: 2.95, arc: 3.0, half: 1.6, mult: 0.9, knock: 2.2 }] },
   // 百鸟朝凤: Tornado Kick and Thrust — the spear gathers dragon light as he whirls and kicks (a cut all round each half turn), then a
   // dash and the thrust: five bolts of it fan out ahead (as before, harder)
-  sunder: { tornado: true, clip: 'ZY_SP_Tornado', sp: 1.3, end: 3.6, go: [[0, 1.4, 0.6], [1.4, 2.6, 'T']], full: 2.4, strike: 2.55, max: 9,
+  sunder: { tornado: true, clip: 'ZY_SP_Tornado', sp: 1, end: 3.9, go: [[0, 1.4, 0.6], [1.4, 2.6, 'T']], full: 2.4, strike: 2.55, max: 9,
     hits: [0.65, 0.85, 1.25, 1.45, 1.65, 1.85].map(at => ({ at, ring: 2.8, mult: 0.55, knock: 1.2 })).concat([{ at: 2.55, line: 3.6, w: 0.8, mult: 1.6, knock: 3, stun: 0.4 }]),
     dragon: true, pal: DRAGON, col: 0x9fe4ff, mult: 3.0 },
   bow: { aim: 'ZY_Archery_Shot_2', clip: 'ZY_Archery_Shot_3', rel: 0.22, sp: 1.15, stop: 0.75, min: 6, max: 13, cd: 5, n: 3, draw: 0.45, gap: 0.3, mult: 0.55, speed: 20 } };
@@ -321,9 +321,11 @@ function lineThrough(u, D, prefer) { let best = null, bs = -1e9; const H = hosti
     for (const o of H) { const dx = o.x - u.x, dz = o.z - u.z, al = dx * fx + dz * fz, lat = Math.abs(dx * fz - dz * fx); if (al > 0 && al < D + 1 && lat < 1.1 + o.r) n++; }
     const sc = n + (h === prefer ? 0.6 : 0) - dist(h, u) * 0.03; if (sc > bs) { bs = sc; best = a; } }
   return best; }
+// the clip's own time (the action's, as the mixer has it: the pose on screen; a chill or a skipped far-off frame slows both alike)
+const clipT = (u, sk) => sk.act && u.mesh.cur === sk.act ? Math.max(sk.ct || 0, sk.act.time) : sk.t * sk.sp;
 function spStart(u, sk) {
   const mv = sk.mv, m = u.mesh, t = sk.tgt; sk.sp = sk.sp || mv.sp || 1; sk.ct = 0; sk.hitI = 0; sk.f0 = u.face; sk.turn = []; sk.runHit = new Set();
-  play(m, mv.clip, { once: true, restart: true, speed: sk.sp, fade: 0.08 }); trail(u, mv.end / sk.sp);
+  sk.act = play(m, mv.clip, { once: true, restart: true, speed: sk.sp, fade: 0.08 }); trail(u, mv.end / sk.sp);
   for (const h of mv.hits) S.swoosh(true, Math.max(0, h.at / sk.sp - 0.03), 0.14);
   if (mv.go && t) { const g = mv.go[0], run = fwdAt(mv.clip, g[1]) - fwdAt(mv.clip, g[0]); if (g[2] == null && run > 0.2) sk.kGo = Math.max(0.2, Math.min(1.15, (dist(u, t) - (u.r + t.r + 0.9)) / (run * m.model.scale.x))); }
   if (mv.tri) { const D = Math.max(3, Math.min(mv.max, (t ? dist(u, t) : 4) + mv.past)); sk.D1 = D; sk.kSeg = [D / (mv.segs[0].run * m.model.scale.x)]; S.rush(0.3); }
@@ -335,7 +337,7 @@ function spK(u, sk, c) { const mv = sk.mv;
   if (!mv.go) return 1; const g = mv.go.find(g => c < g[1]) || mv.go[mv.go.length - 1];
   return typeof g[2] === 'number' ? g[2] : g[2] === 'B' ? (sk.kB ?? 1) : g[2] === 'T' ? (sk.kT ?? 1) : (sk.kGo ?? 1); }
 function spTick(u, dt) {
-  const sk = u.sk, mv = sk.mv, m = u.mesh, c0 = sk.ct, c1 = (sk.ct = sk.t * sk.sp), t = sk.tgt && !sk.tgt.dead ? sk.tgt : null, S1 = m.model.scale.x;
+  const sk = u.sk, mv = sk.mv, m = u.mesh, c0 = sk.ct, c1 = (sk.ct = clipT(u, sk)), t = sk.tgt && !sk.tgt.dead ? sk.tgt : null, S1 = m.model.scale.x;
   // turned toward the target while it gathers (the swings: up to just before each blow; the tornado: till its dash)
   const nh = mv.hits[sk.hitI], track = mv.tornado ? c1 < 1.4 : !mv.tri && !mv.spin && nh && c1 < nh.at - 0.1;
   if (track && t) u.face += wrapA(angTo(u, t) - u.face) * Math.min(1, dt * 10);
@@ -370,9 +372,9 @@ PH.heroAtk = (u, t) => {
   if (styleOf(u) !== 'SPR' || !A.zy || !A.zy.own.ZY_SP_Thrust || !t || t.dead) return false;
   const L = MOVES.SPR.atk, mv = L[(u.atkI = (u.atkI || 0) + 1) % L.length], W = u.entry && u.entry.wset;
   u.state = 'pskill'; u.st = 0; u.wantX = u.wantZ = 0; u.lastAtk = G.t; faceAt(u, t, true);
-  // attack speed (Fury, gear): the clip played faster by up to 1.6×, the rest as harder blows — the damage per second keeps it all
-  const f = u.cd0 && u.cd ? u.cd0 / u.cd : 1, k = Math.min(1.6, Math.sqrt(f));
-  u.sk = { id: 'atk', mv: { ...mv, zy: true }, st: 'SPR', t: 0, tgt: t, hits: 0, sp: MOVES.SPR.atkSp * k, dmgK: f / k };
+  // attack speed (Fury, gear) goes into the blows, not the pace: the moves keep the pack's own timing
+  const f = u.cd0 && u.cd ? u.cd0 / u.cd : 1;
+  u.sk = { id: 'atk', mv: { ...mv, zy: true }, st: 'SPR', t: 0, tgt: t, hits: 0, sp: MOVES.SPR.atkSp, dmgK: f };
   spStart(u, u.sk); return true;
 };
 
@@ -405,7 +407,7 @@ function startRescue(u, P) {
   else if (d > 0.7) { // the dodge that carries him toward the spot (whichever leaves him facing nearer the threat), stretched to the distance
     const left = Math.abs(wrapA(ad - Math.PI / 2 - a)) <= Math.abs(wrapA(ad + Math.PI / 2 - a)), clip = left ? 'ZY_SP_DodgeL' : 'ZY_SP_DodgeR';
     u.face = u.faceT = left ? ad - Math.PI / 2 : ad + Math.PI / 2; sk.mv = { clip, end: RESCUE.dodgeEnd, hits: [] }; sk.sp = RESCUE.dodgeSp; sk.ct = 0;
-    sk.kD = d / (Math.abs(rootAt(clip, 9, [0, 0, 0])[1]) * u.mesh.model.scale.x); play(u.mesh, clip, { once: true, restart: true, speed: sk.sp, fade: 0.06 }); S.rush(0.35); sk.phase = 'dash'; }
+    sk.kD = d / (Math.abs(rootAt(clip, 9, [0, 0, 0])[1]) * u.mesh.model.scale.x); sk.act = play(u.mesh, clip, { once: true, restart: true, speed: sk.sp, fade: 0.06 }); S.rush(0.35); sk.phase = 'dash'; }
   else rescueGuard(u, sk);
 }
 function rescueGuard(u, sk) { // spear up before the summoner, facing the threat
@@ -422,7 +424,7 @@ function rescueFan(u, sk) { // the great sweep: a wide fan of dragon light out a
 }
 function rescueTick(u, dt) {
   const sk = u.sk;
-  if (sk.phase === 'dash') { const c0 = sk.ct, c1 = (sk.ct = sk.t * sk.sp); spCarry(u, sk, c0, c1, sk.kD); if (Math.random() < dt * 30) C.parts.emit(u.x, 0.6, u.z, 1, { col: 0x9fe4ff, spd: 0.4, up: 0.3, grav: 0, life: 0.35, size: 0.3, spread: 0.3 });
+  if (sk.phase === 'dash') { const c0 = sk.ct, c1 = (sk.ct = clipT(u, sk)); spCarry(u, sk, c0, c1, sk.kD); if (Math.random() < dt * 30) C.parts.emit(u.x, 0.6, u.z, 1, { col: 0x9fe4ff, spd: 0.4, up: 0.3, grav: 0, life: 0.35, size: 0.3, spread: 0.3 });
     if (c1 >= sk.mv.end) rescueGuard(u, sk); return; }
   const g = sk.t - sk.g0, th = sk.tgt && !sk.tgt.dead ? sk.tgt : null, W = RESCUE.sweep; if (th && !sk.swept) u.faceT = angTo(u, th); u.vx = u.vz = 0;
   if (!sk.sweeping && g >= 0.3) { sk.sweeping = true; play(u.mesh, 'ZY_SP_Atk2B', { once: true, restart: true, speed: W[2], fade: 0.06, at: W[0] / clipDur('ZY_SP_Atk2B') }); S.swoosh(true, (W[1] - W[0]) / W[2] - 0.03, 0.12); }
@@ -549,5 +551,16 @@ PH.counterAI = u => {
   const st = styleOf(u), mv = MOVES[st].guard, t = q.src && !q.src.dead && dist(q.src, u) < 12 ? q.src : u.target && !u.target.dead ? u.target : null;
   u.state = 'pskill'; u.st = 0; u.wantX = u.wantZ = 0; u.sk = { id: 'counter', mv, st, t: 0, tgt: t, hits: 0, src: q.src, shot: q.shot }; faceAt(u, t, true);
   play(u.mesh, mv.pose, { restart: true, fade: 0.05, at: mv.poseAt || 0 }); return true;
+};
+// the arena's buttons (arena.js): one of his moves at once at the nearest foe — no cooldown, any Fury (to watch it, slowed down)
+PH.zyMove = id => {
+  const u = G.units.find(x => x.pact && !x.dead); if (!u || styleOf(u) !== 'SPR' || u.spawnT > 0) return false;
+  let t = null, bd = 1e9; for (const h of hostilesOf(u)) { const d = dist(h, u); if (!h.dead && d < bd) { bd = d; t = h; } }
+  if (u.state === 'pskill' && u.sk) end(u); u.state = 'idle';
+  if (id === 'rescue') { startRescue(u, G.player); return true; }
+  if (!t) { say(u.x, u.z, tr('先刷怪', 'Spawn some foes first'), '#ffd27a', 14, 2); return false; }
+  if (id.startsWith('atk')) { u.atkI = +id.slice(3) - 2; return PH.heroAtk(u, t); }
+  if (id === 'counter') { u.ctrQ = { src: t, shot: false, t: G.t }; return PH.counterAI(u); }
+  return start(u, id, t);
 };
 globalThis.__start = (u, id, t) => start(u, id, t); globalThis.__PH = PH; // (tests: a skill started by hand)

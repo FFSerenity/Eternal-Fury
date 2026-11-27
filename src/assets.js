@@ -832,7 +832,12 @@ function zySpear(u, m, g, dt, floor) {
   else if (walk) { const c = Math.cos(globalThis.__carryUp ?? CARRY_UP), sn = Math.sin(globalThis.__carryUp ?? CARRY_UP); _d.set(fwdX * c, sn, fwdZ * c).normalize(); }
   else if (ue) _d.copy(ZY_UE_AXIS).applyQuaternion(m.grip.R.hand.getWorldQuaternion(_gT2)); // (fixed in the hand, as Unreal held it: the hand's turn is the clip's)
   else if (own) { _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); }
-  const k = Math.min(1, dt * 12); m.zyD = m.zyD ? m.zyD.lerp(_d, k).normalize() : _d.clone(); _d.copy(m.zyD);
+  // eased toward its new line — except where it is fixed in the hand (the Unreal clips, the rise): there it follows the hand exactly, so
+  // fast swings do not trail behind; only for a moment after the way of holding it changes is it eased over (in time with the cross-fade)
+  const mode = axe ? 'axe' : ground ? 'g' : walk ? 'w' : ue ? 'ue' : own ? 'own' : 'gs', rigid = axe || ue;
+  if (m.zyMode !== mode) { m.zyMode = mode; m.zyBl = 0.15; } m.zyBl = Math.max(0, (m.zyBl || 0) - dt);
+  const k = Math.min(1, dt * 12), kd = rigid ? Math.min(1, dt / (m.zyBl + dt)) : k;
+  if (!m.zyD) m.zyD = _d.clone(); else if (kd >= 1) m.zyD.copy(_d); else m.zyD.lerp(_d, kd).normalize(); _d.copy(m.zyD);
   // his hands round the shaft, the thumbs toward the point: one hand (at ease, rising, walking) with the palm in toward his body, the back
   // of the hand out; both (his own fighting clips) the rear hand's palm in and up, the front hand cradling it palm up (the parry: as they
   // were). Not on the Sentinel's clips moved over (their own line, fitted on the hands)
@@ -854,7 +859,8 @@ function zySpear(u, m, g, dt, floor) {
   else if (own) s = (GRIP_AT - (TWO_AT_CLIP[n] ?? TWO_AT)) * Lw;
   m.zyS = (m.zyS ?? s) + (s - (m.zyS ?? s)) * k; s = ground ? (Math.abs(m.zyS - s) < 0.25 ? s : m.zyS) : m.zyS; // (grounded: the butt stays on the floor, no lag)
   // the floor stops the point and the butt (not the grounded butt: it stands on it)
-  const tipY = _fr.y + _d.y * (s + tip); if (tipY < floor) { const y = Math.max(-1, (floor - _fr.y) / (s + tip)), hl = Math.hypot(_d.x, _d.z) || 1, kk = Math.sqrt(Math.max(0, 1 - y * y)) / hl; _d.set(_d.x * kk, y, _d.z * kk); }
+  // (held fast in the hand it may touch the floor, as it did in Unreal: lifted only when it would go deep)
+  const tipY = _fr.y + _d.y * (s + tip); if (tipY < floor - (rigid ? 0.3 : 0)) { const y = Math.max(-1, (floor - (rigid ? 0.3 : 0) - _fr.y) / (s + tip)), hl = Math.hypot(_d.x, _d.z) || 1, kk = Math.sqrt(Math.max(0, 1 - y * y)) / hl; _d.set(_d.x * kk, y, _d.z * kk); }
   if (_d.distanceToSquared(_ax) > 1e-6) { _qr.setFromUnitVectors(_ax, _d); g.quaternion.copy(_qh.invert().multiply(_qr.multiply(_qw))); }
   g.position.copy(g.parent.worldToLocal(_hg.copy(_fr).addScaledVector(_d, s)));
 }
