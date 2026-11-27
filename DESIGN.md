@@ -374,6 +374,9 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
   game makes the same frame from the same bones, whatever way each bone's axes lie). Near a hand it keeps Manny's offset from that hand
   (scaled); more than 0.2–0.45 m off both, Manny's place on his scale. zySpear reads the track at the clip's time (the grip point
   where the shaft's grip is); ZY_UE_AXIS stays only for a clip without one.
+- Nov 27, pace: with the spear right the person found the moves right but slow — all his Unreal moves (attacks and skills) now play
+  1.3× as fast (MOVES.SPR.pace; everything in a move goes by the clip's own time, so it stays in step). The test arena has a row to
+  try 1× / 1.15× / 1.3× / 1.5× (globalThis.__zyPace). His normal attacks come round 30% sooner, so they deal ~30% more over time.
 - 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
   PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
   sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else

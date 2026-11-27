@@ -88,6 +88,10 @@ MOVES.SPR = {
     { clip: 'ZY_SP_Atk2A', end: 2.25, go: [[0, 1.4]], hits: [{ at: 0.27, arc: 2.8, half: 1.75, mult: 0.98, knock: 1.6 }, { at: 0.87, line: 3.4, w: 0.75, mult: 1.89, knock: 2.6, stun: 0.25 }] },
     { clip: 'ZY_SP_Atk2B', end: 2.55, go: [[0, 1.0]], hits: [{ at: 0.33, line: 3.2, w: 0.75, mult: 1.75, knock: 2.6, stun: 0.25 }, { at: 1.37, arc: 3.0, half: 1.9, mult: 1.26, knock: 2 }] }],
   atkSp: 1, // (Nov 27: at the pack's own pace — sped up, the travel and the swings fell out of step with each other to the eye)
+  // all of these (attacks and skills) played PACE times as fast as the pack has them: once the spear followed Unreal's own track and the
+  // travel kept to the clips' own time the person found them right, and then a little slow ("now it can be sped up some"). Everything
+  // in a move — its blows, travel, turns, end — goes by the clip's own time, so a pace keeps it all in step (the arena can change it)
+  pace: 1.3,
   // 长坂冲阵: Triple Thrust — three dashes, each ending in a thrust; the first runs through the target and on (as far as the old lunge),
   // the second and third shorter, each turned first toward the most it can run through (back through the target if nothing better)
   charge: { tri: true, clip: 'ZY_SP_Triple', sp: 1, end: 3.9, max: 9, past: 1.6,
@@ -324,7 +328,7 @@ function lineThrough(u, D, prefer) { let best = null, bs = -1e9; const H = hosti
 // the clip's own time (the action's, as the mixer has it: the pose on screen; a chill or a skipped far-off frame slows both alike)
 const clipT = (u, sk) => sk.act && u.mesh.cur === sk.act ? Math.max(sk.ct || 0, sk.act.time) : sk.t * sk.sp;
 function spStart(u, sk) {
-  const mv = sk.mv, m = u.mesh, t = sk.tgt; sk.sp = sk.sp || mv.sp || 1; sk.ct = 0; sk.hitI = 0; sk.f0 = u.face; sk.turn = []; sk.runHit = new Set();
+  const mv = sk.mv, m = u.mesh, t = sk.tgt; sk.sp = (sk.sp || mv.sp || 1) * (globalThis.__zyPace ?? MOVES.SPR.pace); sk.ct = 0; sk.hitI = 0; sk.f0 = u.face; sk.turn = []; sk.runHit = new Set();
   sk.act = play(m, mv.clip, { once: true, restart: true, speed: sk.sp, fade: 0.08 }); trail(u, mv.end / sk.sp);
   for (const h of mv.hits) S.swoosh(true, Math.max(0, h.at / sk.sp - 0.03), 0.14);
   if (mv.go && t) { const g = mv.go[0], run = fwdAt(mv.clip, g[1]) - fwdAt(mv.clip, g[0]); if (g[2] == null && run > 0.2) sk.kGo = Math.max(0.2, Math.min(1.15, (dist(u, t) - (u.r + t.r + 0.9)) / (run * m.model.scale.x))); }

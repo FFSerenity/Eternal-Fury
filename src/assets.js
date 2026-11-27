@@ -843,11 +843,11 @@ function zySpear(u, m, g, dt, floor) {
   fistW(m.fists.R, _fr); fistW(m.fists.L, _fl);
   const axe = n === 'ZY_Axe_Stance' && m.cur && m.cur.time < m.cur.getClip().duration * ZY_AXE_PLANT; // (rising, the spear not yet planted)
   const ground = ZY_GROUND.has(n) && !axe, walk = /^Walk_/.test(n0) || n === 'ZY_Spear_Walk', own = zyOwn(n), ue = /^ZY_SP_/.test(n), fwdX = Math.sin(f), fwdZ = Math.cos(f); _d.copy(_ax); // (_ax: where the hand's own grip points it)
+  const ueT = ue && !axe && !ground && !walk && zyUESpear(m, n, _ug, _zd); // (the clip's own spear track)
   if (axe) _d.copy(zyAxe().u).applyQuaternion(m.grip.R.hand.getWorldQuaternion(_gT2)); // (in his hand as Meshy's preview has it: the hand's turn is the clip's)
   else if (ground) _d.set(fwdX * 0.04, 1, fwdZ * 0.04).normalize();
   else if (walk) { const c = Math.cos(globalThis.__carryUp ?? CARRY_UP), sn = Math.sin(globalThis.__carryUp ?? CARRY_UP); _d.set(fwdX * c, sn, fwdZ * c).normalize(); }
-  const ueT = ue && !axe && !ground && !walk && zyUESpear(m, n, _ug, _zd); // (the clip's own spear track)
-  if (ueT) _d.copy(_zd);
+  else if (ueT) _d.copy(_zd);
   else if (ue) _d.copy(ZY_UE_AXIS).applyQuaternion(m.grip.R.hand.getWorldQuaternion(_gT2)); // (fixed in the hand, as Unreal held it: the hand's turn is the clip's)
   else if (own) { _zd.subVectors(_fl, _fr); const h = _zd.length(); if (h > 0.18 && h < 1.2) _d.copy(_zd.divideScalar(h)); }
   // eased toward its new line — except where it is fixed in the hand (the Unreal clips, the rise): there it follows the hand exactly, so
