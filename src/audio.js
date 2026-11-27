@@ -14,7 +14,8 @@ const RAW = {}, BUF = {};
 const PK = { swing_l0: 0.055, swing_l1: 0.055, swing_l2: 0.035, swing_l3: 0.024, swing_h0: 0.045, swing_h1: 0.045, swing_h2: 0.065, swing_h3: 0.065, fire_sw0: 0.245, fire_sw1: 0.325, charge: 0.355 };
 export const SAMPLES = ['blade_l0', 'blade_l1', 'blade_l2', 'blade_h0', 'blade_h1', 'blade_h2', 'swing_l0', 'swing_l1', 'swing_l2', 'swing_l3', 'swing_h0', 'swing_h1', 'swing_h2', 'swing_h3',
   'clang0', 'clang1', 'heavy0', 'heavy1', 'mace_m0', 'mace_m1', 'mace_f0', 'block_b', 'block_h', 'fire_sw0', 'fire_sw1', 'fireburst', 'fcharge', 'fireloop.wav', 'slam0', 'burst_f', 'burst_e',
-  'hammers', 'poison0', 'poison1', 'thunder0', 'shadow0', 'shadow1', 'charge', 'warcry', 'warcry_pal', 'holy'];
+  'hammers', 'poison0', 'poison1', 'thunder0', 'shadow0', 'shadow1', 'charge', 'warcry', 'warcry_pal', 'holy',
+  'zy_intro0', 'zy_intro1', 'zy_rescue']; // (赵云's lines — the person's own, made in ComfyUI: two for his rise, one for To the Rescue)
 // the monsters' (loaded in every mode): their cries by kind (r_*: a pack noticing you, a bat diving, a boss's entrance), and their shots
 export const FOE_SAMPLES = ['r_human0', 'r_brute0', 'r_skel0', 'r_skel1', 'r_skel2', 'r_skel3', 'r_boss0', 'r_boss1', 'r_boss2', 'r_boss3', 'r_bat0', 'r_ghost0',
   'bow0', 'bow1', 'bow2', 'bow3', 'xbow0', 'xbow1', 'xbow2', 'xbow3', 'axe0', 'axe1', 'fball0', 'fball1', 'fball2', 'hfire0', 'hfire1', 'soul0', 'soul1', 'soul2'];
@@ -61,6 +62,8 @@ export const S = {
   leap(tUp = 0.24) { if (!ok()) return; if (!sample('charge', 0.9, 0.95 + Math.random() * 0.1, Math.max(0, tUp + 0.11 - PK.charge))) this.rush(0.4); },
   rush(dur = 0.5) { if (!ok()) return; if (sample('charge', 0.95, 1, Math.max(0, dur - 0.1 - PK.charge))) return; sweep(110, 520, 0.7, dur + 0.25, 0.34); sweep(500, 1900, 1.0, dur + 0.15, 0.2, 0.05); tone('sawtooth', 70, 48, dur + 0.2, 0.07);
     sample(any('swing_h', 4), 1, 0.78, Math.max(0, dur - 0.1)); },
+  // a spoken line (赵云's): as recorded, t seconds from now; nothing in its place while it loads
+  voice(n, v = 1, t = 0) { if (!ok()) return; sample(n, v, 1, t); },
   // the Sentinel's war cry, and the burst of power that throws back what stands close (fire); the paladin's: its own roar alone
   warcry(pal) { if (!ok()) return; if (pal) { if (!sample('warcry_pal', 1)) this.holy(0.8); }
     else { if (!sample('warcry', 0.95)) this.roar(); sample('fireburst', 0.75, 1, 0.04); } },

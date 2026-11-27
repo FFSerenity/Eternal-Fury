@@ -37,8 +37,8 @@ export const SETS = {
   // target (pierce: how far past its reach); a bow on his back for enemies still far off (bow: range, every cd s, n arrows at mult)
   SPR: { name: tr('长枪', 'Spear'), style: tr('赵云', 'Zhao Yun'), icon: '🐉', mv: 2.4, hp: 1.1, dmg: 1.25, arm: 8, cd: 1.35, wind: 0.5, range: 2.0, eva: 0.26, arc: 0.3, side: 0.8, knock: 1.8,
     pierce: 1.6, bow: { min: 6, max: 13, cd: 5, n: 3, gap: 0.28, mult: 0.55 },
-    desc: tr('骸骨卫士化身赵云。移动快，枪长刺得远，每一枪都穿透目标身后一条线上的敌人（再远 1.6 米）。背上一张弓：敌人还在 6–13 米外时停下连射三箭，再提枪冲上去。',
-      'The Sentinel becomes Zhao Yun. Quick on his feet, a long reach, and every thrust runs on through the line behind the target (1.6 m further). A bow on his back: at enemies still 6–13 m off he stops and looses three arrows, then goes in with the spear.') },
+    desc: tr('骸骨卫士化身赵云。移动快，枪长刺得远，每一枪都穿透目标身后一条线上的敌人（再远 1.6 米）。背上一张弓：敌人还在 6–13 米外时停下连射三支穿透箭，再提枪冲上去。',
+      'The Sentinel becomes Zhao Yun. Quick on his feet, a long reach, and every thrust runs on through the line behind the target (1.6 m further). A bow on his back: at enemies still 6–13 m off he stops and looses three piercing arrows, then goes in with the spear.') },
 };
 // what s 战魂 stacks give, in %: +6% damage and +4% attack speed a stack up to 25 (every skill awake), then +3% and +1.5% (it grew too
 // strong late on, gear multiplying it again); +2.5% life a stack all the way; move speed +2% a stack, at most +30%
@@ -187,6 +187,7 @@ export function spawnHero(x, z, quick) {
   const en = makeEntry(), u = spawnAlly(en, x, z, null), P = G.player; u.face = u.faceT = P ? P.face : 0;
   const clip = (u.mesh.clips || A.heroClips).Rise, sp = SUMMON.riseSp; // the Mixamo stand-up at its own pace (also on a new floor); Zhao Yun's his own
   if (clip) { play(u.mesh, 'Rise', { once: true, restart: true, speed: sp, fade: 0 }); u.spawnT = clip.duration / sp * 0.9; u.animLock = u.spawnT; u.mesh.mixer.update(0); }
+  if (en.wset === 'SPR') S.voice(Math.random() < 0.5 ? 'zy_intro0' : 'zy_intro1', 1, 0.8); // (赵云 names himself as he gets up off the ground)
   P8.alive = true; save(); return u;
 }
 // called first thing in updatePlayer: the summon cast (returns true while casting) and the E key / button

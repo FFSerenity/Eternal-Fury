@@ -377,6 +377,17 @@ A separate mode with its own save (start screen). The fun to find: one summon yo
 - Nov 27, pace: with the spear right the person found the moves right but slow — all his Unreal moves (attacks and skills) now play
   1.3× as fast (MOVES.SPR.pace; everything in a move goes by the clip's own time, so it stays in step). The test arena has a row to
   try 1× / 1.15× / 1.3× / 1.5× (globalThis.__zyPace). His normal attacks come round 30% sooner, so they deal ~30% more over time.
+- Nov 27, his numbers (measured in the arena: normal attacks only, a brute at ×50 life, Fury 25): spear 116 a second against one
+  (GS 29, mace 43, sword 28) and 279 into five — the spear's attack figure on the panel is below the greatsword's (set 1.25 × weapon
+  1.2 vs 1.5 × 1.3) but each of his attacks is two blows at ~2.9× together, and since his clips keep their pace his attack speed goes
+  into the blows (cd0/cd, ~1.6 at Fury 25). His skills and bow had none of that and fell far behind his attacks: now every move of
+  his and his bow take the same factor (zyK). 长坂冲阵 harder besides (run-through 1.3 → 1.6, thrusts 1.0/1.0/1.2 → 1.2/1.2/1.5).
+  The bow: 0.55 → 1.2 an arrow, and each goes on through up to 5 (they had killed nothing).
+- 百鸟朝凤 cast from as far as 9 m whirled its kicks at nothing (they cut all round him 1.5–2.5 m out from where he starts; only the
+  last thrust reached): now only with the target within 4.6 m (kick) and two or more within 3 m of the kicks' middle (1.8 m toward
+  it) — or a champion / a hard one.
+- His voice (the person's lines, made in ComfyUI, trimmed and levelled to the war cry): on every rise one of 「末将赵云，字子龙，常山真定
+  人也。」/「吾乃常山赵子龙也！」 (zy_intro0/1, 0.8 s in), and 「休伤我主！」 as To the Rescue begins (zy_rescue). S.voice.
 - 奔袭救主 To the Rescue (25 Fury; his Life Steal stays, 10% to himself): the moment the summoner falls under 40% life (damage() asks
   PH.rescue before a blow on him lands), his life is held for 3.2 s (blows take nothing; "锁血"), and Zhao Yun comes: within 6.5 m a
   sidelong dash (Spear Dodge Left or Right — whichever leaves him facing nearer the threat — its 4.5–5 m stretched to the distance), else
