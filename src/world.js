@@ -5,7 +5,7 @@ import { PropBatch } from './assets.js';
 import { addBox, placeStand, placeGift, BOX_KIND, propScale } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
-import { paintGround, fbm, smooth, PAINT } from './terrain.js';
+import { paintGround, groundFog, fbm, smooth, PAINT } from './terrain.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -43,19 +43,27 @@ export class Floor {
     this.end = far; this.stairs = { x: Math.floor(far.cx), z: Math.floor(far.cy) }; // a grid vertex: the grate covers the 4 cells around it
     this.R = R;
   }
-  // the camp clearing's painted ground (?paint=1): cobble along the paths (ragged edges, a few stones missing), dark soil over the
-  // graves and before the crypt, grass in drifts — thicker toward the fence, thin where the summoner starts — and dirt between
+  // the camp clearing's painted ground (?paint=1), after the concept picture: mostly bare dark earth; cobble along the paths
+  // (ragged edges, a few stones missing); moss thick along the fence, in rings at the foot of the graves and the trees and in a few
+  // stray patches, never where the summoner starts; fallen leaves drifted in broad patches (the leaf layer is earth with a few
+  // leaves on it, so even full weight stays sparse), more under the trees
   campGround(pathCells, graves, W) {
     const cells = [...pathCells].map(k => [k % W, Math.floor(k / W)]), C = this.crypt;
+    const trees = [[29.5, 10.5], [10.5, 30.5], [30.5, 29.5], [28.5, 17.5], [19.5, 30.5]];
     const dRect = (x, z, cx, cz) => Math.hypot(Math.max(cx - x, 0, x - cx - 1), Math.max(cz - z, 0, z - cz - 1));
     return paintGround(7, 7, 33, 33, (x, z) => {
       let dp = 9; for (const [cx, cz] of cells) if (Math.abs(cx + 0.5 - x) < 3 && Math.abs(cz + 0.5 - z) < 3) dp = Math.min(dp, dRect(x, z, cx, cz));
-      const n = fbm(x * 1.4, z * 1.4), cob = (1 - smooth(-0.15, 0.45, dp + (n - 0.5) * 0.7)) * (0.55 + 0.45 * smooth(0.25, 0.45, fbm(x * 2.3 + 7, z * 2.3)));
-      let dg = 9; for (const [gx, gz] of graves) dg = Math.min(dg, Math.hypot((x - gx) * 1.3, z - gz));
-      const soil = Math.max(1 - smooth(0.4, 1.6, dg + (fbm(x * 0.9 + 3, z * 0.9) - 0.5) * 0.9 + (fbm(x * 3.1, z * 3.1 + 4) - 0.5) * 0.5), 1 - smooth(1.5, 3.5, Math.hypot(x - C.x, z - C.z - 2.4) + (n - 0.5)));
-      const edge = 1 - smooth(0.6, 3.2, Math.min(x - 8, 32 - x, z - 8, 32 - z)), start = 1 - smooth(1.5, 4.0, Math.hypot(x - 23.5, z - 24.5));
-      const grass = smooth(0.47, 0.66, fbm(x * 0.32 + 20, z * 0.32) + (fbm(x * 2.6, z * 2.6 + 9) - 0.5) * 0.16 + edge * 0.28 - start * 0.2) * (1 - cob) * (1 - soil * 0.8);
-      return [grass, cob, soil * (1 - cob)];
+      const n = fbm(x * 1.4, z * 1.4), n2 = fbm(x * 0.5 + 40, z * 0.5 + 7), n3 = fbm(x * 2.7 + 3, z * 2.7 + 11);
+      const cob = (1 - smooth(-0.15, 0.45, dp + (n - 0.5) * 0.7)) * (0.55 + 0.45 * smooth(0.25, 0.45, fbm(x * 2.3 + 7, z * 2.3)));
+      let dg = 9; for (const [gx, gz] of graves) dg = Math.min(dg, Math.hypot((x - gx) * 1.2, z - gz));
+      let dt = 9; for (const [tx, tz] of trees) dt = Math.min(dt, Math.hypot(x - tx, z - tz));
+      const fence = 1 - smooth(0.3, 2.6, Math.min(x - 8, 32 - x, z - 8, 32 - z) + (n3 - 0.5) * 1.4);
+      const start = 1 - smooth(1.5, 4.0, Math.hypot(x - 23.5, z - 24.5)), crypt = 1 - smooth(1.0, 2.6, Math.hypot(x - C.x, z - C.z - 2.2));
+      const moss = Math.max(fence * (0.55 + 0.45 * n2), (1 - smooth(0.35, 1.15, dg + (n3 - 0.5) * 0.6)) * 0.85, (1 - smooth(0.6, 2.0, dt + (n3 - 0.5) * 0.8)) * 0.9,
+        smooth(0.6, 0.72, fbm(x * 0.42 + 13, z * 0.42 + 2) + (n3 - 0.5) * 0.12) * 0.8, smooth(0.25, 0.6, dp) * (1 - smooth(0.6, 1.1, dp)) * smooth(0.45, 0.6, n3) * 0.7)
+        * (1 - cob) * (1 - start * 0.85) * (1 - crypt * 0.7);
+      const leaves = Math.max(smooth(0.5, 0.68, n2 + (n - 0.5) * 0.3) * 0.7, (1 - smooth(1.0, 3.2, dt)) * 0.85) * (1 - cob * 0.7) * (1 - start * 0.5);
+      return [moss, cob, leaves * (1 - moss * 0.6)];
     });
   }
   // ---------- the test arena (试炼场): one big walled hall, nothing in it; no way down (it is left from its panel) ----------
@@ -268,7 +276,7 @@ export class Floor {
       if (name.startsWith('grave_')) this.block(cx, cz + 1); }
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
-    if (PAINT) this.group.add(this.campGround(pathCells, graves, W));
+    if (PAINT) { this.group.add(this.campGround(pathCells, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20)); }
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing

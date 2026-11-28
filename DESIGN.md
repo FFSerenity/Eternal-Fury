@@ -457,3 +457,35 @@ training dummies that neither move nor fight, auto refill to keep the count, loo
 summoner's level, and can make the Sentinel unkillable or the summoner invulnerable with endless mana. The meter at the top reads the
 damage the summons do (last 5 s and averaged over fight time, i.e. time with a blow landed in the last 2 s), the summoner's own damage,
 kills with the average time from first hit to death, and damage taken per second.
+
+## 场景美术 / Scene art: the hand-painted trial (Nov 2026)
+The person chose the hand-painted direction (WoW / Hordes.io: low polygon, the look carried by painted textures) over flat toon colour.
+The Sentinel and 赵云 are the anchors for how much detail anything may carry — nothing made after them is to be more complex than
+赵云. It is tried on a small area first, the graveyard camp, behind `?paint=1` (without it the camp is the KayKit tiles as before);
+the target is the person's concept picture ("Gothic Graveyard Beneath the Purple Beam"): mostly bare dark earth, cobble paths, moss at
+the fence and the foot of the graves, scattered autumn leaves, a blue-violet mist beyond the fence, warm lantern pools against a cool night.
+- One ground mesh over the clearing instead of floor tiles (terrain.js paintGround): four tiling hand-painted textures — dirt, moss,
+  cobble, leaves (assets/ground, 1024² jpg; metres one repeat covers in GROUND) — blended by a splat map laid out in code
+  (world.js campGround) with height blending: the brighter layer wins the edges, so the stones stand out of the moss, and a light
+  leaf weight shows only a few leaves. Each texture is laid twice (the second turned and scaled) and mixed by slow noise, with a slow
+  brightness / warmth wash over all, so the repeats don't read.
+- The layout: dirt underneath; cobble along the path cells (ragged edges, a few stones missing); moss thick along the fence, in rings
+  at the foot of the graves and the trees, a few stray patches and in the gaps beside the paths, never where the summoner starts or before
+  the crypt door; leaves in broad drifts and under the trees (the leaf texture is earth with a few leaves, so even full weight is sparse).
+- The lanterns light the painted ground a little more than the props (0.95 against 0.72), for the concept's warm pools.
+- terrain.js groundFog: one see-through sheet 0.32 m up over the wilds around the camp — clear inside the fence, thickening over the
+  first ~5 m past it, in slowly drifting patches (blue-violet).
+- The textures come from the person's ComfyUI (Qwen Image 2.1 turbo; prompts in tools/ground/prompts.json: "stylized hand-painted game
+  texture … classic fantasy MMORPG ground textures", top-down, even light, even density, medium brightness — asked dark, it painted
+  near black; without the style words it painted photographs). Tileable: a transformer model can't be made seamless by circular padding,
+  so a small node of ours (tools/ground/comfy_node_gt_seamless_roll.py, installed in ComfyUI's custom_nodes as gt_seamless_roll.py) rolls
+  the latent round before every model call — three rolls a third apart each step, each pixel taken mostly from the roll it is farthest
+  from a seam in (sharp 6: a plain average blurred the detail; one random roll a step left faint lines where the last steps' seams fell;
+  inpainting a rolled image's seams instead left bands and broken stones). Each batch is decoded three times — as made, rolled by a half,
+  by a quarter — and tools/ground/fixwrap.py takes each pixel from a decode far from its own edges (the VAE spoils ~30 px at the edges).
+  grade.py brings each to the set's palette (dirt mean ≈ (98, 78, 62); the leaves graded on their bare soil, so it matches the dirt);
+  make_set.py does the lot; workflow.py writes the ComfyUI workflow. About 75 s a batch of four on the person's PC. The set in use:
+  dirt7 #1 (contrast eased to 0.8: full strength the clods read as polka dots), moss6 #1, cobble7 #2, leaves7 #2 (the generations are
+  kept in the person's ComfyUI output, props/ground).
+- Not yet: the wilds beyond the fence (still the flat vertex-coloured sheet: the change shows at the gates), the props (KayKit toon),
+  the crypt floors.

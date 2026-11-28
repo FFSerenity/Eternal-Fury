@@ -1,15 +1,16 @@
 // Painted ground (the hand-painted direction, Nov 2026): one continuous mesh over an area instead of KayKit's floor tiles, blending
-// tiling ground textures by a splat map — dirt everywhere underneath, then grass, cobble and grave soil where the map says. Each
+// tiling ground textures by a splat map — dirt everywhere underneath, then moss, cobble and fallen leaves where the map says. Each
 // texture is laid in world space at its own scale; where two meet, the higher-looking one (its brightness taken as height) wins the
 // edge, so the stones of a path stand out of the grass instead of fading into it. A slow large-scale wash of brightness and hue keeps
 // the repeats from showing. Lit by the same light as the toon world (the summoner's light, the torches, the ambient), but smooth.
 import * as THREE from 'three';
-import { SH, TORCH_N } from './gfx.js';
+import { SH, TORCH_N, AURA_T } from './gfx.js';
 // the painted ground trial (hand-painted direction): ?paint=1 lays the camp's clearing as one painted ground instead of KayKit tiles
 export const PAINT = typeof location !== 'undefined' && new URLSearchParams(location.search).has('paint');
 
-// the ground set: name -> [file, metres one repeat covers]. The textures are placeholders until the person's ComfyUI ones come
-export const GROUND = { dirt: ['assets/ground/dirt.jpg', 3.2], grass: ['assets/ground/grass.jpg', 2.6], cobble: ['assets/ground/cobble.jpg', 2.4], soil: ['assets/ground/soil.jpg', 3.0] };
+// the ground set: name -> [file, metres one repeat covers]. Hand-painted, seamless, made in ComfyUI (Qwen Image 2.1 turbo with the
+// GT Seamless Roll node; tools/ground/ has the prompts and the clean-up) — see DESIGN.md "Painted ground"
+export const GROUND = { dirt: ['assets/ground/dirt.jpg', 3.0], moss: ['assets/ground/moss.jpg', 2.8], cobble: ['assets/ground/cobble.jpg', 2.6], leaves: ['assets/ground/leaves.jpg', 4.2] };
 const LOADED = {};
 function tex(name) {
   if (LOADED[name]) return LOADED[name];
@@ -22,7 +23,7 @@ varying vec3 vW;
 void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const F = `
 #define TN ${TORCH_N}
-uniform sampler2D uDirt, uGrass, uCobble, uSoil, uSplat; uniform vec4 uScale; uniform vec4 uArea; uniform float uSharp; uniform vec2 uTone;
+uniform sampler2D uDirt, uMoss, uCobble, uLeaves, uSplat; uniform vec4 uScale; uniform vec4 uArea; uniform float uSharp; uniform vec2 uTone;
 uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC; uniform vec4 uTL[TN]; uniform vec3 uTC;
 varying vec3 vW;
 float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -35,21 +36,21 @@ vec3 tile2(sampler2D t, vec2 p, float m){ vec3 a = texture2D(t, p).rgb; vec2 q =
 void main(){
   vec2 p = vW.xz, sp = (p - uArea.xy) / uArea.zw; vec4 s = texture2D(uSplat, sp);
   float m = vn(p * 0.13), m2 = vn(p * 0.045 + 11.0);
-  vec3 cD = tile2(uDirt, p / uScale.x, m), cG = tile2(uGrass, p / uScale.y, 1.0 - m), cC = texture2D(uCobble, p / uScale.z).rgb, cS = tile2(uSoil, p / uScale.w, m);
+  vec3 cD = tile2(uDirt, p / uScale.x, m), cG = tile2(uMoss, p / uScale.y, 1.0 - m), cC = texture2D(uCobble, p / uScale.z).rgb, cS = tile2(uLeaves, p / uScale.w, m);
   // weights: dirt is what is left; each layer's brightness lifts it at the edges (height blend)
   vec4 w = vec4(max(0.0, 1.0 - s.r - s.g - s.b), s.r, s.g, s.b);
-  vec4 h = w * 1.6 + vec4(lum(cD) * 0.35, lum(cG) * 0.45, lum(cC) * 0.9, lum(cS) * 0.3) * step(0.001, w);
+  vec4 h = w * 1.6 + vec4(lum(cD) * 0.35, lum(cG) * 0.55, lum(cC) * 0.9, lum(cS) * 1.1) * step(0.001, w); // (leaves: their bright shapes win first, so a light weight scatters a few)
   float hm = max(max(h.x, h.y), max(h.z, h.w)); vec4 k = max(h - hm + uSharp, 0.0); k /= (k.x + k.y + k.z + k.w + 1e-4);
   vec3 base = cD * k.x + cG * k.y + cC * k.z + cS * k.w;
   base *= 0.9 + 0.2 * m2; base = mix(base, base * vec3(1.06, 1.0, 0.9), smoothstep(0.4, 0.8, m)); // (a slow wash: some ground warmer, some cooler)
   base = mix(vec3(lum(base)), base, uTone.y) * uTone.x; // (the set's brightness and colour strength for the place: night is dim and grey)
   float dl = length(vW.xz - uLight.xz), fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;
   vec3 lit = uAmb * 1.02 + uLightC * fall * 0.78;
-  for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue; float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; lit += uTC * f * 0.72; }
+  for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue; float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; lit += uTC * f * 0.95; } // (lanterns pool a little stronger on the painted ground than on the props)
   gl_FragColor = vec4(base * min(lit, vec3(1.12)), 1.0);
 }`;
 
-// the ground over [x0, x1] x [z0, z1]; weight(x, z) -> [grass, cobble, soil] (0..1 each; dirt gets what is left), sampled at
+// the ground over [x0, x1] x [z0, z1]; weight(x, z) -> [moss, cobble, leaves] (0..1 each; dirt gets what is left), sampled at
 // res texels a metre into the splat map (smoothed by the texture's own filtering)
 export function paintGround(x0, z0, x1, z1, weight, res = 4) {
   const W = Math.round((x1 - x0) * res), H = Math.round((z1 - z0) * res), data = new Uint8Array(W * H * 4);
@@ -57,12 +58,32 @@ export function paintGround(x0, z0, x1, z1, weight, res = 4) {
     data[o] = Math.round(255 * Math.min(1, g)); data[o + 1] = Math.round(255 * Math.min(1, c)); data[o + 2] = Math.round(255 * Math.min(1, s)); data[o + 3] = 255; }
   const splat = new THREE.DataTexture(data, W, H, THREE.RGBAFormat); splat.magFilter = splat.minFilter = THREE.LinearFilter; splat.needsUpdate = true;
   const mat = new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: F, uniforms: { ...SH,
-    uDirt: { value: tex('dirt') }, uGrass: { value: tex('grass') }, uCobble: { value: tex('cobble') }, uSoil: { value: tex('soil') }, uSplat: { value: splat },
-    uScale: { value: new THREE.Vector4(GROUND.dirt[1], GROUND.grass[1], GROUND.cobble[1], GROUND.soil[1]) }, uArea: { value: new THREE.Vector4(x0, z0, x1 - x0, z1 - z0) },
+    uDirt: { value: tex('dirt') }, uMoss: { value: tex('moss') }, uCobble: { value: tex('cobble') }, uLeaves: { value: tex('leaves') }, uSplat: { value: splat },
+    uScale: { value: new THREE.Vector4(GROUND.dirt[1], GROUND.moss[1], GROUND.cobble[1], GROUND.leaves[1]) }, uArea: { value: new THREE.Vector4(x0, z0, x1 - x0, z1 - z0) },
     uSharp: { value: 0.22 }, uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
   mat.userData.tone = mat.uniforms.uTone;
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2), mat);
   mesh.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); mesh.renderOrder = -1; return mesh;
+}
+
+// ground mist outside a clearing (the concept's blue-violet fog beyond the fence): one big see-through sheet a little above the
+// ground, clear inside the rect [x0, z0, x1, z1], thickening over the first few metres past it, drifting slowly
+const FOG_F = `
+uniform float uT; uniform vec4 uIn; uniform vec3 uCol; uniform float uA; varying vec3 vW;
+float h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
+void main(){
+  vec2 p = vW.xz, o = max(max(uIn.xy - p, p - uIn.zw), 0.0); float d = length(o);
+  float n = vn(p * 0.16 + vec2(uT * 0.05, uT * 0.03)) * 0.6 + vn(p * 0.41 - vec2(uT * 0.08, -uT * 0.04)) * 0.4;
+  float a = smoothstep(0.2, 5.0, d + (n - 0.5) * 2.5) * smoothstep(0.25, 0.75, n) * uA;
+  gl_FragColor = vec4(uCol, a);
+}`;
+export function groundFog(rect, cx, cz, size = 150, a = 0.42, col = [0.26, 0.28, 0.5]) {
+  const mat = new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: FOG_F, transparent: true, depthWrite: false,
+    uniforms: { uT: AURA_T, uIn: { value: new THREE.Vector4(...rect) }, uCol: { value: new THREE.Color(...col) }, uA: { value: a } } });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2), mat);
+  mesh.position.set(cx, 0.32, cz); mesh.renderOrder = 2; return mesh;
 }
 
 // smooth value noise in JS (for laying out the splat map)
