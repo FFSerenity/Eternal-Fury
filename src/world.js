@@ -6,7 +6,7 @@ import { addBox, placeStand, placeGift, BOX_KIND, propScale } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
 import { paintGround, groundFog, bigGround, fbm, smooth, PAINT, PAINT_FLAT, PAINT_BIG } from './terrain.js';
-import { stonePath, tilePath, tilePath3d } from './stonepath.js';
+import { stonePath, tilePath, tilePath3d, cutPath } from './stonepath.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -285,7 +285,7 @@ export class Floor {
       const pset = new Set(cellsIn), under = (x, z) => { let d = 9; const X = Math.floor(x), Z = Math.floor(z); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (pset.has((Z + j) * W + X + i)) d = Math.min(d, Math.hypot(Math.max(X + i - x, 0, x - X - i - 1), Math.max(Z + j - z, 0, z - Z - j - 1))); return 1 - smooth(0.02, 0.2, d); };
       this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33, undefined, undefined, under) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
       const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]);
-      const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : how === 'flat' ? tilePath(pc, W) : tilePath3d(pc, W); if (st) this.group.add(st); } // (&path=flat: the blocks as flat pictures)
+      const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : how === 'flat' ? tilePath(pc, W) : how === 'seg' ? tilePath3d(pc, W) : cutPath(pc, W); if (st) this.group.add(st); } // (&path=flat: the blocks as flat pictures; &path=seg: the blocks' own stones)
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing

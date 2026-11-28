@@ -498,7 +498,15 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   each showing its own painting stretched out to its new outline (per outline point, how far in to read it); the joints about as
   wide as before; the stones along a block's edge eaten back unevenly (up to ~4 cm), so they need not line up with the next block's
   and a corner may be missing; and no darkening under the path (it read as a shadow) — the earth and moss show as they are.
-  ~124k triangles for the camp's paths.
+  ~124k triangles for the camp's paths. (Still there as `&path=seg`.)
+- Then cut by lines (the person: cut each block with irregular lines roughly parallel to its edges, unevenly spaced, 7–9 stones,
+  its four sides cut the same way so no block's edge is neat, the joints as wide as before) — stonepath.js cutPath, the default now:
+  each path cell a block of 2 or 3 courses (along x or z, picked per cell) at uneven heights, each cut into stones of uneven
+  lengths, 7–9 in all; every joint slanted a little (its ends moved apart), the whole over a slow ±1 cm wobble that is the same at
+  the same place in the world (so the two sides of a joint wobble alike); worn as before, half a joint taken off each side, the
+  block's edge eaten back unevenly. Their tops: painted stone faces — the insides of the biggest painted stones of the tile set
+  (tools/ground/stone_faces.py: assets/ground/stonefaces.webp, 24 in a 6×4 atlas, with their shapes), each stone given one of about
+  its own shape, laid square to the world so their painted light agrees.
 - `?paint=1&big=1`: the whole clearing's ground as ONE painting (terrain.js bigGround, assets/ground/camp_big.jpg, 2048² over 26 m —
   nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
   repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in
