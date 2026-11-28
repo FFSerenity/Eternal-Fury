@@ -10,6 +10,7 @@
 // summoner's light and the lanterns from where they are.
 import * as THREE from 'three';
 import { SH, TORCH_N } from './gfx.js';
+import STONES from '../assets/ground/pathtiles.json';
 
 const hash = (i, j, k = 0) => { let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
@@ -173,4 +174,50 @@ export function tilePath(cells, W, { tex = 'assets/ground/pathtiles.webp' } = {}
   geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setIndex(I);
   const mat = litMat(tex), t = mat.uniforms.uStone.value; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; mat.uniforms.uCut.value = 0.5;
   return new THREE.Mesh(geo, mat);
+}
+
+// The KayKit way (the person, looking at its stone paths: the stones stand apart, a square is one group, the gaps are the ground's):
+// each block of the tile set cut into its separate stones (tools/ground/seg_tiles.py: assets/ground/pathtiles.json, outlines in the
+// block's 0..1 square) and every stone raised 3–5 cm as its own little mesh — its painted top from the block's picture, its sides
+// darker — so the ground under the path (dark earth and moss, leaves now and then) shows in the gaps. Blocks picked and turned per
+// cell as in tilePath; each stone a little tilted, a little higher or lower than the next.
+export function tilePath3d(cells, W, { tex = 'assets/ground/pathtiles.webp' } = {}) {
+  const P = [], N = [], C = [], U = [], I = [], pick = new Map(), which = new URLSearchParams(location.search).get('tiles') || 'new';
+  const V2 = THREE.Vector2;
+  for (const [x, z] of cells) {
+    const own = which === 'own' || (which === 'mix' && hash(x, z, 303) < 0.33), pickK = h => own ? Math.floor(h * 6) : 6 + Math.floor(h * 8);
+    let k = pickK(hash(x, z, 300)); const r = Math.floor(hash(x, z, 301) * 4);
+    for (const [nx, nz] of [[x - 1, z], [x, z - 1]]) { const o = pick.get(nz * W + nx); if (o === k) k = pickK((hash(x, z, 302) + 0.5) % 1); if (o === k) k = (k + 1) % 14; }
+    pick.set(z * W + x, k);
+    const su = (k % 4) / 4, sv = Math.floor(k / 4) / 4;
+    const place = (u, v) => { let a = u - 0.5, b = v - 0.5; for (let q = 0; q < r; q++) [a, b] = [-b, a]; return [x + 0.5 + a, z + 0.5 + b]; };
+    const uvOf = (u, v) => [su + u / 4, 1 - (sv + v / 4)];
+    STONES[k].forEach((flat, si) => {
+      let poly = []; for (let i = 0; i < flat.length; i += 2) poly.push([flat[i], flat[i + 1]]);
+      if (area(poly.map(([u, v]) => place(u, v))) < 0) poly.reverse();
+      let cu = 0, cv = 0; for (const [u, v] of poly) { cu += u; cv += v; } cu /= poly.length; cv /= poly.length;
+      const id = Math.floor(hash(x * 31 + si, z * 17 + k, 9) * 2147483647), rr = q => hash(id, q, 5);
+      const h = 0.03 + rr(1) * 0.022, tx = (rr(2) - 0.5) * 0.06, tz = (rr(3) - 0.5) * 0.06;
+      const ins = 0.012; // (the top a little inside the foot: a steep bevelled side)
+      const top = poly.map(([u, v]) => { const du = cu - u, dv = cv - v, d = Math.hypot(du, dv) || 1, s = Math.min(ins, d * 0.3); return [u + du / d * s, v + dv / d * s]; });
+      const [wx, wz] = place(cu, cv), y = (u, v) => { const [px, pz] = place(u, v); return h + tx * (px - wx) + tz * (pz - wz); };
+      const v0 = P.length / 3, n = poly.length;
+      // sides: the foot (just under the ground) and the top's rim, their own vertices (a crisp edge)
+      for (const [u, v] of poly) { const [px, pz] = place(u, v); P.push(px, -0.01, pz); N.push(0, 1, 0); C.push(0.42, 0.42, 0.45); U.push(...uvOf(u, v)); }
+      for (const [u, v] of top) { const [px, pz] = place(u, v); P.push(px, y(u, v), pz); N.push(0, 1, 0); C.push(0.78, 0.78, 0.8); U.push(...uvOf(u, v)); }
+      for (let a = 0; a < n; a++) { const b = (a + 1) % n; I.push(v0 + a, v0 + n + b, v0 + b, v0 + a, v0 + n + a, v0 + n + b); }
+      // the top: the rim again, filled (ear-cut), facing up
+      const t0 = P.length / 3, tint = 0.94 + rr(4) * 0.14;
+      for (const [u, v] of top) { const [px, pz] = place(u, v); P.push(px, y(u, v), pz); N.push(0, 1, 0); C.push(tint, tint, tint); U.push(...uvOf(u, v)); }
+      const tris = THREE.ShapeUtils.triangulateShape(top.map(([u, v]) => new V2(...place(u, v))), []);
+      for (const [a, b, c] of tris) { const A = place(...top[a]), B = place(...top[b]), Cc = place(...top[c]);
+        const up = (B[0] - A[0]) * (Cc[1] - A[1]) - (B[1] - A[1]) * (Cc[0] - A[0]) > 0; I.push(t0 + a, up ? t0 + c : t0 + b, up ? t0 + b : t0 + c); } // (positive in (x, z) is clockwise seen from above: reversed to face up)
+    });
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  geo.setIndex(I); geo.computeVertexNormals();
+  const mat = litMat(tex), t = mat.uniforms.uStone.value; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  const m = new THREE.Mesh(geo, mat); m.userData.tris = I.length / 3; return m;
 }

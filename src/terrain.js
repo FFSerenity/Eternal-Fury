@@ -77,22 +77,28 @@ export function paintGround(x0, z0, x1, z1, weight, res = 4) {
 // over it (its brightness only, at its own scale) to keep it crisp up close. Lit like the painted ground.
 const BIG_F = `
 #define TN ${TORCH_N}
-uniform sampler2D uBig, uDet; uniform vec4 uArea; uniform float uDetK; uniform vec2 uTone;
+uniform sampler2D uBig, uDet, uMossT, uUnder; uniform vec4 uArea; uniform float uDetK; uniform vec2 uTone;
 uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC; uniform vec4 uTL[TN]; uniform vec3 uTC;
 varying vec3 vW;
 float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
 void main(){
   vec2 uv = (vW.xz - uArea.xy) / uArea.zw; vec3 base = texture2D(uBig, vec2(uv.x, 1.0 - uv.y)).rgb;
   float d = lum(texture2D(uDet, vW.xz / 3.0).rgb) / 0.34; base *= mix(1.0, d, uDetK);
+  // under the path's stones: dark earth with moss (the painting has its own path painted there)
+  float un = texture2D(uUnder, uv).r; vec3 gap = mix(texture2D(uDet, vW.xz / 3.0).rgb, texture2D(uMossT, vW.xz / 2.8).rgb, 0.45) * 0.55;
+  base = mix(base, gap, un);
   base = mix(vec3(lum(base)), base, uTone.y) * uTone.x;
   float dl = length(vW.xz - uLight.xz), fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;
   vec3 lit = uAmb * 1.02 + uLightC * fall * 0.78;
   for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue; float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; lit += uTC * f * 0.95; }
   gl_FragColor = vec4(base * min(lit, vec3(1.12)), 1.0);
 }`;
-export function bigGround(x0, z0, x1, z1, file = 'assets/ground/camp_big.jpg', detK = 0.35) {
+export function bigGround(x0, z0, x1, z1, file = 'assets/ground/camp_big.jpg', detK = 0.35, under = null) {
+  const R = 4, Wd = Math.round((x1 - x0) * R), Hd = Math.round((z1 - z0) * R), ud = new Uint8Array(Wd * Hd * 4);
+  if (under) for (let j = 0; j < Hd; j++) for (let i = 0; i < Wd; i++) ud[((Hd - 1 - j) * Wd + i) * 4] = Math.round(255 * under(x0 + (i + 0.5) / R, z0 + (j + 0.5) / R));
+  const ut = new THREE.DataTexture(ud, Wd, Hd, THREE.RGBAFormat); ut.magFilter = ut.minFilter = THREE.LinearFilter; ut.needsUpdate = true;
   const big = new THREE.TextureLoader().load(file); big.colorSpace = THREE.NoColorSpace; big.anisotropy = 4;
-  const mat = new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: BIG_F, uniforms: { ...SH, uBig: { value: big }, uDet: { value: tex('dirt') },
+  const mat = new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: BIG_F, uniforms: { ...SH, uBig: { value: big }, uDet: { value: tex('dirt') }, uMossT: { value: tex('moss') }, uUnder: { value: ut },
     uArea: { value: new THREE.Vector4(x0, z0, x1 - x0, z1 - z0) }, uDetK: { value: detK }, uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2), mat);
   mesh.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); mesh.renderOrder = -1; return mesh;

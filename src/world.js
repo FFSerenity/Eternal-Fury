@@ -6,7 +6,7 @@ import { addBox, placeStand, placeGift, BOX_KIND, propScale } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
 import { paintGround, groundFog, bigGround, fbm, smooth, PAINT, PAINT_FLAT, PAINT_BIG } from './terrain.js';
-import { stonePath, tilePath } from './stonepath.js';
+import { stonePath, tilePath, tilePath3d } from './stonepath.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -66,7 +66,7 @@ export class Floor {
         smooth(0.6, 0.72, fbm(x * 0.42 + 13, z * 0.42 + 2) + (n3 - 0.5) * 0.12) * 0.8, smooth(0.25, 0.6, dp) * (1 - smooth(0.6, 1.1, dp)) * smooth(0.45, 0.6, n3) * 0.7)
         * (1 - cob) * (1 - start * 0.85) * (1 - crypt * 0.7);
       const leaves = Math.max(smooth(0.5, 0.68, n2 + (n - 0.5) * 0.3) * 0.7, (1 - smooth(1.0, 3.2, dt)) * 0.85) * (1 - cob * 0.7) * (1 - start * 0.5);
-      return [Math.max(moss * (1 - under), under * (0.35 + 0.5 * n3)), cob, leaves * (1 - moss * 0.6) * (1 - under * 0.85), under * 0.8];
+      return [Math.max(moss * (1 - under), under * (0.35 + 0.5 * n3)), cob, leaves * (1 - moss * 0.6) * (1 - under * 0.45), under * 0.8];
     });
   }
   // ---------- the test arena (试炼场): one big walled hall, nothing in it; no way down (it is left from its panel) ----------
@@ -282,9 +282,10 @@ export class Floor {
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
     if (PAINT) { const how = new URLSearchParams(location.search).get('path'), cellsIn = how === 'slab' || PAINT_FLAT ? pathCells : wide; // (&path=slab: the slabs laid by code, one cell wide)
-      this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
+      const pset = new Set(cellsIn), under = (x, z) => { let d = 9; const X = Math.floor(x), Z = Math.floor(z); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (pset.has((Z + j) * W + X + i)) d = Math.min(d, Math.hypot(Math.max(X + i - x, 0, x - X - i - 1), Math.max(Z + j - z, 0, z - Z - j - 1))); return 1 - smooth(0.02, 0.2, d); };
+      this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33, undefined, undefined, under) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
       const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]);
-      const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : tilePath(pc, W); if (st) this.group.add(st); }
+      const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : how === 'flat' ? tilePath(pc, W) : tilePath3d(pc, W); if (st) this.group.add(st); } // (&path=flat: the blocks as flat pictures)
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing
