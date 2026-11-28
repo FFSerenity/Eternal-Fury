@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>glb view</title>
+<style>body{margin:0;background:#2a2a30}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+// Turntable views of a generated prop for review: tools/glbview.html?f=<url of a .glb>&n=4 — n views round it, side by side
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+const q = new URLSearchParams(location.search), N = +(q.get('n') || 4), S = 420;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(S * N, S); r.setClearColor(0x2a2a30); document.body.appendChild(r.domElement);
+r.outputColorSpace = THREE.SRGBColorSpace;
+const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x404050, 2.2)); const dl = new THREE.DirectionalLight(0xffffff, 1.6); dl.position.set(-2, 4, 3); sc.add(dl);
+const g = new GLTFLoader(); g.setMeshoptDecoder(MeshoptDecoder);
+g.load(q.get("f"), gl => { const o = gl.scene; o.traverse(m => { if (m.isMesh) { m.material.metalness = 0; m.material.metalnessMap = null; m.material.roughness = 0.9; m.material.roughnessMap = null; if (!q.has("nm")) m.material.normalMap = null; m.material.needsUpdate = true; if (q.has("rn")) m.geometry.computeVertexNormals(); } }); sc.add(o); const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()), R = Math.max(s.x, s.y, s.z) * 1.25;
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 100); r.setScissorTest(true);
+  for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2 + 0.35; cam.position.set(c.x + Math.sin(a) * R * 1.9, c.y + R * 0.7, c.z + Math.cos(a) * R * 1.9); cam.lookAt(c); r.setViewport(i * S, 0, S, S); r.setScissor(i * S, 0, S, S); r.render(sc, cam); }
+  let tris = 0; o.traverse(m => { if (m.isMesh) tris += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
+  window.__done = { tris, size: [s.x, s.y, s.z].map(v => +v.toFixed(3)) }; });
+</script></body></html>

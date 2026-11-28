@@ -564,6 +564,19 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   lanterns, the shrine and the bench (the concept was painted over a zoomed-out screenshot: ~24 m back, pitch 0.91), its
   headstones then traced back to the ground: our own 2 m × 3 m plot grid with gaps. In the painted camp all headstones (no
   little wooden markers — clutter there) at 0.65 (was 0.5). Loose bones and small pumpkins kept a cell clear of the paths.
+- The props, hand-painted too (Nov 28, overnight while the person slept; he chose: things first, then their joins with the
+  ground — the join a part of the thing, but a flat see-through patch under it rather than modelled, so its edge can melt into
+  the painting). Designs from GPT (his chat, in the style of his concept pictures): one object a picture on plain grey, front a
+  little from above — 4 headstones (arched with a skull, gothic spired, old leaning, Celtic cross), the weeping angel, the
+  sarcophagus, the candle shrine (the three he circled in concept 2), the lantern post, a fence bay, the dead tree. GPT also
+  repainted the camp from the concept camera with them (its camera is ours, so places trace back exactly: the angel by the west
+  graves at (12.2, 29.2), the sarcophagus east of the crossing at (28.2, 23.9)). Each design → Pixal3D in his ComfyUI (the
+  template workflow, one per object, ~3 min) → tools/slim-gen3d.mjs PROP=1 at 8k triangles (4k folded some faces over: black
+  patches; ERR 0.002) → tools/pack-props.mjs → assets/gen_scene.glb, loaded only with `&gen=1`, scaled to a height from its
+  bounds (headstones 1.2–1.8 m: the KayKit world's scale is over life). tools/glbview.html turns a .glb round for review.
+- Ground skirts (`&skirts=1`, terrain.js groundSkirts): a flat quad with a soft see-through edge under each prop, from one atlas,
+  lit like the painted ground, a hair above it — placeholders cut from the painting itself (assets/ground/skirts_tmp.png) until
+  each prop's own is painted from the effect picture.
 - Before that (`&path=slab`): raised stones, not painted (`?paint=1&flat=1` shows the painted cobble of the first try). The person,
   pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
   such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,

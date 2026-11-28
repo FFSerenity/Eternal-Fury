@@ -11,7 +11,7 @@ import { ZY_SPEAR } from './zyroot.js';
 
 export const A = { chars: {}, clips: {}, props: {}, crits: {}, hero: null, heroClips: {}, heroWeap: {}, zy: null, ready: false };
 const ZY_WEAP = new Set();
-const CHAR_FILES = ['mage', 'sk_minion', 'sk_warrior', 'sk_rogue', 'sk_mage', 'hu_knight', 'hu_barbarian', 'hu_rogue', 'hu_rogue_hood'], PROP_FILES = ['weapons', 'dungeon', 'graveyard', 'forest', 'gen_props']; // (gen_props: the generated display stands, barrels, crates and urns — tools/pack-props.mjs)
+const CHAR_FILES = ['mage', 'sk_minion', 'sk_warrior', 'sk_rogue', 'sk_mage', 'hu_knight', 'hu_barbarian', 'hu_rogue', 'hu_rogue_hood'], PROP_FILES = ['weapons', 'dungeon', 'graveyard', 'forest', 'gen_props', ...(typeof location !== 'undefined' && new URLSearchParams(location.search).has('gen') ? ['gen_scene'] : [])]; // (gen_props: the generated display stands, barrels, crates and urns — tools/pack-props.mjs)
 const CRIT_FILES = ['fly_bat', 'fly_ghost', 'fly_wraith']; // the wilds' flying vermin: own rig, own clips (Quaternius)
 export async function loadAll(onProgress = () => {}) {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);

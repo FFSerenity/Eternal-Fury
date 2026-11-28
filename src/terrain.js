@@ -106,6 +106,41 @@ export function bigGround(x0, z0, x1, z1, file = 'assets/ground/camp_big.jpg', d
   mesh.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); mesh.renderOrder = -1; return mesh;
 }
 
+// Ground skirts (Nov 28, the person: the join between a thing and the ground can be part of the thing): a flat painted patch with a
+// soft see-through edge laid under each prop — moss and a little soil at a headstone's foot, trodden earth round a lantern post —
+// so it sits in the ground instead of on it; it goes where the prop goes, the painting under it knows nothing of it. All in one
+// mesh, cells of one atlas; lit like the painted ground. items: [x, z, turn, width, depth, cell]
+const SKIRT_F = `
+#define TN ${TORCH_N}
+uniform sampler2D uAtlas; uniform vec2 uTone;
+uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC; uniform vec4 uTL[TN]; uniform vec3 uTC;
+varying vec3 vW; varying vec2 vUv;
+float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
+void main(){
+  vec4 c = texture2D(uAtlas, vUv); if (c.a < 0.01) discard; vec3 base = c.rgb;
+  base = mix(vec3(lum(base)), base, uTone.y) * uTone.x;
+  float dl = length(vW.xz - uLight.xz), fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;
+  vec3 lit = uAmb * 1.02 + uLightC * fall * 0.78;
+  for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue; float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; lit += uTC * f * 0.95; }
+  gl_FragColor = vec4(base * min(lit, vec3(1.12)), c.a);
+}`;
+const SKIRT_V = `
+varying vec3 vW; varying vec2 vUv;
+void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+export function groundSkirts(items, file = 'assets/ground/skirts_tmp.png', cols = 2, rows = 2) {
+  const P = [], U = [], I = [];
+  items.forEach(([x, z, r, w, d, cell], n) => {
+    const cu = (cell % cols) / cols, cv = 1 - (Math.floor(cell / cols) + 1) / rows, c = Math.cos(r), s = Math.sin(r), y = 0.012 + (n % 7) * 0.0006; // (a hair apart, so two that overlap don't flicker)
+    for (const [u, v] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]]) { const lx = u * w, lz = v * d; P.push(x + lx * c + lz * s, y, z - lx * s + lz * c); U.push(cu + (u + 0.5) / cols, cv + (0.5 - v) / rows); }
+    const b = n * 4; I.push(b, b + 2, b + 1, b, b + 3, b + 2);
+  });
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setIndex(I);
+  const t = new THREE.TextureLoader().load(file); t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4;
+  const mat = new THREE.ShaderMaterial({ vertexShader: SKIRT_V, fragmentShader: SKIRT_F, transparent: true, depthWrite: false,
+    uniforms: { ...SH, uAtlas: { value: t }, uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
+  const m = new THREE.Mesh(geo, mat); m.renderOrder = 0; return m;
+}
+
 // ground mist outside a clearing (the concept's blue-violet fog beyond the fence): one big see-through sheet a little above the
 // ground, clear inside the rect [x0, z0, x1, z1], thickening over the first few metres past it, drifting slowly
 const FOG_F = `
