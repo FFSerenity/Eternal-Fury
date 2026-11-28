@@ -20,13 +20,13 @@ attribute vec3 color; varying vec3 vW; varying vec3 vN; varying vec3 vC; varying
 void main(){ vW = position; vN = normal; vC = color; vUv = uv; gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0); }`;
 const F = `
 #define TN ${TORCH_N}
-uniform sampler2D uStone; uniform vec2 uTone; uniform float uCut;
+uniform sampler2D uStone, uGrain; uniform vec2 uTone; uniform float uCut, uGrainK;
 uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC; uniform vec4 uTL[TN]; uniform vec3 uTC;
 varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
 float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
 void main(){
   vec4 tx = texture2D(uStone, vUv); if (tx.a < uCut) discard; // (the tile set's rounded corners)
-  vec3 N = normalize(vN), base = tx.rgb * vC;
+  vec3 N = normalize(vN), base = tx.rgb * vC * mix(1.0, lum(texture2D(uGrain, vW.xz / 0.7).rgb) / 0.47, uGrainK); // (uGrainK: a stone grain over smooth paintings)
   base = mix(vec3(lum(base)), base, uTone.y) * uTone.x;
   vec3 K = normalize(vec3(-0.5, 1.0, -0.45)); // (the painter's light: from the upper left of the screen)
   vec3 lit = uAmb * (0.5 + 0.68 * max(dot(N, K), 0.0) + 0.1 * N.y);
@@ -95,7 +95,7 @@ function slabMaker({ tex = 'assets/ground/stone.jpg', texM = 1.3, tint0 = [1, 1,
 const TEX = {};
 function litMat(tex) {
   if (!TEX[tex]) { const t = TEX[tex] = new THREE.TextureLoader().load(tex); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.colorSpace = THREE.NoColorSpace; }
-  return new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: F, uniforms: { ...SH, uStone: { value: TEX[tex] }, uCut: { value: 0 },
+  return new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: F, uniforms: { ...SH, uStone: { value: TEX[tex] }, uCut: { value: 0 }, uGrain: { value: TEX[tex] }, uGrainK: { value: 0 },
     uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
 }
 
@@ -194,24 +194,9 @@ export function tilePath3d(cells, W, { tex = 'assets/ground/pathtiles.webp' } = 
     const uvOf = (u, v) => [su + u / 4, 1 - (sv + v / 4)];
     STONES[k].forEach((flat, si) => {
       let poly = []; for (let i = 0; i < flat.length; i += 2) poly.push([flat[i], flat[i + 1]]);
-      if (area(poly.map(([u, v]) => place(u, v))) < 0) poly.reverse();
-      let cu = 0, cv = 0; for (const [u, v] of poly) { cu += u; cv += v; } cu /= poly.length; cv /= poly.length;
-      const id = Math.floor(hash(x * 31 + si, z * 17 + k, 9) * 2147483647), rr = q => hash(id, q, 5);
-      const h = 0.03 + rr(1) * 0.022, tx = (rr(2) - 0.5) * 0.06, tz = (rr(3) - 0.5) * 0.06;
-      const ins = 0.012; // (the top a little inside the foot: a steep bevelled side)
-      const top = poly.map(([u, v]) => { const du = cu - u, dv = cv - v, d = Math.hypot(du, dv) || 1, s = Math.min(ins, d * 0.3); return [u + du / d * s, v + dv / d * s]; });
-      const [wx, wz] = place(cu, cv), y = (u, v) => { const [px, pz] = place(u, v); return h + tx * (px - wx) + tz * (pz - wz); };
-      const v0 = P.length / 3, n = poly.length;
-      // sides: the foot (just under the ground) and the top's rim, their own vertices (a crisp edge)
-      for (const [u, v] of poly) { const [px, pz] = place(u, v); P.push(px, -0.01, pz); N.push(0, 1, 0); C.push(0.42, 0.42, 0.45); U.push(...uvOf(u, v)); }
-      for (const [u, v] of top) { const [px, pz] = place(u, v); P.push(px, y(u, v), pz); N.push(0, 1, 0); C.push(0.78, 0.78, 0.8); U.push(...uvOf(u, v)); }
-      for (let a = 0; a < n; a++) { const b = (a + 1) % n; I.push(v0 + a, v0 + n + b, v0 + b, v0 + a, v0 + n + a, v0 + n + b); }
-      // the top: the rim again, filled (ear-cut), facing up
-      const t0 = P.length / 3, tint = 0.94 + rr(4) * 0.14;
-      for (const [u, v] of top) { const [px, pz] = place(u, v); P.push(px, y(u, v), pz); N.push(0, 1, 0); C.push(tint, tint, tint); U.push(...uvOf(u, v)); }
-      const tris = THREE.ShapeUtils.triangulateShape(top.map(([u, v]) => new V2(...place(u, v))), []);
-      for (const [a, b, c] of tris) { const A = place(...top[a]), B = place(...top[b]), Cc = place(...top[c]);
-        const up = (B[0] - A[0]) * (Cc[1] - A[1]) - (B[1] - A[1]) * (Cc[0] - A[0]) > 0; I.push(t0 + a, up ? t0 + c : t0 + b, up ? t0 + b : t0 + c); } // (positive in (x, z) is clockwise seen from above: reversed to face up)
+      if (area(poly.map(([u, v]) => place(u, v))) < 0) poly.reverse(); // (positive in (u, v) as in (x, z): turning is a rotation)
+      const id = Math.floor(hash(x * 31 + si, z * 17 + k, 9) * 2147483647);
+      wornStone(poly, id, (u, v) => place(u, v), uvOf, P, N, C, U, I);
     });
   }
   const geo = new THREE.BufferGeometry();
@@ -219,5 +204,48 @@ export function tilePath3d(cells, W, { tex = 'assets/ground/pathtiles.webp' } = 
   geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
   geo.setIndex(I); geo.computeVertexNormals();
   const mat = litMat(tex), t = mat.uniforms.uStone.value; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  litMat('assets/ground/stone.jpg'); mat.uniforms.uGrain.value = TEX['assets/ground/stone.jpg']; mat.uniforms.uGrainK.value = 0.4;
   const m = new THREE.Mesh(geo, mat); m.userData.tris = I.length / 3; return m;
+}
+
+// One worn stone (the person: the stones looked too new — smooth, every edge sharp; worn, their edges go irregular and soft, and with
+// the gaps wide enough no line of joints reads as straight): its outline (the block's 0..1 square, positive winding) resampled every
+// ~4 cm and its corners softened, then eaten into a little — by slow noise along it, more at its corners, a chip now and then, and more again along the
+// block's own edge (the joints between blocks as wide and uneven as those inside one). Raised in rings — foot, a soft shoulder, the
+// top's worn rim, an inner ring and the crown — each a little uneven, the whole a little tilted; darker down the sides, a few
+// stones greener low down. Its top takes the block's painting where it lies.
+function wornStone(poly, id, place, uvOf, P, N, C, U, I) {
+  const rr = q => hash(id, q, 5);
+  let L = 0; const seg = []; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); seg.push(l); L += l; }
+  const n = Math.max(10, Math.min(26, Math.round(L / 0.04)));
+  let p = []; let si = 0, acc = 0;
+  for (let q = 0; q < n; q++) { const t = q * L / n; while (si < poly.length - 1 && acc + seg[si] < t) { acc += seg[si]; si++; }
+    const a = poly[si], b = poly[(si + 1) % poly.length], f = (t - acc) / (seg[si] || 1); p.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]); }
+  const turn = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n], t1 = Math.atan2(q[1] - a[1], q[0] - a[0]), t2 = Math.atan2(b[1] - q[1], b[0] - q[0]);
+    let d = Math.abs(t2 - t1); if (d > Math.PI) d = 2 * Math.PI - d; return d; });
+  for (let it = 0; it < 1; it++) p = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n]; return [(a[0] + 2 * q[0] + b[0]) / 4, (a[1] + 2 * q[1] + b[1]) / 4]; });
+  const m = Math.max(3, Math.round(n / 3)), nz = (q, k = 21) => { const s = q * m / n, i = Math.floor(s), f = s - i, g = f * f * (3 - 2 * f); return hash(id, i % m, k) * (1 - g) + hash(id, (i + 1) % m, k) * g; };
+  const normals = pts => pts.map((q, i) => { const a = pts[(i + pts.length - 1) % pts.length], b = pts[(i + 1) % pts.length], tx = b[0] - a[0], tz = b[1] - a[1], l = Math.hypot(tx, tz) || 1; return [-tz / l, tx / l]; });
+  const chip = rr(30) < 0.65 ? Math.floor(rr(31) * n) : -99, chipW = 1 + Math.floor(rr(32) * 2), chipD = 0.008 + rr(33) * 0.012;
+  let nm = normals(p);
+  const out = p.map((q, i) => { let d = 0.0015 + 0.008 * nz(i) ** 2 + 0.005 * Math.max(0, turn[i] - 0.6);
+    if (chip >= 0) { const dc = Math.min(Math.abs(i - chip), n - Math.abs(i - chip)); if (dc <= chipW) d += chipD * (1 - dc / (chipW + 1)); }
+    const e = Math.min(q[0], q[1], 1 - q[0], 1 - q[1]); if (e < 0.05) d += (0.004 + 0.009 * nz(i, 22)) * (1 - e / 0.05);
+    return [q[0] + nm[i][0] * d, q[1] + nm[i][1] * d]; });
+  let cu = 0, cv = 0; for (const [u, v] of out) { cu += u; cv += v; } cu /= n; cv /= n;
+  let rmin = 9; for (const [u, v] of out) rmin = Math.min(rmin, Math.hypot(u - cu, v - cv));
+  if (rmin < 0.02) return;
+  nm = normals(out);
+  const inset = (b, j) => out.map(([u, v], i) => { const s = Math.min(b * (1 + (hash(id, i, j) - 0.5) * 0.8), Math.hypot(u - cu, v - cv) * 0.35); return [u + nm[i][0] * s, v + nm[i][1] * s]; });
+  const r1 = inset(0.007, 40), r3 = inset(0.024, 41), r4 = r3.map(([u, v]) => [u + (cu - u) * 0.5, v + (cv - v) * 0.5]);
+  const h = 0.026 + rr(1) * 0.02, dome = 0.007 + rr(6) * 0.01, [wx, wz] = place(cu, cv), tx = (rr(2) - 0.5) * 0.05, tz = (rr(3) - 0.5) * 0.05;
+  const tint = 0.93 + rr(4) * 0.16, grime = rr(7) < 0.4;
+  const v0 = P.length / 3;
+  const ring = (pts, yf, bump, dark, green) => pts.forEach(([u, v], i) => { const [px, pz] = place(u, v);
+    const y = yf < 0 ? -0.012 : yf + tx * (px - wx) + tz * (pz - wz) + (hash(id, i, 50 + Math.round(yf * 1000)) - 0.5) * bump;
+    P.push(px, y, pz); N.push(0, 1, 0); const c = tint * dark; C.push(c * (green ? 0.9 : 1), c, c * (green ? 0.78 : 1)); U.push(...uvOf(u, v)); });
+  ring(out, -1, 0, 0.36, grime); ring(r1, h * 0.55, 0.004, 0.62, grime); ring(r3, h, 0.005, 1.0, false); ring(r4, h + dome * 0.7, 0.006, 1.0, false);
+  const [cx, cz] = place(cu, cv); P.push(cx, h + dome + tx * 0 + tz * 0, cz); N.push(0, 1, 0); C.push(tint, tint, tint); U.push(...uvOf(cu, cv));
+  for (let r = 0; r < 3; r++) for (let a = 0; a < n; a++) { const b = (a + 1) % n, A = v0 + r * n + a, B = v0 + r * n + b; I.push(A, B + n, B, A, A + n, B + n); }
+  const ctr = v0 + 4 * n; for (let a = 0; a < n; a++) I.push(v0 + 3 * n + a, ctr, v0 + 3 * n + (a + 1) % n);
 }

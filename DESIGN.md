@@ -488,6 +488,11 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   outlines (assets/ground/pathtiles.json); stonepath.js tilePath3d raises every stone 3–5 cm, slightly tilted, its top the block's
   painting (so the picture's own bevels and cracks stay), its sides darker — and the ground under the path (dark earth, moss, a few
   leaves) shows in the gaps. `&path=flat` shows the flat pictures. ~1,700 stones over the camp's two-cell-wide paths, one mesh.
+- Then worn (the person: too new — smooth, every edge sharp; worn, with gaps wide enough, no line of joints reads as straight, so the
+  blocks' own edges can go irregular too): stonepath.js wornStone resamples each outline every ~4 cm, softens its corners, eats into
+  it a little (slow noise along it, more at corners, a chip now and then, more again along the block's own edge), and raises it in
+  rings — foot, a soft shoulder, the top's worn rim, an inner ring, the crown — each a little uneven; a stone grain (stone.jpg, 40%)
+  over the smooth paintings. First tried twice as worn: they turned into river pebbles. ~166k triangles for the camp's paths.
 - `?paint=1&big=1`: the whole clearing's ground as ONE painting (terrain.js bigGround, assets/ground/camp_big.jpg, 2048² over 26 m —
   nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
   repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in
