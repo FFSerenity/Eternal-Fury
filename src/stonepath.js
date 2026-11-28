@@ -19,12 +19,13 @@ attribute vec3 color; varying vec3 vW; varying vec3 vN; varying vec3 vC; varying
 void main(){ vW = position; vN = normal; vC = color; vUv = uv; gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0); }`;
 const F = `
 #define TN ${TORCH_N}
-uniform sampler2D uStone; uniform vec2 uTone;
+uniform sampler2D uStone; uniform vec2 uTone; uniform float uCut;
 uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC; uniform vec4 uTL[TN]; uniform vec3 uTC;
 varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
 float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
 void main(){
-  vec3 N = normalize(vN), base = texture2D(uStone, vUv).rgb * vC;
+  vec4 tx = texture2D(uStone, vUv); if (tx.a < uCut) discard; // (the tile set's rounded corners)
+  vec3 N = normalize(vN), base = tx.rgb * vC;
   base = mix(vec3(lum(base)), base, uTone.y) * uTone.x;
   vec3 K = normalize(vec3(-0.5, 1.0, -0.45)); // (the painter's light: from the upper left of the screen)
   vec3 lit = uAmb * (0.5 + 0.68 * max(dot(N, K), 0.0) + 0.1 * N.y);
@@ -35,7 +36,6 @@ void main(){
   gl_FragColor = vec4(base * min(lit, vec3(1.15)), 1.0);
 }`;
 
-let STONE_TEX = null;
 const area = p => { let a = 0; for (let i = 0; i < p.length; i++) { const q = p[i], r = p[(i + 1) % p.length]; a += q[0] * r[1] - r[0] * q[1]; } return a / 2; };
 // a convex-ish polygon moved in by d along each side (the joint)
 function shrink(p, d) {
@@ -48,9 +48,8 @@ function shrink(p, d) {
     const t = ((B[0] - A[0]) * B[3] - (B[1] - A[1]) * B[2]) / den; out.push([A[0] + A[2] * t, A[1] + A[3] * t]); }
   return out;
 }
-// cells: [[x, z], ...] path cells (1 m squares on the floor grid); returns one merged mesh of all the slabs (or null)
-export function stonePath(cells, W, { tex = 'assets/ground/stone.jpg', texM = 1.3 } = {}) {
-  const set = new Set(cells.map(([x, z]) => z * W + x)), has = (x, z) => set.has(z * W + x);
+// the slab maker: slab(quad, id, low) adds one raised slab; mesh() returns them all as one mesh (or null)
+function slabMaker({ tex = 'assets/ground/stone.jpg', texM = 1.3, tint0 = [1, 1, 1] } = {}) {
   const P = [], N = [], C = [], U = [], I = [];
   // one slab on the quad q ([[x, z] × 4]); id: its own random numbers; low: height factor
   const slab = (q, id, low = 1) => {
@@ -73,7 +72,7 @@ export function stonePath(cells, W, { tex = 'assets/ground/stone.jpg', texM = 1.
     const inset = b => p.map(([x, z]) => { const dx = cx - x, dz = cz - z, d = Math.hypot(dx, dz) || 1, s = Math.min(b, d * 0.4); return [x + dx / d * s, z + dz / d * s]; });
     const r1 = inset(Math.min(0.01, rmin * 0.1)), r2 = inset(Math.min(0.03, rmin * 0.28));
     const v = 1.02 + r(43) * 0.3, w = r(44), moss = r(45) < 0.07;
-    const tint = [v * (0.94 + w * 0.12), v * (0.97 + (moss ? 0.06 : 0.01)), v * (1.05 - w * 0.14 - (moss ? 0.12 : 0))];
+    const tint = [v * (0.94 + w * 0.12) * tint0[0], v * (0.97 + (moss ? 0.06 : 0.01)) * tint0[1], v * (1.05 - w * 0.14 - (moss ? 0.12 : 0)) * tint0[2]];
     const ang = r(46) * 6.283, ca = Math.cos(ang), sa = Math.sin(ang), ou = r(47) * 7, ov = r(48) * 7;
     const b0 = P.length / 3, ring = (pts, y, dark) => { for (const [x, z] of pts) { P.push(x, y + (y > 0 ? tilt(x, z) : 0), z);
       C.push(tint[0] * dark, tint[1] * dark, tint[2] * dark); U.push((ca * x - sa * z) / texM + ou, (sa * x + ca * z) / texM + ov); N.push(0, 1, 0); } };
@@ -82,6 +81,27 @@ export function stonePath(cells, W, { tex = 'assets/ground/stone.jpg', texM = 1.
     for (let k = 0; k < 2; k++) for (let a = 0; a < n; a++) { const b = (a + 1) % n, A = b0 + k * n + a, B = b0 + k * n + b; I.push(A, B + n, B, A, A + n, B + n); }
     const ctr = b0 + 3 * n; for (let a = 0; a < n; a++) I.push(b0 + 2 * n + a, ctr, b0 + 2 * n + (a + 1) % n);
   };
+  const mesh = () => {
+    if (!I.length) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+    geo.setIndex(I); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, litMat(tex)); m.userData.tris = I.length / 3; return m;
+  };
+  return { slab, mesh };
+}
+const TEX = {};
+function litMat(tex) {
+  if (!TEX[tex]) { const t = TEX[tex] = new THREE.TextureLoader().load(tex); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.colorSpace = THREE.NoColorSpace; }
+  return new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: F, uniforms: { ...SH, uStone: { value: TEX[tex] }, uCut: { value: 0 },
+    uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
+}
+
+// cells: [[x, z], ...] path cells (1 m squares on the floor grid); returns one merged mesh of all the slabs (or null)
+export function stonePath(cells, W, opts = {}) {
+  const set = new Set(cells.map(([x, z]) => z * W + x)), has = (x, z) => set.has(z * W + x);
+  const { slab, mesh } = slabMaker(opts);
   const id = (a, b, c = 0) => Math.floor(hash(a * 131 + 7, b * 17 + 3, c) * 2147483647);
   const jit = (x, z, k, m) => (hash(x, z, k) - 0.5) * 2 * m;
   for (const [x, z] of cells) {
@@ -126,13 +146,28 @@ export function stonePath(cells, W, { tex = 'assets/ground/stone.jpg', texM = 1.
       const a = hash(x, z, 240 + k) * 1.5, ca = Math.cos(a) * sz / 2, sa = Math.sin(a) * sz / 2;
       slab([[px - ca + sa, pz - sa - ca], [px + ca + sa, pz + sa - ca], [px + ca - sa, pz + sa + ca], [px - ca - sa, pz - sa + ca]], id(x, z, 250 + k), 0.45); }
   }
-  if (!I.length) return null;
+  return mesh();
+}
+
+// The person's tile set (a painted sheet of six square cobble blocks, "Graveyard Cobblestone Tile Set"; cut out whole — each block's
+// own bevelled outer stones and rounded corners kept, the sheet's background made see-through — a little less purple, packed 3×2 in
+// assets/ground/pathtiles.webp): each path cell shows one block, picked and turned by the cell's own random numbers (never the same
+// block as the cell before it along x or z), flat just above the ground — the painting carries the relief. Blocks meet at their own
+// bevelled edges (the concept's path reads as such blocks), and the outer stones of the blocks make the path's sides.
+export function tilePath(cells, W, { tex = 'assets/ground/pathtiles.webp' } = {}) {
+  const P = [], C = [], U = [], N = [], I = [], pick = new Map();
+  for (const [x, z] of cells) {
+    let k = Math.floor(hash(x, z, 300) * 6); const r = Math.floor(hash(x, z, 301) * 4);
+    for (const [nx, nz] of [[x - 1, z], [x, z - 1]]) { const o = pick.get(nz * W + nx); if (o === k) k = (k + 1 + Math.floor(hash(x, z, 302) * 4)) % 6; }
+    pick.set(z * W + x, k);
+    const u0 = (k % 3) / 3, v0 = 1 - (Math.floor(k / 3) + 1) / 2, uv = [[u0, v0 + 0.5], [u0 + 1 / 3, v0 + 0.5], [u0 + 1 / 3, v0], [u0, v0]]; // (corners −x−z, +x−z, +x+z, −x+z; the sheet's top row is +v)
+    const b = P.length / 3, corners = [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]];
+    for (let c = 0; c < 4; c++) { P.push(corners[c][0], 0.006, corners[c][1]); C.push(1, 1, 1); N.push(0, 1, 0); const t = uv[(c + r) % 4]; U.push(t[0], t[1]); }
+    I.push(b, b + 2, b + 1, b, b + 3, b + 2);
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
-  geo.setIndex(I); geo.computeVertexNormals();
-  if (!STONE_TEX) { STONE_TEX = new THREE.TextureLoader().load(tex); STONE_TEX.wrapS = STONE_TEX.wrapT = THREE.RepeatWrapping; STONE_TEX.anisotropy = 4; STONE_TEX.colorSpace = THREE.NoColorSpace; }
-  const mat = new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: F, uniforms: { ...SH, uStone: { value: STONE_TEX },
-    uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
-  const mesh = new THREE.Mesh(geo, mat); mesh.userData.tris = I.length / 3; return mesh;
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setIndex(I);
+  const mat = litMat(tex), t = mat.uniforms.uStone.value; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; mat.uniforms.uCut.value = 0.5;
+  return new THREE.Mesh(geo, mat);
 }

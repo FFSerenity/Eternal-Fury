@@ -472,7 +472,14 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
 - The layout: dirt underneath; cobble along the path cells (ragged edges, a few stones missing); moss thick along the fence, in rings
   at the foot of the graves and the trees, a few stray patches and in the gaps beside the paths, never where the summoner starts or before
   the crypt door; leaves in broad drifts and under the trees (the leaf texture is earth with a few leaves, so even full weight is sparse).
-- The paths are raised stones, not painted (stonepath.js; `?paint=1&flat=1` shows the painted cobble of the first try). The person,
+- The paths, now: the person's tile set ("Graveyard Cobblestone Tile Set", a painted sheet of six square cobble blocks; kept in
+  tools/ground/tileset_source.png): each path cell shows one whole block (stonepath.js tilePath; assets/ground/pathtiles.webp, the
+  sheet's background made see-through), picked and turned per cell, never the same block as the cell before it. Each block keeps
+  its own outer stones — they stop short of its edge (the person: "the stones mustn't run to the edge, so the joint between two
+  blocks looks like the joints inside one") — so the blocks meet at a joint like any other, and the outer stones make the path's
+  sides. The painted camp's paths are drawn two cells wide (the extra cell to +x along a run in z, to +z along one in x; drawn
+  only — the walkable grid and the graves keep to the one-cell paths); one cell wide they were a thin dark line beside the concept's.
+- Before that (`&path=slab`): raised stones, not painted (`?paint=1&flat=1` shows the painted cobble of the first try). The person,
   pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
   such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,
   each cut by slanting joints into slabs 0.3–0.5 m across; a corner or crossing cell is 2×2 by two slanting lines. Each slab is its

@@ -6,7 +6,7 @@ import { addBox, placeStand, placeGift, BOX_KIND, propScale } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
 import { paintGround, groundFog, fbm, smooth, PAINT, PAINT_FLAT } from './terrain.js';
-import { stonePath } from './stonepath.js';
+import { stonePath, tilePath } from './stonepath.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -254,9 +254,11 @@ export class Floor {
     for (let z = 7; z < 33; z += 2) for (let x = 7; x < 33; x += 2) { const n = R() < 0.3 ? 'floor_dirt_large_rocky' : 'floor_dirt_large', r = Math.floor(R() * 4) * Math.PI / 2; // (drawn either way: the rest of the camp and the wilds come out the same)
       if (!PAINT) B.add(n, x + 1, 0, z + 1, r, 0.5); } // the camp; the wilds have their own ground
     // paths
-    const pathCells = new Set(), path = (ax, az, bx, bz) => { let x = ax, z = az; const put = () => { const k = z * W + x; if (pathCells.has(k)) return; pathCells.add(k);
+    // (wide: the painted camp's paths are drawn two cells wide — the extra cell beside each, to +x along a run in z, to +z along one in x)
+    const pathCells = new Set(), wide = new Set(), path = (ax, az, bx, bz) => { let x = ax, z = az; const put = (wx, wz) => { wide.add(z * W + x); wide.add((z + wz) * W + x + wx);
+      const k = z * W + x; if (pathCells.has(k)) return; pathCells.add(k);
       const pk = 'ABCD'[Math.floor(R() * 4)], pr = Math.floor(R() * 4) * Math.PI / 2; if (!PAINT) B.add('path_' + pk, x + 0.5, 0.005, z + 0.5, pr, 0.5); };
-      while (z !== bz) { put(); z += Math.sign(bz - z); } while (x !== bx) { put(); x += Math.sign(bx - x); } put(); };
+      while (z !== bz) { put(1, 0); z += Math.sign(bz - z); } while (x !== bx) { put(0, 1); x += Math.sign(bx - x); } put(ax === bx ? 1 : 0, ax === bx ? 0 : 1); };
     path(23, 25, 14, 16); path(23, 20, 26, 8); path(24, 21, 31, 20); path(23, 26, 24, 31); // to the crypt, the north gate, the east and south gates path(14, 16, 13, 16); path(14, 16, 15, 17); path(14, 16, 14, 15);
     const C = this.crypt; B.add('crypt', C.x, 0, C.z, 0, C.s);
     // the crypt door is a portal: swirling light fills the doorway (door face 1.4 m in front of the centre, 1.04 m wide, top at ~2.05)
@@ -279,8 +281,10 @@ export class Floor {
       if (name.startsWith('grave_')) this.block(cx, cz + 1); }
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
-    if (PAINT) { this.group.add(this.campGround(pathCells, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
-      const st = !PAINT_FLAT && stonePath([...pathCells].map(k => [k % W, Math.floor(k / W)]), W); if (st) this.group.add(st); }
+    if (PAINT) { const how = new URLSearchParams(location.search).get('path'), cellsIn = how === 'slab' || PAINT_FLAT ? pathCells : wide; // (&path=slab: the slabs laid by code, one cell wide)
+      this.group.add(this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
+      const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]);
+      const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : tilePath(pc, W); if (st) this.group.add(st); }
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing
