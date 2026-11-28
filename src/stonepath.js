@@ -254,10 +254,10 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0) {
 }
 
 // Blocks cut by lines (the person, Nov 27: cut each block with irregular lines that run roughly parallel to its edges — unevenly
-// spaced, 7 to 9 stones, its four sides cut the same way so no block's edge is neat, the joints as wide as before): each 1 m path
-// cell a block of 2 or 3 courses (along x or z, picked per cell) at uneven heights, each course cut into stones of uneven lengths,
-// 7–9 in all; every joint a little slanted (its two ends moved apart), and the whole laid over a slow wobble (the same at the same
-// place in the world, so two stones' sides along one joint wobble alike). The stones are then worn as before (wornStone), the
+// spaced, 7 to 9 stones, its four sides cut the same way so no block's edge is neat, the joints as wide as before; then: every cut
+// turns the other way from the one before, goes through one whole stone picked at random, and so never cuts through another cut):
+// each 1 m path cell a block cut 6–8 times so, each cut at 35–65% across its stone (one at least 40 cm across that way) and a little slanted, and the whole laid over a
+// slow wobble (the same at the same place in the world, so two stones' sides along one joint wobble alike). The stones are then worn as before (wornStone), the
 // block's own edge eaten back unevenly. Each stone's top is a painted stone face from the tile set (assets/ground/stonefaces:
 // the insides of the biggest painted stones), one of about its own shape, laid square to the world so their painted light agrees.
 export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}) {
@@ -265,41 +265,42 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
   const vn = (x, z, k) => { const i = Math.floor(x), j = Math.floor(z); let fx = x - i, fz = z - j; fx = fx * fx * (3 - 2 * fx); fz = fz * fz * (3 - 2 * fz);
     const a = hash(i, j, k), b = hash(i + 1, j, k), c = hash(i, j + 1, k), d = hash(i + 1, j + 1, k); return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz - 0.5; };
   const warp = (wx, wz) => [wx + vn(wx * 7, wz * 7, 61) * 0.022, wz + vn(wx * 7 + 5, wz * 7 + 9, 62) * 0.022]; // (±1.1 cm)
+  // split a convex polygon by the line through p with direction d: [left part, right part]
+  const split = (poly, px, pz, dx, dz) => { const L = [], Rr = [], f = q => (q[0] - px) * dz - (q[1] - pz) * dx;
+    for (let i = 0; i < poly.length; i++) { const A = poly[i], B = poly[(i + 1) % poly.length], fa = f(A), fb = f(B);
+      if (fa <= 0) L.push(A); if (fa >= 0) Rr.push(A);
+      if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) { const t = fa / (fa - fb), X = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]; L.push(X); Rr.push(X); } }
+    return [L, Rr]; };
+  const ext = (poly, ax) => { let lo = 9, hi = -9; for (const q of poly) { lo = Math.min(lo, q[ax]); hi = Math.max(hi, q[ax]); } return [lo, hi]; };
   for (const [x, z] of cells) {
-    const h = k => hash(x, z, 500 + k), alongU = h(0) < 0.5, R = h(1) < 0.5 ? 2 : 3, total = 7 + Math.floor(h(2) * 3);
-    // course lines across the block (uneven), each a little slanted
-    const lines = [{ c: 0, t: 0 }];
-    if (R === 2) lines.push({ c: 0.36 + h(3) * 0.28, t: (h(4) - 0.5) * 0.08 });
-    else { const a = 0.24 + h(3) * 0.16, b = a + 0.24 + h(4) * Math.max(0, 0.52 - a); lines.push({ c: a, t: (h(5) - 0.5) * 0.08 }, { c: Math.min(b, 0.78), t: (h(6) - 0.5) * 0.08 }); }
-    lines.push({ c: 1, t: 0 });
-    // how many stones each course gets (7–9 in all)
-    let counts = R === 2 ? [Math.round(total / 2 + (h(7) - 0.5) * 1.2)] : [3, 3, 3];
-    if (R === 2) { counts[0] = Math.max(3, Math.min(5, counts[0])); counts.push(total - counts[0]); }
-    else { let over = 9 - total; while (over-- > 0) { const r = Math.floor(h(8 + over) * 3); counts[r] > 2 ? counts[r]-- : counts[(r + 1) % 3]--; } }
-    for (let r = 0; r < R; r++) {
-      const L0 = lines[r], L1 = lines[r + 1], at = (L, a) => L.c + L.t * (a - 0.5); // (the line's height across, at a along)
-      // uneven lengths along the course; each joint's two ends set apart a little (a slant)
-      const n = counts[r], w = []; let sw = 0; for (let i = 0; i < n; i++) { const v = 0.6 + h(20 + r * 10 + i) * 0.9; w.push(v); sw += v; }
-      const cut = [{ a0: 0, a1: 0 }]; let acc = 0;
-      for (let i = 0; i < n - 1; i++) { acc += w[i] / sw; const sl = (h(40 + r * 10 + i) - 0.5) * 0.06; cut.push({ a0: acc - sl, a1: acc + sl }); }
-      cut.push({ a0: 1, a1: 1 });
-      for (let i = 0; i < n; i++) {
-        const A = cut[i], B = cut[i + 1];
-        // the quad (a: along, b: across): (A.a0, top), (B.a0, top), (B.a1, bottom), (A.a1, bottom) — then densified every ~2.5 cm
-        const q = [[A.a0, at(L0, A.a0)], [B.a0, at(L0, B.a0)], [B.a1, at(L1, B.a1)], [A.a1, at(L1, A.a1)]];
-        let poly = []; for (let e = 0; e < 4; e++) { const p0 = q[e], p1 = q[(e + 1) % 4], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 0.025));
-          for (let s = 0; s < m; s++) poly.push([p0[0] + (p1[0] - p0[0]) * s / m, p0[1] + (p1[1] - p0[1]) * s / m]); }
-        poly = poly.map(([a, b]) => { const u = alongU ? a : b, v = alongU ? b : a, [wx, wz] = warp(x + u, z + v); return [Math.min(1, Math.max(0, wx - x)), Math.min(1, Math.max(0, wz - z)), 1]; });
-        if (area(poly) < 0) poly.reverse();
-        // its face: of about its shape (best of four tries), stretched over its box, square to the world
-        let u0 = 1, u1 = 0, v0 = 1, v1 = 0; for (const [u, v] of poly) { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
-        const asp = (u1 - u0) / Math.max(0.01, v1 - v0); let f = 0, bd = 9;
-        for (let tr = 0; tr < 4; tr++) { const c = Math.floor(hash(x * 7 + r, z * 13 + i, 70 + tr) * FACES.length), d = Math.abs(Math.log(FACES[c] / asp)); if (d < bd) { bd = d; f = c; } }
-        const fu = (f % 6) / 6, fv = Math.floor(f / 6) / 4, mg = 0.03;
-        const uvOf = (u, v) => [fu + (mg + (1 - 2 * mg) * (u - u0) / Math.max(1e-3, u1 - u0)) / 6, 1 - (fv + (mg + (1 - 2 * mg) * (v - v0) / Math.max(1e-3, v1 - v0)) / 4)];
-        wornStone(poly, Math.floor(hash(x * 31 + r, z * 17 + i, 11) * 2147483647), (u, v) => [x + u, z + v], uvOf, P, N, C, U, I, 0.011);
-      }
+    const h = k => hash(x, z, 500 + k), total = 7 + Math.floor(h(2) * 3);
+    // cut after cut, each across the one before (the direction turns every cut), each through one whole stone picked at random —
+    // so no cut runs through another; uneven (35–65% of the stone), a little slanted
+    let pieces = [[[0, 0], [1, 0], [1, 1], [0, 1]]], dir = h(0) < 0.5 ? 0 : 1; // (dir 0: a cut across v — a line of about even v)
+    for (let c = 1; pieces.length < total && c < 40; c++) {
+      const ax = dir === 0 ? 1 : 0, ok = pieces.map((q, i) => [i, ext(q, ax)]).filter(([, [lo, hi]]) => hi - lo >= 0.4); // (none thinner than ~14 cm: thin ones read as planks)
+      if (!ok.length) { dir = 1 - dir; continue; }
+      const [pi, [lo, hi]] = ok[Math.floor(h(10 + c) * ok.length)], q = pieces[pi], [lo2, hi2] = ext(q, 1 - ax);
+      const at = lo + (hi - lo) * (0.35 + h(30 + c) * 0.3), sl = (h(50 + c) - 0.5) * 0.08, mid = (lo2 + hi2) / 2;
+      // the line: through (mid, at) along the other axis, slanted by sl over a metre
+      const [px, pz, dx, dz] = dir === 0 ? [mid, at, 1, sl] : [at, mid, sl, 1];
+      const [A, B] = split(q, px, pz, dx, dz);
+      if (A.length < 3 || B.length < 3) { dir = 1 - dir; continue; }
+      pieces.splice(pi, 1, A, B); dir = 1 - dir;
     }
+    pieces.forEach((q, i) => {
+      let poly = []; for (let e = 0; e < q.length; e++) { const p0 = q[e], p1 = q[(e + 1) % q.length], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 0.025));
+        for (let s2 = 0; s2 < m; s2++) poly.push([p0[0] + (p1[0] - p0[0]) * s2 / m, p0[1] + (p1[1] - p0[1]) * s2 / m]); }
+      poly = poly.map(([u, v]) => { const [wx, wz] = warp(x + u, z + v); return [Math.min(1, Math.max(0, wx - x)), Math.min(1, Math.max(0, wz - z)), 1]; });
+      if (area(poly) < 0) poly.reverse();
+      // its face: of about its shape (best of four tries), stretched over its box, square to the world
+      let u0 = 1, u1 = 0, v0 = 1, v1 = 0; for (const [u, v] of poly) { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+      const asp = (u1 - u0) / Math.max(0.01, v1 - v0); let f = 0, bd = 9;
+      for (let tr = 0; tr < 4; tr++) { const c = Math.floor(hash(x * 7 + i, z * 13, 70 + tr) * FACES.length), d = Math.abs(Math.log(FACES[c] / asp)); if (d < bd) { bd = d; f = c; } }
+      const fu = (f % 6) / 6, fv = Math.floor(f / 6) / 4, mg = 0.03;
+      const uvOf = (u, v) => [fu + (mg + (1 - 2 * mg) * (u - u0) / Math.max(1e-3, u1 - u0)) / 6, 1 - (fv + (mg + (1 - 2 * mg) * (v - v0) / Math.max(1e-3, v1 - v0)) / 4)];
+      wornStone(poly, Math.floor(hash(x * 31 + i, z * 17, 11) * 2147483647), (u, v) => [x + u, z + v], uvOf, P, N, C, U, I, 0.011);
+    });
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));

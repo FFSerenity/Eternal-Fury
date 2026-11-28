@@ -507,6 +507,10 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   block's edge eaten back unevenly. Their tops: painted stone faces — the insides of the biggest painted stones of the tile set
   (tools/ground/stone_faces.py: assets/ground/stonefaces.webp, 24 in a 6×4 atlas, with their shapes), each stone given one of about
   its own shape, laid square to the world so their painted light agrees.
+- Then the cutting changed (the person: every cut turns the other way from the one before, goes through one whole stone picked at
+  random, so a cut never runs through another): each block is cut 6–8 times so (7–9 stones) — a stone at least 40 cm across in the
+  cut's direction, cut at 35–65% of it, slanted a little; the rest as above (wobble, wear, faces, ragged edges). Thinner stones
+  (down to ~9 cm) read as planks, so not under ~14 cm.
 - `?paint=1&big=1`: the whole clearing's ground as ONE painting (terrain.js bigGround, assets/ground/camp_big.jpg, 2048² over 26 m —
   nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
   repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in
