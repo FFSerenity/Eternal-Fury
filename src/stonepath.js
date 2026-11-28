@@ -287,8 +287,8 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
   // Then every sharp corner knocked off (the person, Nov 27: corners look pointy — weathering takes them first; cut each off with a
   // straight line, an aged look; the gaps that leaves are left to the ground. A first try bowed the cut out into an arc: it still
   // read as a point). The cuts are all near square, so 'sharp' is any corner under SHARP — nearly every corner. Each: one straight
-  // cut 5–10 cm back along each side (first 3–7; the person preferred them bigger — weathered further), the two sides unequal
-  // (×0.75–1.25, so the cut's angle varies), at most 30% of the side, and the outline then not smoothed, so the cuts stay straight.
+  // cut 10 cm back along each side (first 3–7, then 5–10 uneven; the person settled on 10 every corner: the shape's basis), at most
+  // 30% of the side (so small stones are cut less), and the outline then not smoothed, so the cuts stay straight.
   const knock = (q, kx, kz) => {
     let c = [];
     for (const p of q) if (!c.length || Math.hypot(p[0] - c[c.length - 1][0], p[1] - c[c.length - 1][1]) > 0.004) c.push(p);
@@ -300,8 +300,8 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
     for (let i = 0; i < n; i++) {
       const p = c[i], hh = k => hash(kx, kz * 16 + i, 600 + k);
       if (ang(c, i) >= SHARP) { out.push(p); continue; }
-      const a = c[(i + n - 1) % n], b = c[(i + 1) % n], la = len((i + n - 1) % n), lb = len(i), s = 0.05 + 0.05 * hh(0);
-      const ra = Math.min(s * (0.75 + 0.5 * hh(1)), 0.3 * la), rb = Math.min(s * (0.75 + 0.5 * hh(2)), 0.3 * lb);
+      const a = c[(i + n - 1) % n], b = c[(i + 1) % n], la = len((i + n - 1) % n), lb = len(i), s = 0.10;
+      const ra = Math.min(s, 0.3 * la), rb = Math.min(s, 0.3 * lb);
       out.push([p[0] + (a[0] - p[0]) * ra / la, p[1] + (a[1] - p[1]) * ra / la]);
       out.push([p[0] + (b[0] - p[0]) * rb / lb, p[1] + (b[1] - p[1]) * rb / lb]);
     }

@@ -521,7 +521,8 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   100° counts (knock in cutPath). First each was cut by an arc bowed out toward the old corner — on screen (the camera at 45°, the
   stones as diamonds) the tips still read as points; the person marked them: cut STRAIGHT, as weathering takes corners first, an
   aged look. So one straight cut back along each side, the two unequal (×0.75–1.25, so its angle varies) — two ~135° corners:
-  first 3–7 cm, ≤22% of the side; then (the person, comparing) 5–10 cm, ≤30% of the side — more weathered. (He also tried
+  first 3–7 cm, ≤22% of the side; then (the person, comparing) 5–10 cm, ≤30% of the side — more weathered; then 10 cm at
+  every corner, both sides alike (≤30% of the side): 'the shape's basis'. (He also tried
   painting red over the corners to cut on 20 blocks — tools traced it, the marks taken out of the stones as straight cuts — but
   liked the bigger cut everywhere better.) The outline is then used as is (wornStone keep: the sides
   cut into points every ~5.5 cm, NOT smoothed — smoothing rounded the small stones into pebbles), worn as before. Two fixes that
