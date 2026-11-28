@@ -520,8 +520,10 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   7–10 stones (the anti-strip rule now cuts on up to 10 — about 19/21/21/39%). The cuts are all near square, so every corner under
   100° counts (knock in cutPath). First each was cut by an arc bowed out toward the old corner — on screen (the camera at 45°, the
   stones as diamonds) the tips still read as points; the person marked them: cut STRAIGHT, as weathering takes corners first, an
-  aged look. So one straight cut 3–7 cm back along each side, the two unequal (×0.75–1.25, so its angle varies), at most 22% of
-  the side (the marks: about a fifth of the stone) — two ~135° corners. The outline is then used as is (wornStone keep: the sides
+  aged look. So one straight cut back along each side, the two unequal (×0.75–1.25, so its angle varies) — two ~135° corners:
+  first 3–7 cm, ≤22% of the side; then (the person, comparing) 5–10 cm, ≤30% of the side — more weathered. (He also tried
+  painting red over the corners to cut on 20 blocks — tools traced it, the marks taken out of the stones as straight cuts — but
+  liked the bigger cut everywhere better.) The outline is then used as is (wornStone keep: the sides
   cut into points every ~5.5 cm, NOT smoothed — smoothing rounded the small stones into pebbles), worn as before. Two fixes that
   came with it: an inset taken along the normals folds where the outline bends tighter than the inset (dark streaks — now any
   ring side running backwards against the outline's has its ends pulled together), and height bumps by place (~7 cm across), not
