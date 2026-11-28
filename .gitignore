@@ -1,3 +1,4 @@
 node_modules/
 __pycache__/
 .view/
+tmp_glb/

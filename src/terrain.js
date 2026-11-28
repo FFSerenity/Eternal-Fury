@@ -127,7 +127,7 @@ void main(){
 const SKIRT_V = `
 varying vec3 vW; varying vec2 vUv;
 void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
-export function groundSkirts(items, file = 'assets/ground/skirts_tmp.png', cols = 2, rows = 2) {
+export function groundSkirts(items, file = 'assets/ground/skirts.png', cols = 4, rows = 2) {
   const P = [], U = [], I = [];
   items.forEach(([x, z, r, w, d, cell], n) => {
     const cu = (cell % cols) / cols, cv = 1 - (Math.floor(cell / cols) + 1) / rows, c = Math.cos(r), s = Math.sin(r), y = 0.012 + (n % 7) * 0.0006; // (a hair apart, so two that overlap don't flicker)

@@ -261,8 +261,13 @@ export class Floor {
       while (z !== bz) { put(1, 0); z += Math.sign(bz - z); } while (x !== bx) { put(0, 1); x += Math.sign(bx - x); } put(ax === bx ? 1 : 0, ax === bx ? 0 : 1); };
     path(23, 25, 14, 16); path(23, 20, 26, 8); path(24, 21, 31, 20); path(23, 26, 24, 31); // to the crypt, the north gate, the east and south gates path(14, 16, 13, 16); path(14, 16, 15, 17); path(14, 16, 14, 15);
     // (ground skirts under the props: &skirts=1, the painted camp only — placeholder patches until each prop's own is painted; terrain.js groundSkirts)
-    const SK = [], skirt = PAINT_BIG && new URLSearchParams(location.search).has('skirts') ? (...a) => SK.push(a) : () => {};
-    const C = this.crypt; B.add('crypt', C.x, 0, C.z, 0, C.s); skirt(C.x, C.z + 2.3, 0, 4.2, 2.4, 3);
+    const SK = [], skirtOn = PAINT_BIG && new URLSearchParams(location.search).has('skirts');
+    // (the patches, assets/ground/skirts.png — GPT, Nov 28: one sheet of eight, cut out by tools/ground/skirts.py. Painted as the game's
+    // camera sees the ground (from above at a slant, grass tufts standing up), so each is laid square to the screen — its top away
+    // from the camera, a quarter turn of the world — and drawn out in depth by 1.3 against that slant. [cell, width, its depth ÷ width])
+    const SKC = { grave: [0, 1.7, 0.659], lantern: [1, 1.5, 0.771], tree: [2, 3.0, 0.661], shrine: [3, 2.1, 0.714], angel: [4, 2.2, 0.859], sarc: [5, 3.2, 0.526], crypt: [6, 4.4, 0.53] };
+    const skirt = (kind, x, z, k = 1) => { if (!skirtOn) return; const [c, w, a] = SKC[kind]; SK.push([x, z, Math.PI / 4, w * k, w * k * a * 1.3, c]); };
+    const C = this.crypt; B.add('crypt', C.x, 0, C.z, 0, C.s); skirt('crypt', C.x, C.z + 2.2);
     // the crypt door is a portal: swirling light fills the doorway (door face 1.4 m in front of the centre, 1.04 m wide, top at ~2.05)
     this.portal = portalMesh(1.04, 1.8); this.portal.position.set(C.x, 0.26, C.z + 1.42); this.group.add(this.portal);
     this.stairsGlow = this.glow(C.x, 0.45, 14.7, 0x6fb6ff, 2.6, 0.5); this.glow(C.x, 1.2, C.z + 1.55, 0x5fd0ff, 2.6, 0.45);
@@ -271,9 +276,9 @@ export class Floor {
     // (beside the paths, each lamp hung out over the path's edge — the person, Nov 28: two stood on the path; no longer snapped to a
     // cell's middle. r: the way its arm reaches, 0 toward +z)
     for (const [x, z, r] of [[22.1, 21.5, Math.PI / 2], [17.5, 15.25, 0], [24.85, 15.5, -Math.PI / 2], [22.1, 26.5, Math.PI / 2]]) { this.block(Math.floor(x), Math.floor(z));
-      B.add('post_lantern', x, 0, z, r, 0.5); skirt(x, z, r, 1.1, 1.1, 1); const lx = x + Math.sin(r) * 0.6, lz = z + Math.cos(r) * 0.6; this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
+      B.add('post_lantern', x, 0, z, r, 0.5); skirt('lantern', x, z); const lx = x + Math.sin(r) * 0.6, lz = z + Math.cos(r) * 0.6; this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
     // the shrine by the spawn point
-    B.add('shrine_candles', 26.5, 0, 26.5, -Math.PI * 0.75, 0.6); skirt(26.5, 26.5, 0.6, 1.7, 1.7, 1); this.block(26, 26); this.glow(26.5, 0.8, 26.5, 0xffc060, 1.6, 0.8); this.torch(26.2, 1.0, 26.2, 5.0);
+    B.add('shrine_candles', 26.5, 0, 26.5, -Math.PI * 0.75, 0.6); skirt('shrine', 26.5, 26.5); this.block(26, 26); this.glow(26.5, 0.8, 26.5, 0xffc060, 1.6, 0.8); this.torch(26.2, 1.0, 26.2, 5.0);
     B.add('bench', 21.0, 0, 28.3, 0, 0.5); this.block(20, 28); this.block(21, 28);
     // a spear for 赵云 on a relic stand, an epic one at the deepest floor's item level, just up the path from where the summoner starts
     // (turned toward the camera): taking it up makes the Sentinel him — no need to find one first (not there once a spear is owned)
@@ -291,12 +296,12 @@ export class Floor {
     for (const z of [19, 22, 25, 28]) for (const x of PLOTS[z]) { const cx = x, cz = z; if (pathCells.has(cz * W + cx) || pathCells.has((cz + 1) * W + cx)) continue;
       const name = GR[Math.floor(R() * GR.length)], gx = cx + 0.5 + (R() - 0.5) * 0.2, gz = cz + 0.5 + (R() - 0.5) * 0.2, gr = (R() - 0.5) * 0.25;
       if (GEN) { const [gn, gh] = GEN_GR[Math.floor(R() * GEN_GR.length)]; B.add(gn, gx, 0, gz, gr, GSC(gn, gh) * (0.92 + R() * 0.16)); } else B.add(name, gx, 0, gz, gr, GS);
-      skirt(gx, gz + (name.startsWith('grave_') ? 0.5 : 0.15), gr, 1.5, name.startsWith('grave_') ? 1.9 : 1.15, 0); this.block(cx, cz); graves.push([cx + 0.5, cz + (name.startsWith('grave_') ? 1 : 0.5)]);
+      skirt('grave', gx + 0.1, gz + 0.45, 1.15 + R() * 0.2); // (its mound in front of the stone, toward +z) this.block(cx, cz); graves.push([cx + 0.5, cz + (name.startsWith('grave_') ? 1 : 0.5)]);
       if (name.startsWith('grave_')) this.block(cx, cz + 1); }
     const nearPath = (x, z) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (pathCells.has((Math.floor(z) + j) * W + Math.floor(x) + i)) return true; return false; };
     // (&gen=1: the generated statue and sarcophagus where the person's effect picture has them — its camera is our own, so traced back exactly)
-    if (GEN) for (const [n, x, z, r, h, cells] of [['gs_angel', 12.2, 29.2, Math.PI * 0.25, 2.3, [[12, 29]]], ['gs_sarcophagus', 28.2, 23.9, 0, 0.62, [[27, 23], [28, 23], [29, 23]]]])
-      if (A.props[n]) { B.add(n, x, 0, z, r, GSC(n, h)); for (const [cx, cz] of cells) this.block(cx, cz); skirt(x, z, r, n === 'gs_angel' ? 1.8 : 2.8, n === 'gs_angel' ? 1.8 : 1.6, 0); }
+    if (GEN) for (const [n, x, z, r, h, cells] of [['gs_angel', 12.2, 29.2, Math.PI * 0.25, 2.3, [[12, 29]]], ['gs_sarcophagus', 27.5, 23.9, 0, 0.62, [[26, 23], [27, 23], [28, 23]]]])
+      if (A.props[n]) { B.add(n, x, 0, z, r, GSC(n, h)); for (const [cx, cz] of cells) this.block(cx, cz); skirt(n === 'gs_angel' ? 'angel' : 'sarc', x, z); }
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1 && !nearPath(x, z)) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
     // (one block wide again, the person, Nov 27 — as the KayKit tiles were laid; &wide=1: two, as the painted trial had them)
@@ -311,7 +316,7 @@ export class Floor {
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing
     for (const [x, z, t] of [[29.5, 10.5, 'tree_dead_large'], [10.5, 30.5, 'tree_dead_medium'], [30.5, 29.5, 'tree_dead_small'], [28.5, 17.5, 'tree_dead_medium'], [19.5, 30.5, 'tree_dead_small']]) {
-      B.add(t, x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); skirt(x, z, x * 1.7, 2.2, 2.2, 2); }
+      B.add(t, x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); skirt('tree', x, z); }
     if (SK.length) this.group.add(groundSkirts(SK));
     // fence around the clearing, with an arch gate on the far side (it only looks out on the woods) and the two gates out into the wilds (east and south)
     for (let t = 8; t < 32; t += 2) { const brk = () => R() < 0.2 ? 'fence_broken' : 'fence';
