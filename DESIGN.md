@@ -555,7 +555,15 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   The person chose A (seed 111: fewest of the scattered shaded rocks — bigger loose rocks to be models later): now
   assets/ground/camp_big.jpg (the first painting kept as camp_big_v1.jpg, its whole slabs a reference). The regular round dots
   seen in the game were never in the paintings: they were the 35% dirt-texture detail laid over them (its clods tile every 3 m) —
-  that detail is off now (`&det=0.35` brings it back).
+  that detail is off now (`&det=0.35` brings it back). The edit had also moved things a little: its N–S path came out 0.77 m
+  east of its cells, so the picture is shifted back by that (61 px; the east arm is still ~0.5 m south of its cells — inside
+  the gate's gap, nothing stands by it).
+- Placing things on it (Nov 28, the person): the lanterns beside the paths, not on them — no longer snapped to a cell's middle,
+  each lamp hung out over the path's edge (two had stood on paths: the one by the crypt on the west arm, the one by the north
+  gate on the painted path). The graves where the concept picture has them — 14, its camera worked out from where it put the
+  lanterns, the shrine and the bench (the concept was painted over a zoomed-out screenshot: ~24 m back, pitch 0.91), its
+  headstones then traced back to the ground: our own 2 m × 3 m plot grid with gaps. In the painted camp all headstones (no
+  little wooden markers — clutter there) at 0.65 (was 0.5). Loose bones and small pumpkins kept a cell clear of the paths.
 - Before that (`&path=slab`): raised stones, not painted (`?paint=1&flat=1` shows the painted cobble of the first try). The person,
   pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
   such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,

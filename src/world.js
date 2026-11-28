@@ -266,8 +266,10 @@ export class Floor {
     this.stairsGlow = this.glow(C.x, 0.45, 14.7, 0x6fb6ff, 2.6, 0.5); this.glow(C.x, 1.2, C.z + 1.55, 0x5fd0ff, 2.6, 0.45);
     this.torches.push({ x: C.x, y: 0.6, z: 15.6, r: 2.8, ph: 0 });
     // lantern posts along the paths
-    for (const [x, z, r] of [[21.6, 21.2, 0], [17.2, 16.4, 0], [24.6, 15.0, Math.PI], [22.0, 26.4, 0]]) { const cx = Math.floor(x), cz = Math.floor(z); this.block(cx, cz);
-      B.add('post_lantern', cx + 0.5, 0, cz + 0.5, r, 0.5); const lx = cx + 0.5 + Math.sin(r) * 0.6, lz = cz + 0.5 + Math.cos(r) * 0.6; this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
+    // (beside the paths, each lamp hung out over the path's edge — the person, Nov 28: two stood on the path; no longer snapped to a
+    // cell's middle. r: the way its arm reaches, 0 toward +z)
+    for (const [x, z, r] of [[22.1, 21.5, Math.PI / 2], [17.5, 15.25, 0], [24.85, 15.5, -Math.PI / 2], [22.1, 26.5, Math.PI / 2]]) { this.block(Math.floor(x), Math.floor(z));
+      B.add('post_lantern', x, 0, z, r, 0.5); const lx = x + Math.sin(r) * 0.6, lz = z + Math.cos(r) * 0.6; this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
     // the shrine by the spawn point
     B.add('shrine_candles', 26.5, 0, 26.5, -Math.PI * 0.75, 0.6); this.block(26, 26); this.glow(26.5, 0.8, 26.5, 0xffc060, 1.6, 0.8); this.torch(26.2, 1.0, 26.2, 5.0);
     B.add('bench', 21.0, 0, 28.3, 0, 0.5); this.block(20, 28); this.block(21, 28);
@@ -275,11 +277,16 @@ export class Floor {
     // (turned toward the camera): taking it up makes the Sentinel him — no need to find one first (not there once a spear is owned)
     if (placeGift(this, B, 21.5, 22.5, Math.PI / 4, 'spear', 3)) this.block(21, 22); // (its item shows its own light: the epic's beam)
     // graveyard plot
-    const GR = ['grave_A', 'grave_B', 'gravestone', 'gravestone', 'gravemarker_A', 'gravemarker_B'], graves = [];
-    for (let z = 19; z <= 29; z += 3) for (let x = 9; x <= 17; x += 2) { if (R() < 0.15) continue; const cx = x, cz = z; if (pathCells.has(cz * W + cx) || pathCells.has((cz + 1) * W + cx)) continue;
-      const name = GR[Math.floor(R() * GR.length)]; B.add(name, cx + 0.5 + (R() - 0.5) * 0.2, 0, cz + 0.5 + (R() - 0.5) * 0.2, (R() - 0.5) * 0.25, 0.5); this.block(cx, cz); graves.push([cx + 0.5, cz + (name.startsWith('grave_') ? 1 : 0.5)]);
+    // (painted camp: all headstones, a size up — the concept's are; the little wooden markers read as clutter there)
+    const GR = PAINT ? ['grave_A', 'grave_B', 'gravestone', 'gravestone', 'gravestone'] : ['grave_A', 'grave_B', 'gravestone', 'gravestone', 'gravemarker_A', 'gravemarker_B'], GS = PAINT ? 0.65 : 0.5, graves = [];
+    // (the 14 places the concept picture has them — the person, Nov 28: as many as there, where they are there; rows 3 m apart on a
+    // 2 m grid, a gap here and there)
+    const PLOTS = { 19: [11, 13, 15, 17], 22: [11, 15, 17], 25: [9, 11, 15, 17], 28: [9, 15, 17] };
+    for (const z of [19, 22, 25, 28]) for (const x of PLOTS[z]) { const cx = x, cz = z; if (pathCells.has(cz * W + cx) || pathCells.has((cz + 1) * W + cx)) continue;
+      const name = GR[Math.floor(R() * GR.length)]; B.add(name, cx + 0.5 + (R() - 0.5) * 0.2, 0, cz + 0.5 + (R() - 0.5) * 0.2, (R() - 0.5) * 0.25, GS); this.block(cx, cz); graves.push([cx + 0.5, cz + (name.startsWith('grave_') ? 1 : 0.5)]);
       if (name.startsWith('grave_')) this.block(cx, cz + 1); }
-    for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
+    const nearPath = (x, z) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (pathCells.has((Math.floor(z) + j) * W + Math.floor(x) + i)) return true; return false; };
+    for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1 && !nearPath(x, z)) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
     // (one block wide again, the person, Nov 27 — as the KayKit tiles were laid; &wide=1: two, as the painted trial had them)
     // (&big=1: the painting's own painted path, the stones put away — the person, Nov 27: paint the whole ground first, then lay
