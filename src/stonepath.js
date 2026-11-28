@@ -260,11 +260,12 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0) {
 // slow wobble (the same at the same place in the world, so two stones' sides along one joint wobble alike). The stones are then worn as before (wornStone), the
 // block's own edge eaten back unevenly. Each stone's top is a painted stone face from the tile set (assets/ground/stonefaces:
 // the insides of the biggest painted stones), one of about its own shape, laid square to the world so their painted light agrees.
+const MAX_ASPECT = 2.2; // (a stone more than 2.2 times as long as it is wide is a strip: cut again)
 export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}) {
   const P = [], N = [], C = [], U = [], I = [];
   const vn = (x, z, k) => { const i = Math.floor(x), j = Math.floor(z); let fx = x - i, fz = z - j; fx = fx * fx * (3 - 2 * fx); fz = fz * fz * (3 - 2 * fz);
     const a = hash(i, j, k), b = hash(i + 1, j, k), c = hash(i, j + 1, k), d = hash(i + 1, j + 1, k); return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz - 0.5; };
-  const warp = (wx, wz) => [wx + vn(wx * 7, wz * 7, 61) * 0.022, wz + vn(wx * 7 + 5, wz * 7 + 9, 62) * 0.022]; // (±1.1 cm)
+  const warp = (wx, wz) => [wx + vn(wx * 7, wz * 7, 61) * 0.044, wz + vn(wx * 7 + 5, wz * 7 + 9, 62) * 0.044]; // (±2.2 cm: the person asked for twice ±1.1)
   // split a convex polygon by the line through p with direction d: [left part, right part]
   const split = (poly, px, pz, dx, dz) => { const L = [], Rr = [], f = q => (q[0] - px) * dz - (q[1] - pz) * dx;
     for (let i = 0; i < poly.length; i++) { const A = poly[i], B = poly[(i + 1) % poly.length], fa = f(A), fb = f(B);
@@ -275,18 +276,31 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
   for (const [x, z] of cells) {
     const h = k => hash(x, z, 500 + k), total = 7 + Math.floor(h(2) * 3);
     // cut after cut, each across the one before (the direction turns every cut), each through one whole stone picked at random —
-    // so no cut runs through another; uneven (35–65% of the stone), a little slanted
+    // so no cut runs through another; uneven (35–65% of the stone), a little slanted. From the 5th stone on, the cut goes instead
+    // through the stone with the longest side, across that side; and while any stone is still longer than MAX_ASPECT times its
+    // width, cutting goes on (up to 9) — no long strips
     let pieces = [[[0, 0], [1, 0], [1, 1], [0, 1]]], dir = h(0) < 0.5 ? 0 : 1; // (dir 0: a cut across v — a line of about even v)
-    for (let c = 1; pieces.length < total && c < 40; c++) {
-      const ax = dir === 0 ? 1 : 0, ok = pieces.map((q, i) => [i, ext(q, ax)]).filter(([, [lo, hi]]) => hi - lo >= 0.4); // (none thinner than ~14 cm: thin ones read as planks)
-      if (!ok.length) { dir = 1 - dir; continue; }
-      const [pi, [lo, hi]] = ok[Math.floor(h(10 + c) * ok.length)], q = pieces[pi], [lo2, hi2] = ext(q, 1 - ax);
-      const at = lo + (hi - lo) * (0.35 + h(30 + c) * 0.3), sl = (h(50 + c) - 0.5) * 0.08, mid = (lo2 + hi2) / 2;
+    const size = q => { const [a0, a1] = ext(q, 0), [b0, b1] = ext(q, 1); return [a1 - a0, b1 - b0]; };
+    const strip = () => pieces.some(q => { const [w, d] = size(q); return Math.max(w, d) > MAX_ASPECT * Math.min(w, d); });
+    for (let c = 1; (pieces.length < total || (pieces.length < 9 && strip())) && c < 40; c++) {
+      let pi, cd;
+      if (pieces.length >= 4) { // (the 5th stone on: the longest side, cut across)
+        let best = -1; pieces.forEach((q, i) => { const [w, d] = size(q), L = Math.max(w, d); if (L > best) { best = L; pi = i; cd = w >= d ? 1 : 0; } });
+      } else {
+        // (a stone may be cut this way if it is at least 40 cm across that way — none thinner than ~14 cm, thin ones read as planks —
+        // and not much narrower that way than the other: cut the short way, it would leave two strips)
+        const ax = dir === 0 ? 1 : 0, ok = pieces.map((q, i) => [i, ext(q, ax), ext(q, 1 - ax)]).filter(([, [lo, hi], [lo2, hi2]]) => hi - lo >= 0.4 && hi - lo >= 0.85 * (hi2 - lo2));
+        if (!ok.length) { dir = 1 - dir; continue; }
+        pi = ok[Math.floor(h(10 + c) * ok.length)][0]; cd = dir;
+      }
+      const q = pieces[pi], ax = cd === 0 ? 1 : 0, [lo, hi] = ext(q, ax), [lo2, hi2] = ext(q, 1 - ax);
+      if (hi - lo < 0.28) break; // (nothing left worth cutting)
+      const at = lo + (hi - lo) * (pieces.length >= 4 ? 0.42 + h(30 + c) * 0.16 : 0.35 + h(30 + c) * 0.3), sl = (h(50 + c) - 0.5) * 0.08, mid = (lo2 + hi2) / 2; // (the longest cut nearer its middle)
       // the line: through (mid, at) along the other axis, slanted by sl over a metre
-      const [px, pz, dx, dz] = dir === 0 ? [mid, at, 1, sl] : [at, mid, sl, 1];
+      const [px, pz, dx, dz] = cd === 0 ? [mid, at, 1, sl] : [at, mid, sl, 1];
       const [A, B] = split(q, px, pz, dx, dz);
       if (A.length < 3 || B.length < 3) { dir = 1 - dir; continue; }
-      pieces.splice(pi, 1, A, B); dir = 1 - dir;
+      pieces.splice(pi, 1, A, B); dir = 1 - cd;
     }
     pieces.forEach((q, i) => {
       let poly = []; for (let e = 0; e < q.length; e++) { const p0 = q[e], p1 = q[(e + 1) % q.length], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 0.025));

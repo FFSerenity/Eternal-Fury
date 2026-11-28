@@ -511,6 +511,11 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   random, so a cut never runs through another): each block is cut 6–8 times so (7–9 stones) — a stone at least 40 cm across in the
   cut's direction, cut at 35–65% of it, slanted a little; the rest as above (wobble, wear, faces, ragged edges). Thinner stones
   (down to ~9 cm) read as planks, so not under ~14 cm.
+- Then (the person: the joints' wobble twice as wide; 7, 8 or 9 stones at random; from the 5th stone on, cut the stone whose long
+  side is longest; and some rule against long strips): the wobble ±2.2 cm; each block draws 7/8/9; the first four cuts as above
+  (alternating, a random whole stone, only across its long way), then each cut goes across the longest side of any stone, at
+  42–58% of it. Against strips: MAX_ASPECT = 2.2 — while a stone is more than 2.2 times as long as it is wide the block keeps
+  cutting, up to 9. So 7/8/9 come out about 22/30/48%; length÷width median 1.36, 95% under 2.04; the narrowest ~15 cm.
 - `?paint=1&big=1`: the whole clearing's ground as ONE painting (terrain.js bigGround, assets/ground/camp_big.jpg, 2048² over 26 m —
   nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
   repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in
