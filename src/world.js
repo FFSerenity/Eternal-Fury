@@ -284,7 +284,7 @@ export class Floor {
     if (PAINT) { const how = new URLSearchParams(location.search).get('path'), cellsIn = how === 'slab' || PAINT_FLAT ? pathCells : wide; // (&path=slab: the slabs laid by code, one cell wide)
       const pset = new Set(cellsIn), under = (x, z) => { let d = 9; const X = Math.floor(x), Z = Math.floor(z); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (pset.has((Z + j) * W + X + i)) d = Math.min(d, Math.hypot(Math.max(X + i - x, 0, x - X - i - 1), Math.max(Z + j - z, 0, z - Z - j - 1))); return 1 - smooth(0.02, 0.2, d); };
       this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33, undefined, undefined, under) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
-      const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]);
+      const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]); this.pathCells = pc; // (kept for tools: tools/ground/blocksheet.py)
       const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : how === 'flat' ? tilePath(pc, W) : how === 'seg' ? tilePath3d(pc, W) : cutPath(pc, W); if (st) this.group.add(st); } // (&path=flat: the blocks as flat pictures; &path=seg: the blocks' own stones)
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
