@@ -516,6 +516,14 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   (alternating, a random whole stone, only across its long way), then each cut goes across the longest side of any stone, at
   42–58% of it. Against strips: MAX_ASPECT = 2.2 — while a stone is more than 2.2 times as long as it is wide the block keeps
   cutting, up to 9. So 7/8/9 come out about 22/30/48%; length÷width median 1.36, 95% under 2.04; the narrowest ~15 cm.
+- Then (the person: up to 10 stones; and after cutting, every acute corner cut off by an arc into obtuse ones, a little irregular,
+  the gaps left to the ground): 7–10 stones (the anti-strip rule now cuts on up to 10 — about 19/21/21/39%). The cuts are all near
+  square, so every corner under 100° counts (knock in cutPath): cut 2.5–8 cm along each side (the two unequal, ≤25% of the side),
+  bowed out toward the old corner by 15–60% (0 would be a straight chamfer — two 135° corners; 1 a round, tangent one), its middle
+  points nudged ±4 mm. The smallest corner left: ~104°. The outline is then used as is (wornStone keep: the sides every ~5.5 cm,
+  the arcs' points 1–2 cm apart), which needed two fixes — the insets taken along the normals folded over where an arc bends
+  tighter than the inset (dark streaks; now any ring side running backwards against the outline's has its ends pulled together),
+  and the per-point height bumps made steep facets where points are close (now by place, ~7 cm across). ~155k triangles (was 128k).
 - `?paint=1&big=1`: the whole clearing's ground as ONE painting (terrain.js bigGround, assets/ground/camp_big.jpg, 2048² over 26 m —
   nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
   repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in

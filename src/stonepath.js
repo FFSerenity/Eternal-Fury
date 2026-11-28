@@ -16,6 +16,9 @@ import FACES from '../assets/ground/stonefaces.json';
 const hash = (i, j, k = 0) => { let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 
+// smooth value noise, -0.5..0.5, one lattice cell per unit
+const vnoise = (x, z, k) => { const i = Math.floor(x), j = Math.floor(z); let fx = x - i, fz = z - j; fx = fx * fx * (3 - 2 * fx); fz = fz * fz * (3 - 2 * fz);
+  const a = hash(i, j, k), b = hash(i + 1, j, k), c = hash(i, j + 1, k), d = hash(i + 1, j + 1, k); return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz - 0.5; };
 const V = `
 attribute vec3 color; varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
 void main(){ vW = position; vN = normal; vC = color; vUv = uv; gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0); }`;
@@ -215,12 +218,13 @@ export function tilePath3d(cells, W, { tex = 'assets/ground/pathtiles.webp' } = 
 // block's own edge (the joints between blocks as wide and uneven as those inside one). Raised in rings — foot, a soft shoulder, the
 // top's worn rim, an inner ring and the crown — each a little uneven, the whole a little tilted; darker down the sides, a few
 // stones greener low down. Its top takes the block's painting where it lies.
-function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0) {
+function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0, keep = false) {
   const rr = q => hash(id, q, 5);
   let L = 0; const seg = []; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); seg.push(l); L += l; }
-  const n = Math.max(10, Math.min(26, Math.round(L / 0.04)));
-  let p = []; let si = 0, acc = 0;
-  for (let q = 0; q < n; q++) { const t = q * L / n; while (si < poly.length - 1 && acc + seg[si] < t) { acc += seg[si]; si++; }
+  // (keep: its outline is used as given — cutPath's, whose knocked-off corners are finer than an even resampling would keep)
+  const n = keep ? poly.length : Math.max(10, Math.min(26, Math.round(L / 0.04)));
+  let p = keep ? poly.map(q => [q[0], q[1], q[2] ?? 1]) : []; let si = 0, acc = 0;
+  if (!keep) for (let q = 0; q < n; q++) { const t = q * L / n; while (si < poly.length - 1 && acc + seg[si] < t) { acc += seg[si]; si++; }
     const a = poly[si], b = poly[(si + 1) % poly.length], f = (t - acc) / (seg[si] || 1); p.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, (a[2] ?? 1) + ((b[2] ?? 1) - (a[2] ?? 1)) * f]); }
   const turn = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n], t1 = Math.atan2(q[1] - a[1], q[0] - a[0]), t2 = Math.atan2(b[1] - q[1], b[0] - q[0]);
     let d = Math.abs(t2 - t1); if (d > Math.PI) d = 2 * Math.PI - d; return d; });
@@ -234,18 +238,23 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0) {
     if (chip >= 0) { const dc = Math.min(Math.abs(i - chip), n - Math.abs(i - chip)); if (dc <= chipW) d += chipD * (1 - dc / (chipW + 1)); }
     const e = Math.min(q[0], q[1], 1 - q[0], 1 - q[1]); if (e < 0.06) d += (0.005 + 0.032 * nz(i, 22) ** 2) * (1 - e / 0.06); // (the block's edge: stones need not line up across it)
     return [q[0] + nm[i][0] * d, q[1] + nm[i][1] * d]; });
+  // (an inset taken along the normals folds over itself where the outline bends tighter than the inset: wherever a side of the
+  // new ring runs backwards against the same side of the old, its two ends are pulled together)
+  const untangle = (r, base) => { for (let it = 0; it < 4; it++) for (let i = 0; i < n; i++) { const j = (i + 1) % n;
+    if ((r[j][0] - r[i][0]) * (base[j][0] - base[i][0]) + (r[j][1] - r[i][1]) * (base[j][1] - base[i][1]) <= 0) { const m = [(r[i][0] + r[j][0]) / 2, (r[i][1] + r[j][1]) / 2]; r[i] = m; r[j] = [...m]; } } return r; };
+  untangle(out, p);
   // (where its painting is read: pulled in toward the middle by s, so a stone grown over its dropped neighbours shows its own top)
   let cu = 0, cv = 0; for (const [u, v] of out) { cu += u; cv += v; } cu /= n; cv /= n;
   let rmin = 9; for (const [u, v] of out) rmin = Math.min(rmin, Math.hypot(u - cu, v - cv));
   if (rmin < 0.02) return;
   nm = normals(out);
-  const inset = (b, j) => out.map(([u, v], i) => { const s = Math.min(b * (1 + (hash(id, i, j) - 0.5) * 0.8), Math.hypot(u - cu, v - cv) * 0.35); return [u + nm[i][0] * s, v + nm[i][1] * s]; });
-  const r1 = inset(0.007, 40), r3 = inset(0.024, 41), r4 = r3.map(([u, v]) => [u + (cu - u) * 0.5, v + (cv - v) * 0.5]);
+  const inset = (b, j) => untangle(out.map(([u, v], i) => { const s = Math.min(b * (1 + ((keep ? nz(i, j) : hash(id, i, j)) - 0.5) * 0.8), Math.hypot(u - cu, v - cv) * 0.35); return [u + nm[i][0] * s, v + nm[i][1] * s]; }), out);
+  const r1 = inset(0.007, 40), r3 = inset(0.024, 41), r4 = untangle(r3.map(([u, v]) => [u + (cu - u) * 0.5, v + (cv - v) * 0.5]), out);
   const h = 0.026 + rr(1) * 0.02, dome = 0.007 + rr(6) * 0.01, [wx, wz] = place(cu, cv), tx = (rr(2) - 0.5) * 0.05, tz = (rr(3) - 0.5) * 0.05;
   const tint = 0.93 + rr(4) * 0.16, grime = rr(7) < 0.4;
   const v0 = P.length / 3;
   const ring = (pts, yf, bump, dark, green) => pts.forEach(([u, v], i) => { const [px, pz] = place(u, v);
-    const y = yf < 0 ? -0.012 : yf + tx * (px - wx) + tz * (pz - wz) + (hash(id, i, 50 + Math.round(yf * 1000)) - 0.5) * bump;
+    const y = yf < 0 ? -0.012 : yf + tx * (px - wx) + tz * (pz - wz) + (keep ? vnoise(px * 14, pz * 14, id % 997 + Math.round(yf * 1000)) : hash(id, i, 50 + Math.round(yf * 1000)) - 0.5) * bump; // (keep: its points are uneven — a corner's 1.5 cm apart — so the bumps by place, ~7 cm across, not by point)
     P.push(px, y, pz); N.push(0, 1, 0); const c = tint * dark; C.push(c * (green ? 0.9 : 1), c, c * (green ? 0.78 : 1)); U.push(...uvOf(cu + (u - cu) * sc[i], cv + (v - cv) * sc[i])); });
   ring(out, -1, 0, 0.36, grime); ring(r1, h * 0.55, 0.004, 0.62, grime); ring(r3, h, 0.005, 1.0, false); ring(r4, h + dome * 0.7, 0.006, 1.0, false);
   const [cx, cz] = place(cu, cv); P.push(cx, h + dome + tx * 0 + tz * 0, cz); N.push(0, 1, 0); C.push(tint, tint, tint); U.push(...uvOf(cu, cv));
@@ -260,6 +269,7 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0) {
 // slow wobble (the same at the same place in the world, so two stones' sides along one joint wobble alike). The stones are then worn as before (wornStone), the
 // block's own edge eaten back unevenly. Each stone's top is a painted stone face from the tile set (assets/ground/stonefaces:
 // the insides of the biggest painted stones), one of about its own shape, laid square to the world so their painted light agrees.
+const SHARP = 100 * Math.PI / 180; // (a corner under 100° is knocked off — see knock)
 const MAX_ASPECT = 2.2; // (a stone more than 2.2 times as long as it is wide is a strip: cut again)
 export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}) {
   const P = [], N = [], C = [], U = [], I = [];
@@ -273,16 +283,44 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
       if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) { const t = fa / (fa - fb), X = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]; L.push(X); Rr.push(X); } }
     return [L, Rr]; };
   const ext = (poly, ax) => { let lo = 9, hi = -9; for (const q of poly) { lo = Math.min(lo, q[ax]); hi = Math.max(hi, q[ax]); } return [lo, hi]; };
+  // Then every sharp corner knocked off (the person, Nov 27: find all the acute corners and cut each by an arc into obtuse ones, a
+  // little irregular so they don't repeat; the gaps that leaves are left to the ground). The cuts are all near square, so 'sharp'
+  // is any corner under SHARP — nearly every corner. Each: a cut 2.5–8 cm along each side (the two sides unequal, at most 25% of
+  // the side), bowed out toward the old corner by 15–60% (0: a straight chamfer, two 135° corners; 1: tangent, a round corner),
+  // its two middle points nudged ±4 mm.
+  const knock = (q, kx, kz) => {
+    let c = [];
+    for (const p of q) if (!c.length || Math.hypot(p[0] - c[c.length - 1][0], p[1] - c[c.length - 1][1]) > 0.004) c.push(p);
+    while (c.length > 3 && Math.hypot(c[0][0] - c[c.length - 1][0], c[0][1] - c[c.length - 1][1]) <= 0.004) c.pop();
+    const ang = (cc, i) => { const p = cc[i], a = cc[(i + cc.length - 1) % cc.length], b = cc[(i + 1) % cc.length], ax = a[0] - p[0], az = a[1] - p[1], bx = b[0] - p[0], bz = b[1] - p[1];
+      return Math.acos(Math.max(-1, Math.min(1, (ax * bx + az * bz) / (Math.hypot(ax, az) * Math.hypot(bx, bz) || 1)))); };
+    c = c.filter((p, i) => ang(c, i) < 3.05); // (a point along a straight side is no corner)
+    const n = c.length, len = i => Math.hypot(c[(i + 1) % n][0] - c[i][0], c[(i + 1) % n][1] - c[i][1]), out = [];
+    for (let i = 0; i < n; i++) {
+      const p = c[i], hh = k => hash(kx, kz * 16 + i, 600 + k);
+      if (ang(c, i) >= SHARP) { out.push(p); continue; }
+      const a = c[(i + n - 1) % n], b = c[(i + 1) % n], la = len((i + n - 1) % n), lb = len(i), s = 0.025 + 0.055 * hh(0);
+      const ra = Math.min(s * (0.65 + 0.7 * hh(1)), 0.25 * la), rb = Math.min(s * (0.65 + 0.7 * hh(2)), 0.25 * lb);
+      const A = [p[0] + (a[0] - p[0]) * ra / la, p[1] + (a[1] - p[1]) * ra / la], B = [p[0] + (b[0] - p[0]) * rb / lb, p[1] + (b[1] - p[1]) * rb / lb];
+      const k = 0.15 + 0.45 * hh(3), M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], Q = [M[0] + (p[0] - M[0]) * k, M[1] + (p[1] - M[1]) * k];
+      const ox = p[0] - M[0], oz = p[1] - M[1], ol = Math.hypot(ox, oz) || 1;
+      out.push(A);
+      for (let t = 1; t <= 2; t++) { const f = t / 3, g = 1 - f, j = (hh(4 + t) - 0.5) * 0.008;
+        out.push([g * g * A[0] + 2 * f * g * Q[0] + f * f * B[0] + ox / ol * j, g * g * A[1] + 2 * f * g * Q[1] + f * f * B[1] + oz / ol * j]); }
+      out.push(B);
+    }
+    return out;
+  };
   for (const [x, z] of cells) {
-    const h = k => hash(x, z, 500 + k), total = 7 + Math.floor(h(2) * 3);
+    const h = k => hash(x, z, 500 + k), total = 7 + Math.floor(h(2) * 4); // (7–10: the person, Nov 27, 'up to 10')
     // cut after cut, each across the one before (the direction turns every cut), each through one whole stone picked at random —
     // so no cut runs through another; uneven (35–65% of the stone), a little slanted. From the 5th stone on, the cut goes instead
     // through the stone with the longest side, across that side; and while any stone is still longer than MAX_ASPECT times its
-    // width, cutting goes on (up to 9) — no long strips
+    // width, cutting goes on (up to 10) — no long strips
     let pieces = [[[0, 0], [1, 0], [1, 1], [0, 1]]], dir = h(0) < 0.5 ? 0 : 1; // (dir 0: a cut across v — a line of about even v)
     const size = q => { const [a0, a1] = ext(q, 0), [b0, b1] = ext(q, 1); return [a1 - a0, b1 - b0]; };
     const strip = () => pieces.some(q => { const [w, d] = size(q); return Math.max(w, d) > MAX_ASPECT * Math.min(w, d); });
-    for (let c = 1; (pieces.length < total || (pieces.length < 9 && strip())) && c < 40; c++) {
+    for (let c = 1; (pieces.length < total || (pieces.length < 10 && strip())) && c < 40; c++) {
       let pi, cd;
       if (pieces.length >= 4) { // (the 5th stone on: the longest side, cut across)
         let best = -1; pieces.forEach((q, i) => { const [w, d] = size(q), L = Math.max(w, d); if (L > best) { best = L; pi = i; cd = w >= d ? 1 : 0; } });
@@ -302,8 +340,9 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
       if (A.length < 3 || B.length < 3) { dir = 1 - dir; continue; }
       pieces.splice(pi, 1, A, B); dir = 1 - cd;
     }
-    pieces.forEach((q, i) => {
-      let poly = []; for (let e = 0; e < q.length; e++) { const p0 = q[e], p1 = q[(e + 1) % q.length], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 0.025));
+    pieces.forEach((q0, i) => {
+      const q = knock(q0, x * 16 + i, z); // (straight sides every ~5.5 cm, the corners' arcs kept as they are)
+      let poly = []; for (let e = 0; e < q.length; e++) { const p0 = q[e], p1 = q[(e + 1) % q.length], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 0.055));
         for (let s2 = 0; s2 < m; s2++) poly.push([p0[0] + (p1[0] - p0[0]) * s2 / m, p0[1] + (p1[1] - p0[1]) * s2 / m]); }
       poly = poly.map(([u, v]) => { const [wx, wz] = warp(x + u, z + v); return [Math.min(1, Math.max(0, wx - x)), Math.min(1, Math.max(0, wz - z)), 1]; });
       if (area(poly) < 0) poly.reverse();
@@ -313,7 +352,7 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
       for (let tr = 0; tr < 4; tr++) { const c = Math.floor(hash(x * 7 + i, z * 13, 70 + tr) * FACES.length), d = Math.abs(Math.log(FACES[c] / asp)); if (d < bd) { bd = d; f = c; } }
       const fu = (f % 6) / 6, fv = Math.floor(f / 6) / 4, mg = 0.03;
       const uvOf = (u, v) => [fu + (mg + (1 - 2 * mg) * (u - u0) / Math.max(1e-3, u1 - u0)) / 6, 1 - (fv + (mg + (1 - 2 * mg) * (v - v0) / Math.max(1e-3, v1 - v0)) / 4)];
-      wornStone(poly, Math.floor(hash(x * 31 + i, z * 17, 11) * 2147483647), (u, v) => [x + u, z + v], uvOf, P, N, C, U, I, 0.011);
+      wornStone(poly, Math.floor(hash(x * 31 + i, z * 17, 11) * 2147483647), (u, v) => [x + u, z + v], uvOf, P, N, C, U, I, 0.011, true);
     });
   }
   const geo = new THREE.BufferGeometry();
