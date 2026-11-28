@@ -276,9 +276,12 @@ export class Floor {
     // (beside the paths, each lamp hung out over the path's edge — the person, Nov 28: two stood on the path; no longer snapped to a
     // cell's middle. r: the way its arm reaches, 0 toward +z)
     for (const [x, z, r] of [[22.1, 21.5, Math.PI / 2], [17.5, 15.25, 0], [24.85, 15.5, -Math.PI / 2], [22.1, 26.5, Math.PI / 2]]) { this.block(Math.floor(x), Math.floor(z));
-      B.add('post_lantern', x, 0, z, r, 0.5); skirt('lantern', x, z); const lx = x + Math.sin(r) * 0.6, lz = z + Math.cos(r) * 0.6; this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
+      const gl = PAINT && A.props.gs_lantern && new URLSearchParams(location.search).has('gen'); // (&gen=1: the generated post — its arm along its −x, so a quarter turn more)
+      if (gl) B.add('gs_lantern', x, 0, z, r + Math.PI / 2, 2.3 / Math.max(0.05, propGeo('gs_lantern').box.max.y)); else B.add('post_lantern', x, 0, z, r, 0.5);
+      skirt('lantern', x, z); const lx = x + Math.sin(r) * (gl ? 0.7 : 0.6), lz = z + Math.cos(r) * (gl ? 0.7 : 0.6); this.glow(lx, 1.45, lz, 0xffb050, 1.2, 0.9); this.torch(lx, 1.5, lz, 5.2); }
     // the shrine by the spawn point
-    B.add('shrine_candles', 26.5, 0, 26.5, -Math.PI * 0.75, 0.6); skirt('shrine', 26.5, 26.5); this.block(26, 26); this.glow(26.5, 0.8, 26.5, 0xffc060, 1.6, 0.8); this.torch(26.2, 1.0, 26.2, 5.0);
+    const GEN0 = PAINT && new URLSearchParams(location.search).has('gen') && A.props.gs_shrine; // (&gen=1: the generated shrine, its steps toward the path)
+    if (GEN0) { const pg = propGeo('gs_shrine'); B.add('gs_shrine', 26.5, 0, 26.5, Math.PI * 0.25, 1.3 / Math.max(0.05, pg.box.max.y)); } else B.add('shrine_candles', 26.5, 0, 26.5, -Math.PI * 0.75, 0.6); skirt('shrine', 26.5, 26.5); this.block(26, 26); this.glow(26.5, 0.8, 26.5, 0xffc060, 1.6, 0.8); this.torch(26.2, 1.0, 26.2, 5.0);
     B.add('bench', 21.0, 0, 28.3, 0, 0.5); this.block(20, 28); this.block(21, 28);
     // a spear for 赵云 on a relic stand, an epic one at the deepest floor's item level, just up the path from where the summoner starts
     // (turned toward the camera): taking it up makes the Sentinel him — no need to find one first (not there once a spear is owned)

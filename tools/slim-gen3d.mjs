@@ -25,7 +25,8 @@ const t0 = tris();
 for (const m of root.listMeshes()) for (const p of m.listPrimitives()) { const t = p.getAttribute('TANGENT'); if (t) { p.setAttribute('TANGENT', null); t.dispose(); } }
 await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, TRIS / t0), error: +(process.env.ERR || 0.004), lockBorder: process.env.LOCK === '1' }));
 if (process.env.WEAPON === '1') standUp(+(process.env.GRIP || 0.22));
-if (process.env.PROP === '1') { level(); const b0 = getBounds(root.listScenes()[0]), c = [-(b0.min[0] + b0.max[0]) / 2, -b0.min[1], -(b0.min[2] + b0.max[2]) / 2];
+if (process.env.CLEAN === '1') dropBits();
+if (process.env.PROP === '1') { level(); if (process.env.FLOOR === '1') dropFloor(); const b0 = getBounds(root.listScenes()[0]), c = [-(b0.min[0] + b0.max[0]) / 2, -b0.min[1], -(b0.min[2] + b0.max[2]) / 2];
   for (const m of root.listMeshes()) transformMesh(m, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, c[0], c[1], c[2], 1]); } // PROP=1: a prop standing on the floor — its base at y = 0, centred on x / z
 await doc.transform(dedup(), prune(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [TEX, TEX], quality: 88 }), quantize());
 await io.write(out, doc);
@@ -50,6 +51,29 @@ function standUp(grip) {
   console.log(`stood up: turned ${(best.t * 180 / Math.PI).toFixed(1)}°, ${flip ? 'flipped, ' : ''}grip at ${grip} of ${(y1 - y0).toFixed(3)}`);
 }
 
+// FLOOR=1: the generator sometimes builds the picture's ground under the thing as a thin sheet (white, round a statue's plinth):
+// once levelled, the faces lying within 1.5% of its height of the very bottom, facing up or down, are dropped
+// CLEAN=1: stray bits the generator leaves floating off the thing (a pebble above a lantern post) — pieces under 3% of its faces
+function dropBits() {
+  for (const m of root.listMeshes()) for (const p of m.listPrimitives()) { const I = p.getIndices(), A = p.getAttribute('POSITION'), n = A.getCount(), par = new Int32Array(n).map((_, i) => i);
+    const f0 = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+    // (by place, not by index: the maps' seams split a vertex into several)
+    const key = new Map(); for (let i = 0; i < n; i++) { const v = A.getElement(i, []), k = v.map(x => Math.round(x * 2000)).join(','); if (key.has(k)) par[f0(i)] = f0(key.get(k)); else key.set(k, i); }
+    const f = f0;
+    for (let i = 0; i < I.getCount(); i += 3) { const a = f(I.getScalar(i)), b = f(I.getScalar(i + 1)), c = f(I.getScalar(i + 2)); par[b] = a; par[f(c)] = a; }
+    const cnt = new Map(); for (let i = 0; i < I.getCount(); i += 3) { const r = f(I.getScalar(i)); cnt.set(r, (cnt.get(r) || 0) + 1); }
+    const tot = I.getCount() / 3, keep = []; let d = 0;
+    for (let i = 0; i < I.getCount(); i += 3) { if (cnt.get(f(I.getScalar(i))) < 0.03 * tot) { d++; continue; } keep.push(I.getScalar(i), I.getScalar(i + 1), I.getScalar(i + 2)); }
+    I.setArray(new (I.getArray().constructor)(keep)); console.log('bits: dropped', d, 'faces in', [...cnt.values()].filter(v => v < 0.03 * tot).length, 'pieces'); }
+}
+function dropFloor() {
+  let y0 = 1e9, y1 = -1e9; for (const m of root.listMeshes()) for (const p of m.listPrimitives()) { const a = p.getAttribute('POSITION'); for (let i = 0; i < a.getCount(); i++) { const y = a.getElement(i, [])[1]; y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }
+  const lim = y0 + 0.015 * (y1 - y0); let n = 0;
+  for (const m of root.listMeshes()) for (const p of m.listPrimitives()) { const a = p.getAttribute('POSITION'), I = p.getIndices(), keep = [];
+    for (let i = 0; i < I.getCount(); i += 3) { const t = [0, 1, 2].map(k => I.getScalar(i + k)); if (t.every(v => a.getElement(v, [])[1] < lim)) { n++; continue; } keep.push(...t); }
+    I.setArray(new (I.getArray().constructor)(keep)); }
+  console.log('floor: dropped', n, 'faces');
+}
 function level() {
   const mul = (m, p) => [m[0] * p[0] + m[4] * p[1] + m[8] * p[2], m[1] * p[0] + m[5] * p[1] + m[9] * p[2], m[2] * p[0] + m[6] * p[1] + m[10] * p[2]];
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -62,7 +86,9 @@ function level() {
   for (let it = 0; it < 5; it++) { const mn = Math.min(...P.map(v => dot(v, up))); let acc = [0, 0, 0];
     for (const t of T) { const c = cross(sub(t[1], t[0]), sub(t[2], t[0])), A = Math.hypot(...c); if (!A) continue;
       if ((dot(t[0], up) + dot(t[1], up) + dot(t[2], up)) / 3 < mn + 0.03 * H && dot(c, up) / A < -0.75) acc = acc.map((v, k) => v - c[k]); }
-    if (!Math.hypot(...acc)) break; up = unit(acc); }
+    if (!Math.hypot(...acc)) break; const nu = unit(acc);
+    // MAXLEAN=deg: the generator's lean is 14-31°; a base found further over than this is some other face (a shrine's steps) — keep the last
+    if (process.env.MAXLEAN && Math.acos(Math.min(1, nu[1])) * 180 / Math.PI > +process.env.MAXLEAN) break; up = nu; }
   // Rodrigues: the turn that takes up to +y
   const toY = up => { const ax = cross(up, [0, 1, 0]), sn = Math.hypot(...ax), cs = up[1], k = sn ? ax.map(v => v / sn) : [1, 0, 0], C = 1 - cs;
     return [cs + k[0] * k[0] * C, k[1] * k[0] * C + k[2] * sn, k[2] * k[0] * C - k[1] * sn, 0, k[0] * k[1] * C - k[2] * sn, cs + k[1] * k[1] * C, k[2] * k[1] * C + k[0] * sn, 0,
