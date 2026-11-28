@@ -257,10 +257,13 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0, keep = false)
   const ring = (pts, yf, bump, dark, green) => pts.forEach(([u, v], i) => { const [px, pz] = place(u, v);
     const y = yf < 0 ? -0.012 : yf + tx * (px - wx) + tz * (pz - wz) + (keep ? vnoise(px * 14, pz * 14, id % 997 + Math.round(yf * 1000)) : hash(id, i, 50 + Math.round(yf * 1000)) - 0.5) * bump; // (keep: its points are uneven — a corner's 1.5 cm apart — so the bumps by place, ~7 cm across, not by point)
     P.push(px, y, pz); N.push(0, 1, 0); const c = tint * dark; C.push(c * (green ? 0.9 : 1), c, c * (green ? 0.78 : 1)); U.push(...uvOf(cu + (u - cu) * sc[i], cv + (v - cv) * sc[i])); });
-  ring(out, -1, 0, 0.36, grime); ring(r1, h * 0.55, 0.004, 0.62, grime); ring(r3, h, 0.005, 1.0, false); ring(r4, h + dome * 0.7, 0.006, 1.0, false);
+  // (keep — cutPath's stones: no ring halfway up the dome, the top a low cone from r3 to the middle: with SIDE 8.5 cm, half the
+  // triangles — 109k -> 50k for the camp's paths, more than half of all a camp frame drew — and hardly a difference to see)
+  const R = keep ? 3 : 4;
+  ring(out, -1, 0, 0.36, grime); ring(r1, h * 0.55, 0.004, 0.62, grime); ring(r3, h, 0.005, 1.0, false); if (R === 4) ring(r4, h + dome * 0.7, 0.006, 1.0, false);
   const [cx, cz] = place(cu, cv); P.push(cx, h + dome + tx * 0 + tz * 0, cz); N.push(0, 1, 0); C.push(tint, tint, tint); U.push(...uvOf(cu, cv));
-  for (let r = 0; r < 3; r++) for (let a = 0; a < n; a++) { const b = (a + 1) % n, A = v0 + r * n + a, B = v0 + r * n + b; I.push(A, B + n, B, A, A + n, B + n); }
-  const ctr = v0 + 4 * n; for (let a = 0; a < n; a++) I.push(v0 + 3 * n + a, ctr, v0 + 3 * n + (a + 1) % n);
+  for (let r = 0; r < R - 1; r++) for (let a = 0; a < n; a++) { const b = (a + 1) % n, A = v0 + r * n + a, B = v0 + r * n + b; I.push(A, B + n, B, A, A + n, B + n); }
+  const ctr = v0 + R * n; for (let a = 0; a < n; a++) I.push(v0 + (R - 1) * n + a, ctr, v0 + (R - 1) * n + (a + 1) % n);
 }
 
 // Blocks cut by lines (the person, Nov 27: cut each block with irregular lines that run roughly parallel to its edges — unevenly
@@ -270,6 +273,7 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0, keep = false)
 // slow wobble (the same at the same place in the world, so two stones' sides along one joint wobble alike). The stones are then worn as before (wornStone), the
 // block's own edge eaten back unevenly. Each stone's top is a painted stone face from the tile set (assets/ground/stonefaces:
 // the insides of the biggest painted stones), one of about its own shape, laid square to the world so their painted light agrees.
+const SIDE = 0.085; // (a stone's sides: a point every SIDE — was 5.5 cm; the corners' cuts are points of their own)
 const SHARP = 100 * Math.PI / 180; // (a corner under 100° is knocked off — see knock)
 const MAX_ASPECT = 2.2; // (a stone more than 2.2 times as long as it is wide is a strip: cut again)
 export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}) {
@@ -338,7 +342,7 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
     }
     pieces.forEach((q0, i) => {
       const q = knock(q0, x * 16 + i, z); // (then its sides cut into points every ~5.5 cm)
-      let poly = []; for (let e = 0; e < q.length; e++) { const p0 = q[e], p1 = q[(e + 1) % q.length], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 0.055));
+      let poly = []; for (let e = 0; e < q.length; e++) { const p0 = q[e], p1 = q[(e + 1) % q.length], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / SIDE));
         for (let s2 = 0; s2 < m; s2++) poly.push([p0[0] + (p1[0] - p0[0]) * s2 / m, p0[1] + (p1[1] - p0[1]) * s2 / m]); }
       poly = poly.map(([u, v]) => { const [wx, wz] = warp(x + u, z + v); return [Math.min(1, Math.max(0, wx - x)), Math.min(1, Math.max(0, wz - z)), 1]; });
       if (area(poly) < 0) poly.reverse();

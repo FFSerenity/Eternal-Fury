@@ -522,7 +522,10 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   stones as diamonds) the tips still read as points; the person marked them: cut STRAIGHT, as weathering takes corners first, an
   aged look. So one straight cut back along each side, the two unequal (×0.75–1.25, so its angle varies) — two ~135° corners:
   first 3–7 cm, ≤22% of the side; then (the person, comparing) 5–10 cm, ≤30% of the side — more weathered; then 10 cm at
-  every corner, both sides alike (≤30% of the side): 'the shape's basis'. (He also tried
+  every corner, both sides alike (≤30% of the side): 'the shape's basis'. Then fewer triangles (the person asked): the camp's
+  path was ~109k of a camp frame's ~204k; the sides now a point every 8.5 cm (was 5.5) and no ring halfway up the dome (the top
+  a low cone) — ~50k, and side by side hardly different. (A crack-like line on some stones is the painted face, not the mesh:
+  a few of the 24 faces carry a painted crack or a sliver of a neighbour's edge — 5, 23, 21, 12; 0, 1, 6, 11, 16, 17.) (He also tried
   painting red over the corners to cut on 20 blocks — tools traced it, the marks taken out of the stones as straight cuts — but
   liked the bigger cut everywhere better.) The outline is then used as is (wornStone keep: the sides
   cut into points every ~5.5 cm, NOT smoothed — smoothing rounded the small stones into pebbles), worn as before. Two fixes that
