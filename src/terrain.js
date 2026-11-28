@@ -93,7 +93,9 @@ void main(){
   for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue; float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; lit += uTC * f * 0.95; }
   gl_FragColor = vec4(base * min(lit, vec3(1.12)), 1.0);
 }`;
-export function bigGround(x0, z0, x1, z1, file = 'assets/ground/camp_big.jpg', detK = 0.35, under = null) {
+// (detK: the dirt texture's brightness laid over it — it was 0.35, but its clods tile every 3 m and showed as rows of round dots,
+// 'regular round stones' the painting itself hasn't got (the person, Nov 28); off, the painting alone)
+export function bigGround(x0, z0, x1, z1, file = 'assets/ground/camp_big.jpg', detK = 0, under = null) {
   const R = 4, Wd = Math.round((x1 - x0) * R), Hd = Math.round((z1 - z0) * R), ud = new Uint8Array(Wd * Hd * 4);
   if (under) for (let j = 0; j < Hd; j++) for (let i = 0; i < Wd; i++) ud[((Hd - 1 - j) * Wd + i) * 4] = Math.round(255 * under(x0 + (i + 0.5) / R, z0 + (j + 0.5) / R));
   const ut = new THREE.DataTexture(ud, Wd, Hd, THREE.RGBAFormat); ut.magFilter = ut.minFilter = THREE.LinearFilter; ut.needsUpdate = true;

@@ -552,6 +552,10 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   cut slabs with mossy joints, earth with roots and cracks, moss edges with leaves (gt_ref_*.png in ComfyUI's input). Prompt in
   tools/ground/camp_prompt3.txt; workflow.edit_refs. ~3 min a 2048 picture. The paths come out one block wide, big cracked slabs,
   exactly on the map. Graded to the first painting's mean and spread. `&bigimg=<name>` tries a painting from assets/ground.
+  The person chose A (seed 111: fewest of the scattered shaded rocks — bigger loose rocks to be models later): now
+  assets/ground/camp_big.jpg (the first painting kept as camp_big_v1.jpg, its whole slabs a reference). The regular round dots
+  seen in the game were never in the paintings: they were the 35% dirt-texture detail laid over them (its clods tile every 3 m) —
+  that detail is off now (`&det=0.35` brings it back).
 - Before that (`&path=slab`): raised stones, not painted (`?paint=1&flat=1` shows the painted cobble of the first try). The person,
   pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
   such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,
