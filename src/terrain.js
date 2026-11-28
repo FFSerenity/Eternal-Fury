@@ -7,6 +7,8 @@ import * as THREE from 'three';
 import { SH, TORCH_N, AURA_T } from './gfx.js';
 // the painted ground trial (hand-painted direction): ?paint=1 lays the camp's clearing as one painted ground instead of KayKit tiles
 export const PAINT = typeof location !== 'undefined' && new URLSearchParams(location.search).has('paint');
+// ?paint=1&flat=1: the paths painted flat in the ground texture (the first trial) instead of raised stones (stonepath.js)
+export const PAINT_FLAT = PAINT && new URLSearchParams(location.search).has('flat');
 
 // the ground set: name -> [file, metres one repeat covers]. Hand-painted, seamless, made in ComfyUI (Qwen Image 2.1 turbo with the
 // GT Seamless Roll node; tools/ground/ has the prompts and the clean-up) — see DESIGN.md "Painted ground"
@@ -47,15 +49,16 @@ void main(){
   float dl = length(vW.xz - uLight.xz), fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;
   vec3 lit = uAmb * 1.02 + uLightC * fall * 0.78;
   for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue; float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; lit += uTC * f * 0.95; } // (lanterns pool a little stronger on the painted ground than on the props)
-  gl_FragColor = vec4(base * min(lit, vec3(1.12)), 1.0);
+  gl_FragColor = vec4(base * (0.42 + 0.58 * s.a) * min(lit, vec3(1.12)), 1.0); // (s.a: 1 − shade)
 }`;
 
-// the ground over [x0, x1] x [z0, z1]; weight(x, z) -> [moss, cobble, leaves] (0..1 each; dirt gets what is left), sampled at
+// the ground over [x0, x1] x [z0, z1]; weight(x, z) -> [moss, cobble, leaves, shade] (0..1 each; dirt gets what is left; shade
+// darkens it — under raised stones, so the gaps between them read as deep), sampled at
 // res texels a metre into the splat map (smoothed by the texture's own filtering)
 export function paintGround(x0, z0, x1, z1, weight, res = 4) {
   const W = Math.round((x1 - x0) * res), H = Math.round((z1 - z0) * res), data = new Uint8Array(W * H * 4);
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const [g, c, s] = weight(x0 + (i + 0.5) / res, z0 + (j + 0.5) / res), o = (j * W + i) * 4;
-    data[o] = Math.round(255 * Math.min(1, g)); data[o + 1] = Math.round(255 * Math.min(1, c)); data[o + 2] = Math.round(255 * Math.min(1, s)); data[o + 3] = 255; }
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const [g, c, s, sh = 0] = weight(x0 + (i + 0.5) / res, z0 + (j + 0.5) / res), o = (j * W + i) * 4;
+    data[o] = Math.round(255 * Math.min(1, g)); data[o + 1] = Math.round(255 * Math.min(1, c)); data[o + 2] = Math.round(255 * Math.min(1, s)); data[o + 3] = Math.round(255 * (1 - Math.min(1, sh))); }
   const splat = new THREE.DataTexture(data, W, H, THREE.RGBAFormat); splat.magFilter = splat.minFilter = THREE.LinearFilter; splat.needsUpdate = true;
   const mat = new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: F, uniforms: { ...SH,
     uDirt: { value: tex('dirt') }, uMoss: { value: tex('moss') }, uCobble: { value: tex('cobble') }, uLeaves: { value: tex('leaves') }, uSplat: { value: splat },

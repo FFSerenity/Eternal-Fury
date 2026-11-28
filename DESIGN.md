@@ -472,6 +472,16 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
 - The layout: dirt underneath; cobble along the path cells (ragged edges, a few stones missing); moss thick along the fence, in rings
   at the foot of the graves and the trees, a few stray patches and in the gaps beside the paths, never where the summoner starts or before
   the crypt door; leaves in broad drifts and under the trees (the leaf texture is earth with a few leaves, so even full weight is sparse).
+- The paths are raised stones, not painted (stonepath.js; `?paint=1&flat=1` shows the painted cobble of the first try). The person,
+  pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
+  such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,
+  each cut by slanting joints into slabs 0.3–0.5 m across; a corner or crossing cell is 2×2 by two slanting lines. Each slab is its
+  own little mesh: its quad less half the joint, edges chipped, a corner knocked off now and then, a flat top 4.5–7.5 cm up on steep
+  sides with a narrow bevel, slightly tilted, tinted warmer or cooler, darker down the sides. At the path's sides they reach
+  0.12–0.26 m past the cells, ragged, lower, now and then missing; a few small sunken ones stray. Lit with their own slope (a painter's
+  light from the screen's upper left, the summoner's light and the lanterns from where they are). Under them the ground is darkened
+  with moss in the joints (the splat map's alpha). ~500 slabs, ~60k triangles, one mesh. (First tried as Voronoi cobbles — round,
+  cushiony, wrong for the concept.) Their surface (assets/ground/stone.jpg) is a stand-in made in numpy until a painted one is made.
 - The lanterns light the painted ground a little more than the props (0.95 against 0.72), for the concept's warm pools.
 - terrain.js groundFog: one see-through sheet 0.32 m up over the wilds around the camp — clear inside the fence, thickening over the
   first ~5 m past it, in slowly drifting patches (blue-violet).
