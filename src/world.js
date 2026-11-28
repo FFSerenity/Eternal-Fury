@@ -319,7 +319,9 @@ export class Floor {
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing
     for (const [x, z, t] of [[29.5, 10.5, 'tree_dead_large'], [10.5, 30.5, 'tree_dead_medium'], [30.5, 29.5, 'tree_dead_small'], [28.5, 17.5, 'tree_dead_medium'], [19.5, 30.5, 'tree_dead_small']]) {
-      B.add(t, x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); skirt('tree', x, z); }
+      const gt = PAINT && A.props.gs_deadtree && new URLSearchParams(location.search).has('gen'), tr = R() * 6.28; // (&gen=1: the generated tree, a size for each)
+      if (gt) B.add('gs_deadtree', x, 0, z, tr, ({ tree_dead_large: 3.8, tree_dead_medium: 3.2, tree_dead_small: 2.6 })[t] / Math.max(0.05, propGeo('gs_deadtree').box.max.y)); else B.add(t, x, 0, z, tr, 0.5);
+      this.block(Math.floor(x), Math.floor(z)); skirt('tree', x, z); }
     if (SK.length) this.group.add(groundSkirts(SK));
     // fence around the clearing, with an arch gate on the far side (it only looks out on the woods) and the two gates out into the wilds (east and south)
     for (let t = 8; t < 32; t += 2) { const brk = () => R() < 0.2 ? 'fence_broken' : 'fence';
