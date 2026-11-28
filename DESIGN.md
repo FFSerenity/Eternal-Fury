@@ -479,6 +479,14 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   blocks looks like the joints inside one") — so the blocks meet at a joint like any other, and the outer stones make the path's
   sides. The painted camp's paths are drawn two cells wide (the extra cell to +x along a run in z, to +z along one in x; drawn
   only — the walkable grid and the graves keep to the one-cell paths); one cell wide they were a thin dark line beside the concept's.
+  Eight more blocks in the same style were painted by Qwen with the sheet as its reference (no leaves, no grass; smoother than the
+  person's): those are used by default (`&tiles=own` the person's six, `&tiles=mix` both — mixed, the person's darker, mossier blocks
+  stood out as patches). tools/ground/make_tiles.py builds the atlas (4×4 slots of 512).
+- `?paint=1&big=1`: the whole clearing's ground as ONE painting (terrain.js bigGround, assets/ground/camp_big.jpg, 2048² over 26 m —
+  nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
+  repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in
+  tools/ground/camp_prompt.txt), brought to the shot's mean colour. 2048 over 26 m is about the screen's own density, so the dirt
+  texture's brightness is laid over it at 35% (at its own 3 m scale) to keep it crisp up close. The path blocks lie on top of it as before.
 - Before that (`&path=slab`): raised stones, not painted (`?paint=1&flat=1` shows the painted cobble of the first try). The person,
   pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
   such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,

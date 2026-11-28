@@ -9,6 +9,8 @@ import { SH, TORCH_N, AURA_T } from './gfx.js';
 export const PAINT = typeof location !== 'undefined' && new URLSearchParams(location.search).has('paint');
 // ?paint=1&flat=1: the paths painted flat in the ground texture (the first trial) instead of raised stones (stonepath.js)
 export const PAINT_FLAT = PAINT && new URLSearchParams(location.search).has('flat');
+// ?paint=1&big=1: the clearing's ground as one big painting (bigGround) instead of tiling textures blended by a splat map
+export const PAINT_BIG = PAINT && new URLSearchParams(location.search).has('big');
 
 // the ground set: name -> [file, metres one repeat covers]. Hand-painted, seamless, made in ComfyUI (Qwen Image 2.1 turbo with the
 // GT Seamless Roll node; tools/ground/ has the prompts and the clean-up) — see DESIGN.md "Painted ground"
@@ -65,6 +67,33 @@ export function paintGround(x0, z0, x1, z1, weight, res = 4) {
     uScale: { value: new THREE.Vector4(GROUND.dirt[1], GROUND.moss[1], GROUND.cobble[1], GROUND.leaves[1]) }, uArea: { value: new THREE.Vector4(x0, z0, x1 - x0, z1 - z0) },
     uSharp: { value: 0.22 }, uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
   mat.userData.tone = mat.uniforms.uTone;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2), mat);
+  mesh.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); mesh.renderOrder = -1; return mesh;
+}
+
+// The whole camp clearing as one painting (?paint=1&big=1, the "one big picture" trial): a top-down shot of the painted ground above
+// (paths included) repainted by Qwen Image as a single picture, so nothing in it repeats (tools/ground: workflow.img2img; the guide
+// is tests' topdown.py). 2048² over 26 m is about the screen's own density, so a little of the dirt texture's fine detail is laid
+// over it (its brightness only, at its own scale) to keep it crisp up close. Lit like the painted ground.
+const BIG_F = `
+#define TN ${TORCH_N}
+uniform sampler2D uBig, uDet; uniform vec4 uArea; uniform float uDetK; uniform vec2 uTone;
+uniform vec3 uLight; uniform float uLightR; uniform vec3 uAmb; uniform vec3 uLightC; uniform vec4 uTL[TN]; uniform vec3 uTC;
+varying vec3 vW;
+float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
+void main(){
+  vec2 uv = (vW.xz - uArea.xy) / uArea.zw; vec3 base = texture2D(uBig, vec2(uv.x, 1.0 - uv.y)).rgb;
+  float d = lum(texture2D(uDet, vW.xz / 3.0).rgb) / 0.34; base *= mix(1.0, d, uDetK);
+  base = mix(vec3(lum(base)), base, uTone.y) * uTone.x;
+  float dl = length(vW.xz - uLight.xz), fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;
+  vec3 lit = uAmb * 1.02 + uLightC * fall * 0.78;
+  for (int i = 0; i < TN; i++) { vec4 t = uTL[i]; if (t.w <= 0.0) continue; float f = max(0.0, 1.0 - length(vW - t.xyz) / t.w); f *= f; lit += uTC * f * 0.95; }
+  gl_FragColor = vec4(base * min(lit, vec3(1.12)), 1.0);
+}`;
+export function bigGround(x0, z0, x1, z1, file = 'assets/ground/camp_big.jpg', detK = 0.35) {
+  const big = new THREE.TextureLoader().load(file); big.colorSpace = THREE.NoColorSpace; big.anisotropy = 4;
+  const mat = new THREE.ShaderMaterial({ vertexShader: V, fragmentShader: BIG_F, uniforms: { ...SH, uBig: { value: big }, uDet: { value: tex('dirt') },
+    uArea: { value: new THREE.Vector4(x0, z0, x1 - x0, z1 - z0) }, uDetK: { value: detK }, uTone: { value: new THREE.Vector2(globalThis.__gTone ?? 0.66, globalThis.__gSat ?? 0.78) } } });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2), mat);
   mesh.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); mesh.renderOrder = -1; return mesh;
 }

@@ -150,17 +150,20 @@ export function stonePath(cells, W, opts = {}) {
 }
 
 // The person's tile set (a painted sheet of six square cobble blocks, "Graveyard Cobblestone Tile Set"; cut out whole — each block's
-// own bevelled outer stones and rounded corners kept, the sheet's background made see-through — a little less purple, packed 3×2 in
-// assets/ground/pathtiles.webp): each path cell shows one block, picked and turned by the cell's own random numbers (never the same
+// own bevelled outer stones and rounded corners kept, the sheet's background made see-through — a little less purple) and eight more
+// Qwen painted from it (no leaves or grass), 4×4 slots in assets/ground/pathtiles.webp (tools/ground/make_tiles.py): each path cell shows one block, picked and turned by the cell's own random numbers (never the same
 // block as the cell before it along x or z), flat just above the ground — the painting carries the relief. Blocks meet at their own
 // bevelled edges (the concept's path reads as such blocks), and the outer stones of the blocks make the path's sides.
 export function tilePath(cells, W, { tex = 'assets/ground/pathtiles.webp' } = {}) {
-  const P = [], C = [], U = [], N = [], I = [], pick = new Map();
+  const P = [], C = [], U = [], N = [], I = [], pick = new Map(), which = new URLSearchParams(location.search).get('tiles') || 'new';
   for (const [x, z] of cells) {
-    let k = Math.floor(hash(x, z, 300) * 6); const r = Math.floor(hash(x, z, 301) * 4);
-    for (const [nx, nz] of [[x - 1, z], [x, z - 1]]) { const o = pick.get(nz * W + nx); if (o === k) k = (k + 1 + Math.floor(hash(x, z, 302) * 4)) % 6; }
+    // (0–5: the person's own blocks, with their leaves and grass; 6–13: Qwen's, bare. &tiles=own / new / mix — new by default: mixed,
+    // the person's darker, mossier blocks stood out as patches)
+    const own = which === 'own' || (which === 'mix' && hash(x, z, 303) < 0.33), pickK = h => own ? Math.floor(h * 6) : 6 + Math.floor(h * 8);
+    let k = pickK(hash(x, z, 300)); const r = Math.floor(hash(x, z, 301) * 4);
+    for (const [nx, nz] of [[x - 1, z], [x, z - 1]]) { const o = pick.get(nz * W + nx); if (o === k) k = pickK((hash(x, z, 302) + 0.5) % 1); if (o === k) k = (k + 1) % 14; }
     pick.set(z * W + x, k);
-    const u0 = (k % 3) / 3, v0 = 1 - (Math.floor(k / 3) + 1) / 2, uv = [[u0, v0 + 0.5], [u0 + 1 / 3, v0 + 0.5], [u0 + 1 / 3, v0], [u0, v0]]; // (corners −x−z, +x−z, +x+z, −x+z; the sheet's top row is +v)
+    const u0 = (k % 4) / 4, v0 = 1 - (Math.floor(k / 4) + 1) / 4, uv = [[u0, v0 + 0.25], [u0 + 0.25, v0 + 0.25], [u0 + 0.25, v0], [u0, v0]]; // (corners −x−z, +x−z, +x+z, −x+z; the sheet's top row is +v)
     const b = P.length / 3, corners = [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]];
     for (let c = 0; c < 4; c++) { P.push(corners[c][0], 0.006, corners[c][1]); C.push(1, 1, 1); N.push(0, 1, 0); const t = uv[(c + r) % 4]; U.push(t[0], t[1]); }
     I.push(b, b + 2, b + 1, b, b + 3, b + 2);

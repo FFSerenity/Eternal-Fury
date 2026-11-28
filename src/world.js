@@ -5,7 +5,7 @@ import { PropBatch } from './assets.js';
 import { addBox, placeStand, placeGift, BOX_KIND, propScale } from './loot.js';
 import { portalMesh } from './vfx.js';
 import { genWilds, buildWilds, WILD } from './wilds.js';
-import { paintGround, groundFog, fbm, smooth, PAINT, PAINT_FLAT } from './terrain.js';
+import { paintGround, groundFog, bigGround, fbm, smooth, PAINT, PAINT_FLAT, PAINT_BIG } from './terrain.js';
 import { stonePath, tilePath } from './stonepath.js';
 
 export function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -282,7 +282,7 @@ export class Floor {
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
     if (PAINT) { const how = new URLSearchParams(location.search).get('path'), cellsIn = how === 'slab' || PAINT_FLAT ? pathCells : wide; // (&path=slab: the slabs laid by code, one cell wide)
-      this.group.add(this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
+      this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
       const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]);
       const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : tilePath(pc, W); if (st) this.group.add(st); }
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)

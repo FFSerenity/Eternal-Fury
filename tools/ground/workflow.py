@@ -78,3 +78,35 @@ def t2i_seamless(jobs, path, batch=4, roll_seed=7, sharp=6.0):
         sv3=w.node("SaveImage",[("images","IMAGE")],[],["props/ground/"+name+"_q"],(x+2110,y),(300,300))
         w.link(dec3,0,sv3,0)
     w.dump(path)
+
+def img2img(jobs, path, image, w=2048, h=2048):
+    # jobs: (name, prompt, seed, sigmas)  — repaint a guide image, keeping its layout (how much: where the sigmas start)
+    W_=WF(); cache,clip,vae,smp,sig=base(W_)
+    li=W_.node("LoadImage",[],[("IMAGE","IMAGE"),("MASK","MASK")],[image,"image"],(0,950),(300,320))
+    enc=W_.node("VAEEncode",[("pixels","IMAGE"),("vae","VAE")],[("LATENT","LATENT")],None,(350,950))
+    W_.link(li,0,enc,0); W_.link(vae,0,enc,1)
+    for i,(name,prompt,seed,sg) in enumerate(jobs):
+        y=i*560; x=400
+        te=encode(W_,clip,prompt,"",(x,y))
+        s2=W_.node("ManualSigmas",[],[("SIGMAS","SIGMAS")],[sg],(x+460,y+420))
+        sa=sample(W_,cache,te,smp,s2,enc,seed,x,y)
+        dec=W_.node("VAEDecode",[("samples","LATENT"),("vae","VAE")],[("IMAGE","IMAGE")],None,(x+1200,y))
+        W_.link(sa,0,dec,0); W_.link(vae,0,dec,1)
+        sv=W_.node("SaveImage",[("images","IMAGE")],[],["props/ground/"+name],(x+1450,y),(400,400))
+        W_.link(dec,0,sv,0)
+    W_.dump(path)
+
+def ref_t2i(jobs, path, ref_image, batch=4, w=1024, h=1024):
+    # jobs: (name, prompt, seed) — new pictures with a reference image shown to the text encoder (style / content reference)
+    W_=WF(); cache,clip,vae,smp,sig=base(W_)
+    li=W_.node("LoadImage",[],[("IMAGE","IMAGE"),("MASK","MASK")],[ref_image,"image"],(0,950),(300,320))
+    for i,(name,prompt,seed) in enumerate(jobs):
+        y=i*560; x=400
+        te=encode(W_,clip,prompt,"",(x,y)); W_.link(li,0,te,1); W_.link(vae,0,te,2)
+        lat=W_.node("EmptyLatentImage",[],[("LATENT","LATENT")],[w,h,batch],(x+460,y+300))
+        sa=sample(W_,cache,te,smp,sig,lat,seed,x,y)
+        dec=W_.node("VAEDecode",[("samples","LATENT"),("vae","VAE")],[("IMAGE","IMAGE")],None,(x+1200,y))
+        W_.link(sa,0,dec,0); W_.link(vae,0,dec,1)
+        sv=W_.node("SaveImage",[("images","IMAGE")],[],["props/ground/"+name],(x+1450,y),(400,400))
+        W_.link(dec,0,sv,0)
+    W_.dump(path)
