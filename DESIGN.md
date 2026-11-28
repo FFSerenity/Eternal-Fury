@@ -545,6 +545,13 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   puts the modelled stones on it again, the painting turned to dark earth and moss under them. (Still two blocks wide, painted
   before the paths went back to one; tools/ground/camp_prompt2.txt + a tighter one-block guide shot (`&flat=1`) are ready to
   repaint it one wide.)
+- The second painting (Nov 28): no textured guide any more — its tiled dirt's round clods came through as a grid of round marks.
+  Instead Qwen Image 2.1 as an editor with several pictures (its text encoder takes up to 16): 1) a flat-colour position map
+  (tools/ground/layoutmap.py: path grey, earth brown, moss green; no leaves — a flat orange reads as a carpet of them), the output
+  takes its size (2048); 2–5) the person's references from GPT: a whole-camp painting (style and scale), a path of large irregular
+  cut slabs with mossy joints, earth with roots and cracks, moss edges with leaves (gt_ref_*.png in ComfyUI's input). Prompt in
+  tools/ground/camp_prompt3.txt; workflow.edit_refs. ~3 min a 2048 picture. The paths come out one block wide, big cracked slabs,
+  exactly on the map. Graded to the first painting's mean and spread. `&bigimg=<name>` tries a painting from assets/ground.
 - Before that (`&path=slab`): raised stones, not painted (`?paint=1&flat=1` shows the painted cobble of the first try). The person,
   pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
   such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,

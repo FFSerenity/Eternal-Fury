@@ -110,3 +110,23 @@ def ref_t2i(jobs, path, ref_image, batch=4, w=1024, h=1024):
         sv=W_.node("SaveImage",[("images","IMAGE")],[],["props/ground/"+name],(x+1450,y),(400,400))
         W_.link(dec,0,sv,0)
     W_.dump(path)
+
+def edit_refs(jobs, path, images, prompt, resolution=0):
+    # jobs: (name, seed) — Qwen Image 2.1 as an editor: `images` (file names in ComfyUI's input) all shown to it, the first one
+    # giving the output's size (its latent); resolution 0 keeps each at its own size (so size them beforehand)
+    W_=WF(); cache,clip,vae,smp,sig=base(W_)
+    ins=[("clip","CLIP")]+[(f"images.image_{i+1}","IMAGE") for i in range(len(images))]+[("vae","VAE")]
+    te=W_.node("TextEncodeQwenImage21",ins,[("positive","CONDITIONING"),("negative","CONDITIONING"),("latent","LATENT")],[prompt,"",resolution],(400,0),(420,360))
+    W_.link(clip,0,te,0)
+    for i,im in enumerate(images):
+        li=W_.node("LoadImage",[],[("IMAGE","IMAGE"),("MASK","MASK")],[im,"image"],(0,950+i*340),(300,320))
+        W_.link(li,0,te,1+i)
+    W_.link(vae,0,te,1+len(images))
+    for j,(name,seed) in enumerate(jobs):
+        y=j*560; x=400
+        sa=sample(W_,cache,te,smp,sig,te,seed,x,y,latent_slot=2)
+        dec=W_.node("VAEDecode",[("samples","LATENT"),("vae","VAE")],[("IMAGE","IMAGE")],None,(x+1200,y))
+        W_.link(sa,0,dec,0); W_.link(vae,0,dec,1)
+        sv=W_.node("SaveImage",[("images","IMAGE")],[],["props/ground/"+name],(x+1450,y),(400,400))
+        W_.link(dec,0,sv,0)
+    W_.dump(path)
