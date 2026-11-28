@@ -492,7 +492,13 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   blocks' own edges can go irregular too): stonepath.js wornStone resamples each outline every ~4 cm, softens its corners, eats into
   it a little (slow noise along it, more at corners, a chip now and then, more again along the block's own edge), and raises it in
   rings — foot, a soft shoulder, the top's worn rim, an inner ring, the crown — each a little uneven; a stone grain (stone.jpg, 40%)
-  over the smooth paintings. First tried twice as worn: they turned into river pebbles. ~166k triangles for the camp's paths.
+  over the smooth paintings. First tried twice as worn: they turned into river pebbles.
+- Then, step by step as the person asked: at most 8 stones a block, none of the small ones (too broken up) — seg_tiles.py keeps the
+  biggest ≤ 8 (above a medium size) and grows them over the room the dropped ones left (up to ~19 cm, a joint kept where two meet),
+  each showing its own painting stretched out to its new outline (per outline point, how far in to read it); the joints about as
+  wide as before; the stones along a block's edge eaten back unevenly (up to ~4 cm), so they need not line up with the next block's
+  and a corner may be missing; and no darkening under the path (it read as a shadow) — the earth and moss show as they are.
+  ~124k triangles for the camp's paths.
 - `?paint=1&big=1`: the whole clearing's ground as ONE painting (terrain.js bigGround, assets/ground/camp_big.jpg, 2048² over 26 m —
   nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
   repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in

@@ -193,7 +193,7 @@ export function tilePath3d(cells, W, { tex = 'assets/ground/pathtiles.webp' } = 
     const place = (u, v) => { let a = u - 0.5, b = v - 0.5; for (let q = 0; q < r; q++) [a, b] = [-b, a]; return [x + 0.5 + a, z + 0.5 + b]; };
     const uvOf = (u, v) => [su + u / 4, 1 - (sv + v / 4)];
     STONES[k].forEach((flat, si) => {
-      let poly = []; for (let i = 0; i < flat.length; i += 2) poly.push([flat[i], flat[i + 1]]);
+      let poly = []; for (let i = 0; i < flat.length; i += 3) poly.push([flat[i], flat[i + 1], flat[i + 2]]); // (u, v, s: s — how far in to read its painting)
       if (area(poly.map(([u, v]) => place(u, v))) < 0) poly.reverse(); // (positive in (u, v) as in (x, z): turning is a rotation)
       const id = Math.floor(hash(x * 31 + si, z * 17 + k, 9) * 2147483647);
       wornStone(poly, id, (u, v) => place(u, v), uvOf, P, N, C, U, I);
@@ -220,18 +220,20 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I) {
   const n = Math.max(10, Math.min(26, Math.round(L / 0.04)));
   let p = []; let si = 0, acc = 0;
   for (let q = 0; q < n; q++) { const t = q * L / n; while (si < poly.length - 1 && acc + seg[si] < t) { acc += seg[si]; si++; }
-    const a = poly[si], b = poly[(si + 1) % poly.length], f = (t - acc) / (seg[si] || 1); p.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]); }
+    const a = poly[si], b = poly[(si + 1) % poly.length], f = (t - acc) / (seg[si] || 1); p.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, (a[2] ?? 1) + ((b[2] ?? 1) - (a[2] ?? 1)) * f]); }
   const turn = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n], t1 = Math.atan2(q[1] - a[1], q[0] - a[0]), t2 = Math.atan2(b[1] - q[1], b[0] - q[0]);
     let d = Math.abs(t2 - t1); if (d > Math.PI) d = 2 * Math.PI - d; return d; });
-  for (let it = 0; it < 1; it++) p = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n]; return [(a[0] + 2 * q[0] + b[0]) / 4, (a[1] + 2 * q[1] + b[1]) / 4]; });
+  for (let it = 0; it < 1; it++) p = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n]; return [(a[0] + 2 * q[0] + b[0]) / 4, (a[1] + 2 * q[1] + b[1]) / 4, q[2]]; });
+  const sc = p.map(q => q[2]);
   const m = Math.max(3, Math.round(n / 3)), nz = (q, k = 21) => { const s = q * m / n, i = Math.floor(s), f = s - i, g = f * f * (3 - 2 * f); return hash(id, i % m, k) * (1 - g) + hash(id, (i + 1) % m, k) * g; };
   const normals = pts => pts.map((q, i) => { const a = pts[(i + pts.length - 1) % pts.length], b = pts[(i + 1) % pts.length], tx = b[0] - a[0], tz = b[1] - a[1], l = Math.hypot(tx, tz) || 1; return [-tz / l, tx / l]; });
   const chip = rr(30) < 0.65 ? Math.floor(rr(31) * n) : -99, chipW = 1 + Math.floor(rr(32) * 2), chipD = 0.008 + rr(33) * 0.012;
   let nm = normals(p);
   const out = p.map((q, i) => { let d = 0.0015 + 0.008 * nz(i) ** 2 + 0.005 * Math.max(0, turn[i] - 0.6);
     if (chip >= 0) { const dc = Math.min(Math.abs(i - chip), n - Math.abs(i - chip)); if (dc <= chipW) d += chipD * (1 - dc / (chipW + 1)); }
-    const e = Math.min(q[0], q[1], 1 - q[0], 1 - q[1]); if (e < 0.05) d += (0.004 + 0.009 * nz(i, 22)) * (1 - e / 0.05);
+    const e = Math.min(q[0], q[1], 1 - q[0], 1 - q[1]); if (e < 0.06) d += (0.005 + 0.032 * nz(i, 22) ** 2) * (1 - e / 0.06); // (the block's edge: stones need not line up across it)
     return [q[0] + nm[i][0] * d, q[1] + nm[i][1] * d]; });
+  // (where its painting is read: pulled in toward the middle by s, so a stone grown over its dropped neighbours shows its own top)
   let cu = 0, cv = 0; for (const [u, v] of out) { cu += u; cv += v; } cu /= n; cv /= n;
   let rmin = 9; for (const [u, v] of out) rmin = Math.min(rmin, Math.hypot(u - cu, v - cv));
   if (rmin < 0.02) return;
@@ -243,7 +245,7 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I) {
   const v0 = P.length / 3;
   const ring = (pts, yf, bump, dark, green) => pts.forEach(([u, v], i) => { const [px, pz] = place(u, v);
     const y = yf < 0 ? -0.012 : yf + tx * (px - wx) + tz * (pz - wz) + (hash(id, i, 50 + Math.round(yf * 1000)) - 0.5) * bump;
-    P.push(px, y, pz); N.push(0, 1, 0); const c = tint * dark; C.push(c * (green ? 0.9 : 1), c, c * (green ? 0.78 : 1)); U.push(...uvOf(u, v)); });
+    P.push(px, y, pz); N.push(0, 1, 0); const c = tint * dark; C.push(c * (green ? 0.9 : 1), c, c * (green ? 0.78 : 1)); U.push(...uvOf(cu + (u - cu) * sc[i], cv + (v - cv) * sc[i])); });
   ring(out, -1, 0, 0.36, grime); ring(r1, h * 0.55, 0.004, 0.62, grime); ring(r3, h, 0.005, 1.0, false); ring(r4, h + dome * 0.7, 0.006, 1.0, false);
   const [cx, cz] = place(cu, cv); P.push(cx, h + dome + tx * 0 + tz * 0, cz); N.push(0, 1, 0); C.push(tint, tint, tint); U.push(...uvOf(cu, cv));
   for (let r = 0; r < 3; r++) for (let a = 0; a < n; a++) { const b = (a + 1) % n, A = v0 + r * n + a, B = v0 + r * n + b; I.push(A, B + n, B, A, A + n, B + n); }

@@ -84,8 +84,8 @@ float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
 void main(){
   vec2 uv = (vW.xz - uArea.xy) / uArea.zw; vec3 base = texture2D(uBig, vec2(uv.x, 1.0 - uv.y)).rgb;
   float d = lum(texture2D(uDet, vW.xz / 3.0).rgb) / 0.34; base *= mix(1.0, d, uDetK);
-  // under the path's stones: dark earth with moss (the painting has its own path painted there)
-  float un = texture2D(uUnder, uv).r; vec3 gap = mix(texture2D(uDet, vW.xz / 3.0).rgb, texture2D(uMossT, vW.xz / 2.8).rgb, 0.45) * 0.55;
+  // under the path's stones: earth with moss (the painting has its own path painted there)
+  float un = texture2D(uUnder, uv).r; vec3 gap = mix(texture2D(uDet, vW.xz / 3.0).rgb, texture2D(uMossT, vW.xz / 2.8).rgb, 0.35); // (not darkened: it read as a shadow)
   base = mix(base, gap, un);
   base = mix(vec3(lum(base)), base, uTone.y) * uTone.x;
   float dl = length(vW.xz - uLight.xz), fall = 1.0 - smoothstep(uLightR * 0.15, uLightR, dl); fall *= fall;

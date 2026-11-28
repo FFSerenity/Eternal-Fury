@@ -66,7 +66,7 @@ export class Floor {
         smooth(0.6, 0.72, fbm(x * 0.42 + 13, z * 0.42 + 2) + (n3 - 0.5) * 0.12) * 0.8, smooth(0.25, 0.6, dp) * (1 - smooth(0.6, 1.1, dp)) * smooth(0.45, 0.6, n3) * 0.7)
         * (1 - cob) * (1 - start * 0.85) * (1 - crypt * 0.7);
       const leaves = Math.max(smooth(0.5, 0.68, n2 + (n - 0.5) * 0.3) * 0.7, (1 - smooth(1.0, 3.2, dt)) * 0.85) * (1 - cob * 0.7) * (1 - start * 0.5);
-      return [Math.max(moss * (1 - under), under * (0.35 + 0.5 * n3)), cob, leaves * (1 - moss * 0.6) * (1 - under * 0.45), under * 0.8];
+      return [Math.max(moss * (1 - under), under * (0.25 + 0.4 * n3)), cob, leaves * (1 - moss * 0.6) * (1 - under * 0.45), 0]; // (no darkening under the stones: the person, it read as a shadow)
     });
   }
   // ---------- the test arena (试炼场): one big walled hall, nothing in it; no way down (it is left from its panel) ----------
