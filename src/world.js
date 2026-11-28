@@ -57,7 +57,7 @@ export class Floor {
       const n = fbm(x * 1.4, z * 1.4), n2 = fbm(x * 0.5 + 40, z * 0.5 + 7), n3 = fbm(x * 2.7 + 3, z * 2.7 + 11);
       // (raised stones, stonepath.js: no cobble painted; under them dark earth with moss in the gaps)
       const under = PAINT_FLAT ? 0 : 1 - smooth(0.12, 0.34, dp + (n3 - 0.5) * 0.1);
-      const cob = PAINT_FLAT ? (1 - smooth(-0.15, 0.45, dp + (n - 0.5) * 0.7)) * (0.55 + 0.45 * smooth(0.25, 0.45, fbm(x * 2.3 + 7, z * 2.3))) : 0;
+      const cob = PAINT_FLAT ? (1 - smooth(0.05, 0.3, dp + (n - 0.5) * 0.25)) * /* (tight: the guide for the one painting wants a path one block wide) */ (0.55 + 0.45 * smooth(0.25, 0.45, fbm(x * 2.3 + 7, z * 2.3))) : 0;
       let dg = 9; for (const [gx, gz] of graves) dg = Math.min(dg, Math.hypot((x - gx) * 1.2, z - gz));
       let dt = 9; for (const [tx, tz] of trees) dt = Math.min(dt, Math.hypot(x - tx, z - tz));
       const fence = 1 - smooth(0.3, 2.6, Math.min(x - 8, 32 - x, z - 8, 32 - z) + (n3 - 0.5) * 1.4);
@@ -282,11 +282,13 @@ export class Floor {
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
     // (one block wide again, the person, Nov 27 — as the KayKit tiles were laid; &wide=1: two, as the painted trial had them)
-    if (PAINT) { const qs = new URLSearchParams(location.search), how = qs.get('path'), cellsIn = qs.has('wide') && how !== 'slab' && !PAINT_FLAT ? wide : pathCells; // (&path=slab: the slabs laid by code)
+    // (&big=1: the painting's own painted path, the stones put away — the person, Nov 27: paint the whole ground first, then lay
+    // things on it; a path wants doing together with what's under it. &big=1&stones=1: the stones on it, the painting dark under them)
+    if (PAINT) { const qs = new URLSearchParams(location.search), BIG_STONES = qs.has('stones'), how = qs.get('path'), cellsIn = qs.has('wide') && how !== 'slab' && !PAINT_FLAT ? wide : pathCells; // (&path=slab: the slabs laid by code)
       const pset = new Set(cellsIn), under = (x, z) => { let d = 9; const X = Math.floor(x), Z = Math.floor(z); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (pset.has((Z + j) * W + X + i)) d = Math.min(d, Math.hypot(Math.max(X + i - x, 0, x - X - i - 1), Math.max(Z + j - z, 0, z - Z - j - 1))); return 1 - smooth(0.02, 0.2, d); };
-      this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33, undefined, undefined, under) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
+      this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33, undefined, undefined, BIG_STONES ? under : null) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
       const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]); this.pathCells = pc; // (kept for tools: tools/ground/blocksheet.py)
-      const st = PAINT_FLAT ? null : how === 'slab' ? stonePath(pc, W) : how === 'flat' ? tilePath(pc, W) : how === 'seg' ? tilePath3d(pc, W) : cutPath(pc, W); if (st) this.group.add(st); } // (&path=flat: the blocks as flat pictures; &path=seg: the blocks' own stones)
+      const st = PAINT_FLAT || (PAINT_BIG && !BIG_STONES) ? null : how === 'slab' ? stonePath(pc, W) : how === 'flat' ? tilePath(pc, W) : how === 'seg' ? tilePath3d(pc, W) : cutPath(pc, W); if (st) this.group.add(st); } // (&path=flat: the blocks as flat pictures; &path=seg: the blocks' own stones)
     B.add('coffin', 17.4, 0, 11.8, Math.PI / 2, 0.5); this.block(17, 11); this.block(17, 12); this.coffin = { x: 17.4, z: 11.8 }; // hides the easter-egg gatling (see openCoffin)
     B.add('post_skull', 11.2, 0, 17.6, 0, 0.5); this.block(11, 17); B.add('skull_candle', 17.4, 0, 14.5, 0, 0.5); this.block(17, 14);
     // trees inside the clearing

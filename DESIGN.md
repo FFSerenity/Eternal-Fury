@@ -539,8 +539,12 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   nothing in it repeats). Made from a top-down shot of the painted ground above, lit flat and without props (tools/ground/topdown.py),
   repainted by Qwen keeping its layout (workflow.img2img, sampling from sigma 0.93 — 0.85 kept too much of the tiling; prompt in
   tools/ground/camp_prompt.txt), brought to the shot's mean colour. 2048 over 26 m is about the screen's own density, so the dirt
-  texture's brightness is laid over it at 35% (at its own 3 m scale) to keep it crisp up close. The path's stones stand on it as
-  before; under them the painting is turned to dark earth and moss (its own painted path would show in the gaps).
+  texture's brightness is laid over it at 35% (at its own 3 m scale) to keep it crisp up close. Its path is its own painted
+  flagstones — the person liked those whole painted slabs: the modelled stone path (cutPath) is put away there for now, the ground
+  to be painted first and things laid on it after (a path like that wants doing together with what's under it). `&stones=1`
+  puts the modelled stones on it again, the painting turned to dark earth and moss under them. (Still two blocks wide, painted
+  before the paths went back to one; tools/ground/camp_prompt2.txt + a tighter one-block guide shot (`&flat=1`) are ready to
+  repaint it one wide.)
 - Before that (`&path=slab`): raised stones, not painted (`?paint=1&flat=1` shows the painted cobble of the first try). The person,
   pointing at the concept: its path is square blocks, each 4–6 flat angular slabs with slanting joints — so each 1 m path cell is
   such a block, laid by code (no two alike, nothing repeats): a straight cell is two courses across its run split by a slanting line,
