@@ -525,7 +525,10 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   every corner, both sides alike (≤30% of the side): 'the shape's basis'. Then fewer triangles (the person asked): the camp's
   path was ~109k of a camp frame's ~204k; the sides now a point every 8.5 cm (was 5.5) and no ring halfway up the dome (the top
   a low cone) — ~50k, and side by side hardly different. (A crack-like line on some stones is the painted face, not the mesh:
-  a few of the 24 faces carry a painted crack or a sliver of a neighbour's edge — 5, 23, 21, 12; 0, 1, 6, 11, 16, 17.) (He also tried
+  a few of the 24 faces carry a painted crack or a sliver of a neighbour's edge — 5, 23, 21, 12; 0, 1, 6, 11, 16, 17. The
+  person likes them — more would be better: the mesh is done, what's left is in the paintings.)
+- The camp's paths one block wide again (the person; the painted trial had made them two — `&wide=1` still shows that): the
+  cells the KayKit tiles were laid on, so the lanterns and graves sit by them as first placed. 46 blocks, ~27k triangles. (He also tried
   painting red over the corners to cut on 20 blocks — tools traced it, the marks taken out of the stones as straight cuts — but
   liked the bigger cut everywhere better.) The outline is then used as is (wornStone keep: the sides
   cut into points every ~5.5 cm, NOT smoothed — smoothing rounded the small stones into pebbles), worn as before. Two fixes that

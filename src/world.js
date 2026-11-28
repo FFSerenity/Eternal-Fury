@@ -281,7 +281,8 @@ export class Floor {
       if (name.startsWith('grave_')) this.block(cx, cz + 1); }
     for (let i = 0; i < 14; i++) { const x = 9 + R() * 21, z = 9 + R() * 21; if (g[Math.floor(z) * W + Math.floor(x)] === 1) B.add(['bone_A', 'bone_B', 'ribcage', 'pumpkin_yellow_small'][Math.floor(R() * 4)], x, 0.03, z, R() * 6.28, 0.5); }
     for (const [x, z] of [[27.5, 13.5], [29.5, 23.5], [19.5, 10.5]]) { B.add('pumpkin_orange_jackolantern', x, 0, z, R() * 6.28, 0.5); this.block(Math.floor(x), Math.floor(z)); this.glow(x, 0.35, z, 0xff9a30, 0.9, 0.7); }
-    if (PAINT) { const how = new URLSearchParams(location.search).get('path'), cellsIn = how === 'slab' || PAINT_FLAT ? pathCells : wide; // (&path=slab: the slabs laid by code, one cell wide)
+    // (one block wide again, the person, Nov 27 — as the KayKit tiles were laid; &wide=1: two, as the painted trial had them)
+    if (PAINT) { const qs = new URLSearchParams(location.search), how = qs.get('path'), cellsIn = qs.has('wide') && how !== 'slab' && !PAINT_FLAT ? wide : pathCells; // (&path=slab: the slabs laid by code)
       const pset = new Set(cellsIn), under = (x, z) => { let d = 9; const X = Math.floor(x), Z = Math.floor(z); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (pset.has((Z + j) * W + X + i)) d = Math.min(d, Math.hypot(Math.max(X + i - x, 0, x - X - i - 1), Math.max(Z + j - z, 0, z - Z - j - 1))); return 1 - smooth(0.02, 0.2, d); };
       this.group.add(PAINT_BIG ? bigGround(7, 7, 33, 33, undefined, undefined, under) : this.campGround(cellsIn, graves, W)); this.group.add(groundFog([8, 8, 32, 32], 20, 20));
       const pc = [...cellsIn].map(k => [k % W, Math.floor(k / W)]); this.pathCells = pc; // (kept for tools: tools/ground/blocksheet.py)
