@@ -574,6 +574,15 @@ the fence and the foot of the graves, scattered autumn leaves, a blue-violet mis
   template workflow, one per object, ~3 min) → tools/slim-gen3d.mjs PROP=1 at 8k triangles (4k folded some faces over: black
   patches; ERR 0.002) → tools/pack-props.mjs → assets/gen_scene.glb, loaded only with `&gen=1`, scaled to a height from its
   bounds (headstones 1.2–1.8 m: the KayKit world's scale is over life). tools/glbview.html turns a .glb round for review.
+  slim-gen3d got: FLOOR=1 (the angel came with the picture's ground as a white sheet round its plinth), CLEAN=1 (stray floating
+  bits, pieces joined by position since the maps' seams split vertices), MAXLEAN=deg (a base found further over than the
+  generator's lean is another face: the shrine's steps; MAXLEAN=1 keeps the model as made). The lantern post stands on its
+  post's axis (AXIS=0.12,0.2,0.3,0.4: bands holding only the post). Triangles: some can go to 4k (arched, Celtic, lantern,
+  tree 5k, sarcophagus 3k), the gothic and old headstones fold over below 8k (black patches), the fence bay won't go under
+  ~4.4k (its many bars). In the camp: 14 headstones, 44 fence bays, 5 trees, 4 lanterns, the angel, shrine, sarcophagus —
+  a frame ~337k triangles against ~91k without them, the fence about half of it: to be brought down (a cleaner low-poly
+  remesh, e.g. Meshy's, for the fence first) before this is more than a trial. The gates, the crypt and the clutter are still
+  KayKit.
 - Ground skirts (`&skirts=1`, terrain.js groundSkirts): a flat quad with a soft see-through edge under each prop, from one atlas,
   lit like the painted ground, a hair above it — placeholders cut from the painting itself (assets/ground/skirts_tmp.png) until
   each prop's own is painted from the effect picture.

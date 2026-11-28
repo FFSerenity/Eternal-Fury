@@ -324,10 +324,14 @@ export class Floor {
       this.block(Math.floor(x), Math.floor(z)); skirt('tree', x, z); }
     if (SK.length) this.group.add(groundSkirts(SK));
     // fence around the clearing, with an arch gate on the far side (it only looks out on the woods) and the two gates out into the wilds (east and south)
+    // (&gen=1: the generated bay — a stone pillar each end, iron between — scaled so its pillars stand 2 m apart, the next bay's pillar
+    // on the same spot; no corner pillars then)
+    const gf = PAINT && A.props.gs_fence && new URLSearchParams(location.search).has('gen'), gfb = gf && propGeo('gs_fence').box, gfs = gf ? 2.0 / ((gfb.max.x - gfb.min.x) * 0.869) : 0;
+    const FB = B.add.bind(B); if (gf) B.add = (n, x, y, z, r, sc, ...rest) => FB(n === 'fence' || n === 'fence_broken' ? 'gs_fence' : n, x, y, z, r, n === 'fence' || n === 'fence_broken' ? gfs : sc, ...rest);
     for (let t = 8; t < 32; t += 2) { const brk = () => R() < 0.2 ? 'fence_broken' : 'fence';
       if (!(t >= 24 && t <= 26)) B.add(brk(), t + 1, 0, 8.05, 0, 0.5);
       B.add(brk(), 8.05, 0, t + 1, Math.PI / 2, 0.5); if (t !== 22 && t !== 24) B.add(brk(), t + 1, 0, 31.95, 0, 0.5); if (t !== 18 && t !== 20) B.add(brk(), 31.95, 0, t + 1, Math.PI / 2, 0.5); }
-    for (const [x, z] of [[8.05, 8.05], [31.95, 8.05], [8.05, 31.95], [31.95, 31.95]]) B.add('fence_pillar', x, 0, z, 0, 0.5);
+    if (gf) B.add = FB; else for (const [x, z] of [[8.05, 8.05], [31.95, 8.05], [8.05, 31.95], [31.95, 31.95]]) B.add('fence_pillar', x, 0, z, 0, 0.5);
     B.add('arch_gate', 26, 0, 8.05, 0, 0.6);
     // the wilds outside (and the forest all around)
     buildWilds(this, B, grp);
