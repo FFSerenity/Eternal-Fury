@@ -228,7 +228,8 @@ function wornStone(poly, id, place, uvOf, P, N, C, U, I, half = 0, keep = false)
     const a = poly[si], b = poly[(si + 1) % poly.length], f = (t - acc) / (seg[si] || 1); p.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, (a[2] ?? 1) + ((b[2] ?? 1) - (a[2] ?? 1)) * f]); }
   const turn = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n], t1 = Math.atan2(q[1] - a[1], q[0] - a[0]), t2 = Math.atan2(b[1] - q[1], b[0] - q[0]);
     let d = Math.abs(t2 - t1); if (d > Math.PI) d = 2 * Math.PI - d; return d; });
-  for (let it = 0; it < 1; it++) p = p.map((q, i) => { const a = p[(i + n - 1) % n], b = p[(i + 1) % n]; return [(a[0] + 2 * q[0] + b[0]) / 4, (a[1] + 2 * q[1] + b[1]) / 4, q[2]]; });
+  for (let it = 0; it < (keep ? 0 : 1); it++) p = p.map((q, i) => // (keep: not smoothed — its corners are cut straight on purpose)
+    { const a = p[(i + n - 1) % n], b = p[(i + 1) % n]; return [(a[0] + 2 * q[0] + b[0]) / 4, (a[1] + 2 * q[1] + b[1]) / 4, q[2]]; });
   const sc = p.map(q => q[2]);
   const m = Math.max(3, Math.round(n / 3)), nz = (q, k = 21) => { const s = q * m / n, i = Math.floor(s), f = s - i, g = f * f * (3 - 2 * f); return hash(id, i % m, k) * (1 - g) + hash(id, (i + 1) % m, k) * g; };
   const normals = pts => pts.map((q, i) => { const a = pts[(i + pts.length - 1) % pts.length], b = pts[(i + 1) % pts.length], tx = b[0] - a[0], tz = b[1] - a[1], l = Math.hypot(tx, tz) || 1; return [-tz / l, tx / l]; });
@@ -283,11 +284,11 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
       if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) { const t = fa / (fa - fb), X = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]; L.push(X); Rr.push(X); } }
     return [L, Rr]; };
   const ext = (poly, ax) => { let lo = 9, hi = -9; for (const q of poly) { lo = Math.min(lo, q[ax]); hi = Math.max(hi, q[ax]); } return [lo, hi]; };
-  // Then every sharp corner knocked off (the person, Nov 27: find all the acute corners and cut each by an arc into obtuse ones, a
-  // little irregular so they don't repeat; the gaps that leaves are left to the ground). The cuts are all near square, so 'sharp'
-  // is any corner under SHARP — nearly every corner. Each: a cut 2.5–8 cm along each side (the two sides unequal, at most 25% of
-  // the side), bowed out toward the old corner by 15–60% (0: a straight chamfer, two 135° corners; 1: tangent, a round corner),
-  // its two middle points nudged ±4 mm.
+  // Then every sharp corner knocked off (the person, Nov 27: corners look pointy — weathering takes them first; cut each off with a
+  // straight line, an aged look; the gaps that leaves are left to the ground. A first try bowed the cut out into an arc: it still
+  // read as a point). The cuts are all near square, so 'sharp' is any corner under SHARP — nearly every corner. Each: one straight
+  // cut 3–7 cm back along each side, the two sides unequal (×0.75–1.25, so the cut's angle varies), at most 22% of the side (the
+  // person's marks: about a fifth of the stone), and the outline then not smoothed, so the cuts stay straight.
   const knock = (q, kx, kz) => {
     let c = [];
     for (const p of q) if (!c.length || Math.hypot(p[0] - c[c.length - 1][0], p[1] - c[c.length - 1][1]) > 0.004) c.push(p);
@@ -299,15 +300,10 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
     for (let i = 0; i < n; i++) {
       const p = c[i], hh = k => hash(kx, kz * 16 + i, 600 + k);
       if (ang(c, i) >= SHARP) { out.push(p); continue; }
-      const a = c[(i + n - 1) % n], b = c[(i + 1) % n], la = len((i + n - 1) % n), lb = len(i), s = 0.025 + 0.055 * hh(0);
-      const ra = Math.min(s * (0.65 + 0.7 * hh(1)), 0.25 * la), rb = Math.min(s * (0.65 + 0.7 * hh(2)), 0.25 * lb);
-      const A = [p[0] + (a[0] - p[0]) * ra / la, p[1] + (a[1] - p[1]) * ra / la], B = [p[0] + (b[0] - p[0]) * rb / lb, p[1] + (b[1] - p[1]) * rb / lb];
-      const k = 0.15 + 0.45 * hh(3), M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], Q = [M[0] + (p[0] - M[0]) * k, M[1] + (p[1] - M[1]) * k];
-      const ox = p[0] - M[0], oz = p[1] - M[1], ol = Math.hypot(ox, oz) || 1;
-      out.push(A);
-      for (let t = 1; t <= 2; t++) { const f = t / 3, g = 1 - f, j = (hh(4 + t) - 0.5) * 0.008;
-        out.push([g * g * A[0] + 2 * f * g * Q[0] + f * f * B[0] + ox / ol * j, g * g * A[1] + 2 * f * g * Q[1] + f * f * B[1] + oz / ol * j]); }
-      out.push(B);
+      const a = c[(i + n - 1) % n], b = c[(i + 1) % n], la = len((i + n - 1) % n), lb = len(i), s = 0.03 + 0.04 * hh(0);
+      const ra = Math.min(s * (0.75 + 0.5 * hh(1)), 0.22 * la), rb = Math.min(s * (0.75 + 0.5 * hh(2)), 0.22 * lb);
+      out.push([p[0] + (a[0] - p[0]) * ra / la, p[1] + (a[1] - p[1]) * ra / la]);
+      out.push([p[0] + (b[0] - p[0]) * rb / lb, p[1] + (b[1] - p[1]) * rb / lb]);
     }
     return out;
   };
@@ -341,7 +337,7 @@ export function cutPath(cells, W, { tex = 'assets/ground/stonefaces.webp' } = {}
       pieces.splice(pi, 1, A, B); dir = 1 - cd;
     }
     pieces.forEach((q0, i) => {
-      const q = knock(q0, x * 16 + i, z); // (straight sides every ~5.5 cm, the corners' arcs kept as they are)
+      const q = knock(q0, x * 16 + i, z); // (then its sides cut into points every ~5.5 cm)
       let poly = []; for (let e = 0; e < q.length; e++) { const p0 = q[e], p1 = q[(e + 1) % q.length], m = Math.max(1, Math.round(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 0.055));
         for (let s2 = 0; s2 < m; s2++) poly.push([p0[0] + (p1[0] - p0[0]) * s2 / m, p0[1] + (p1[1] - p0[1]) * s2 / m]); }
       poly = poly.map(([u, v]) => { const [wx, wz] = warp(x + u, z + v); return [Math.min(1, Math.max(0, wx - x)), Math.min(1, Math.max(0, wz - z)), 1]; });
